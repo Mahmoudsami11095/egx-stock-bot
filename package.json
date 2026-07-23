@@ -1,0 +1,30 @@
+{
+  "name": "egx-stock-telegram-bot",
+  "version": "1.0.0",
+  "description": "Automated Technical Analysis & Buy/Sell Notification Telegram Bot for Egyptian Exchange (EGX) Stocks",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test-fetch": "ts-node src/scripts/testFetch.ts"
+  },
+  "keywords": ["egx", "stocks", "telegram-bot", "technical-analysis", "stock-signals"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3",
+    "technicalindicators": "^3.1.0",
+    "telegraf": "^4.16.3",
+    "winston": "^3.17.0",
+    "yahoo-finance2": "^2.13.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/node-cron": "^3.0.11",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

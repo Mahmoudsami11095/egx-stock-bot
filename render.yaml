@@ -1,0 +1,17 @@
+services:
+  - type: worker
+    name: egx-stock-telegram-bot
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: POLL_INTERVAL_MINUTES
+        value: 5
+      - key: MARKET_HOURS_ONLY
+        value: false
+      - key: CRON_SCHEDULE
+        value: "*/5 * * * *"
