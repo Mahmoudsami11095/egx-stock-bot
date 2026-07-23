@@ -30,7 +30,7 @@ export class TelegramBotService {
     } catch (error) { logger.error(`Failed to launch Telegram Bot: ${error}`); }
   }
 
-  public async broadcastNotificationCard(analysis: StockAnalysisResult): Promise<void> {
+  public async broadcastRawMessage(htmlMessage: string): Promise<void> {
     if (!this.bot) return;
 
     const subscribers = this.stateManager.getSubscribers();
@@ -38,21 +38,21 @@ export class TelegramBotService {
       subscribers.push(config.telegramChatId);
     }
 
-    if (subscribers.length === 0) {
-      logger.info(`[Signal Alert] (${analysis.signalType}) for ${analysis.quote.symbol}: ${analysis.quote.currentPrice} EGP (No active subscribers yet).`);
-      return;
-    }
-
-    const htmlCard = formatSignalCard(analysis);
+    if (subscribers.length === 0) return;
 
     for (const chatId of subscribers) {
       try {
-        await this.bot.telegram.sendMessage(chatId, htmlCard, { parse_mode: 'HTML' });
-        logger.info(`✅ Push Alert sent to Chat ID (${chatId}) for ${analysis.quote.symbol} (${analysis.signalType}).`);
+        await this.bot.telegram.sendMessage(chatId, htmlMessage, { parse_mode: 'HTML' });
+        logger.info(`✅ Broadcast message sent to Chat ID (${chatId}).`);
       } catch (error) {
-        logger.error(`Failed to send Telegram alert to ${chatId}: ${error}`);
+        logger.error(`Failed to send broadcast message to ${chatId}: ${error}`);
       }
     }
+  }
+
+  public async broadcastNotificationCard(analysis: StockAnalysisResult): Promise<void> {
+    const htmlCard = formatSignalCard(analysis);
+    await this.broadcastRawMessage(htmlCard);
   }
 
   public async sendNotificationCard(analysis: StockAnalysisResult, chatId?: string): Promise<boolean> {
