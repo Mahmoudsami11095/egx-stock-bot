@@ -46,10 +46,11 @@ export class CronSchedulerService {
   public async sendDailySheetReport(): Promise<void> {
     logger.info('📊 Generating Daily Market Close Excel/CSV Sheet Report...');
     try {
+      const { regime } = await this.dataFetcher.detectMarketRegime();
       const watchlist = this.stateManager.getWatchlist();
       const batchResults = await this.dataFetcher.getBatchQuoteAndIndicators(watchlist);
       const analyses = batchResults.map((r) =>
-        this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
+        this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue, r.fairValueConfidence, regime)
       );
 
       analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
@@ -106,12 +107,13 @@ export class CronSchedulerService {
 
     // 2. Batch Scan Stocks Watchlist (<1s)
     try {
+      const { regime } = await this.dataFetcher.detectMarketRegime();
       const watchlist = this.stateManager.getWatchlist();
       const batchResults = await this.dataFetcher.getBatchQuoteAndIndicators(watchlist);
 
       for (const r of batchResults) {
-        const analysis = this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue);
-        logger.info(`[Scan] ${r.stock.symbol}: ${r.quote.currentPrice} EGP | Fair Value: ${r.automatedFairValue} EGP | Signal: ${analysis.signalType}`);
+        const analysis = this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue, r.fairValueConfidence, regime);
+        logger.info(`[Scan] ${r.stock.symbol}: ${r.quote.currentPrice} EGP | Fair Value: ${r.automatedFairValue} EGP | Signal: ${analysis.signalType} | Regime: ${regime}`);
 
         if (this.stateManager.shouldSendAlert(r.stock.symbol, analysis.signalType, r.quote.currentPrice)) {
           logger.info(`🚨 New signal for ${r.stock.symbol}! Sending Telegram alert...`);

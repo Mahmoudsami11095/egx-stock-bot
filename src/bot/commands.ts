@@ -95,6 +95,7 @@ export function setupCommands(
   bot.command('status', async (ctx: Context) => {
     ctx.reply('🔍 جاري فحص الأسعار اللحظية وتحديث شيت Google Sheets وشيت Excel المحدث...');
     try {
+      const { regime } = await dataFetcher.detectMarketRegime();
       const watchlist = stateManager.getWatchlist();
       const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
 
@@ -103,7 +104,7 @@ export function setupCommands(
       }
 
       const analyses = batchResults.map((r) =>
-        signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
+        signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue, r.fairValueConfidence, regime)
       );
 
       // Sort descending by Fair Value Upside %
@@ -151,8 +152,9 @@ export function setupCommands(
     ctx.reply(`📊 جاري إجراء التحليل الفني وحساب القيمة العادلة لسهم ${stock.nameAr} (${symbol})...`);
 
     try {
-      const { quote, indicators, automatedFairValue } = await dataFetcher.getQuoteAndIndicators(stock);
-      const analysis = signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue);
+      const { regime } = await dataFetcher.detectMarketRegime();
+      const { quote, indicators, automatedFairValue, fairValueConfidence } = await dataFetcher.getQuoteAndIndicators(stock);
+      const analysis = signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue, fairValueConfidence, regime);
       ctx.replyWithHTML(formatSignalCard(analysis, shariaInfo));
     } catch (err) { logger.error(`Error in /signals for ${symbol}: ${err}`); ctx.reply(`❌ تعذر جلب التحليل لسهم ${symbol}. تأكد من صحة الرمز.`); }
   });

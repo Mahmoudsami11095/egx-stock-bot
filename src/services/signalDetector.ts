@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { StockQuote, StockAnalysisResult, SignalType, TechnicalIndicators } from '../types/stock';
+import { StockQuote, StockAnalysisResult, SignalType, TechnicalIndicators, FairValueConfidence, MarketRegime } from '../types/stock';
 import { StockMeta } from '../constants/stocks';
 import { logger } from './logger';
 
@@ -28,6 +28,8 @@ export class SignalDetectorService {
         signalScore: analysis.signalScore,
         currentPrice: analysis.quote.currentPrice,
         fairValue: analysis.fairValue,
+        fairValueConfidence: analysis.fairValueConfidence,
+        marketRegime: analysis.marketRegime,
         suggestedTarget1: analysis.suggestedTarget.target1,
         suggestedStopLoss: analysis.suggestedStopLoss,
         positionSizePercent: analysis.positionSizePercent,
@@ -45,123 +47,172 @@ export class SignalDetectorService {
     stock: StockMeta,
     quote: StockQuote,
     indicators: TechnicalIndicators,
-    automatedFairValue: number
+    automatedFairValue: number,
+    fairValueConfidence: FairValueConfidence = 'LOW',
+    marketRegime: MarketRegime = 'UNKNOWN'
   ): StockAnalysisResult {
     const price = quote.currentPrice;
     const reasons: string[] = [];
-    let signalScore = 0; // Negative = Sell, Positive = Buy
+
+    // --- WEIGHTED COMPOSITE SIGNAL SCORING ---
+    // Each factor outputs a component score in [-2, +2] range
+    // Final score = weighted sum of all component scores
+    const weights = {
+      valuation: 0.30,
+      trend: 0.25,
+      rsi: 0.20,
+      volume: 0.15,
+      macd: 0.10,
+    };
 
     const fairValue = automatedFairValue;
     const fairValueUpsidePercent = Number((((fairValue - price) / price) * 100).toFixed(2));
 
-    // Fair Value Signal factor
-    if (fairValueUpsidePercent >= 10) {
-      signalScore += 2;
-      reasons.push(`💎 UNDERVALUED (فرصة نمو): Current price is ${fairValueUpsidePercent}% below automated Fair Value (${fairValue} EGP).`);
-    } else if (fairValueUpsidePercent <= -8) {
-      signalScore -= 1;
-      reasons.push(`⚠️ OVERVALUED (أعلى من القيمة العادلة): Current price exceeds automated Fair Value (${fairValue} EGP) by ${Math.abs(fairValueUpsidePercent)}%.`);
+    // Factor 1: Valuation Gap (weight: 0.30)
+    let valuationScore = 0;
+    if (fairValueUpsidePercent >= 30) {
+      valuationScore = 2;
+      reasons.push(`💎 DEEPLY UNDERVALUED: ${fairValueUpsidePercent}% below Fair Value (${fairValue} EGP).`);
+    } else if (fairValueUpsidePercent >= 15) {
+      valuationScore = 1;
+      reasons.push(`💎 UNDERVALUED: ${fairValueUpsidePercent}% below Fair Value (${fairValue} EGP).`);
+    } else if (fairValueUpsidePercent <= -25) {
+      valuationScore = -2;
+      reasons.push(`🚨 SEVERELY OVERVALUED: ${Math.abs(fairValueUpsidePercent)}% above Fair Value (${fairValue} EGP).`);
+    } else if (fairValueUpsidePercent <= -10) {
+      valuationScore = -1;
+      reasons.push(`⚠️ OVERVALUED: ${Math.abs(fairValueUpsidePercent)}% above Fair Value (${fairValue} EGP).`);
     }
 
-    // 1. RSI Rules
-    if (indicators.rsi < 35) {
-      signalScore += 2;
-      reasons.push(`🚀 RSI (${indicators.rsi}) is in Oversold territory (<35) - Rebound opportunity.`);
-    } else if (indicators.rsi < 45) {
-      signalScore += 1;
-      reasons.push(`📈 RSI (${indicators.rsi}) is in bullish accumulation zone.`);
-    } else if (indicators.rsi > 70) {
-      signalScore -= 2;
-      reasons.push(`⚠️ RSI (${indicators.rsi}) is in Overbought zone (>70) - Caution near peaks.`);
+    // Factor 2: RSI (weight: 0.20)
+    let rsiScore = 0;
+    if (indicators.rsi < 30) {
+      rsiScore = 2;
+      reasons.push(`🚀 RSI (${indicators.rsi}) Oversold (<30) - Strong rebound opportunity.`);
+    } else if (indicators.rsi < 40) {
+      rsiScore = 1;
+      reasons.push(`📈 RSI (${indicators.rsi}) in bullish accumulation zone.`);
+    } else if (indicators.rsi > 75) {
+      rsiScore = -2;
+      reasons.push(`🚨 RSI (${indicators.rsi}) Extreme Overbought (>75) - Peak danger.`);
+    } else if (indicators.rsi > 65) {
+      rsiScore = -1;
+      reasons.push(`⚠️ RSI (${indicators.rsi}) in Overbought zone (>65).`);
     }
 
-    // 2. MACD Rules (Moving Average Convergence Divergence)
-    if (indicators.macd && indicators.macd.macd !== undefined && indicators.macd.signal !== undefined) {
+    // Factor 3: MACD Crossover (weight: 0.10)
+    let macdScore = 0;
+    if (indicators.macd?.macd !== undefined && indicators.macd?.signal !== undefined) {
       if (indicators.macd.macd > indicators.macd.signal) {
-        signalScore += 1;
-        reasons.push(`✨ MACD Bullish Crossover: MACD line (${indicators.macd.macd}) above Signal (${indicators.macd.signal}).`);
+        macdScore = 1;
+        reasons.push(`✨ MACD Bullish: Line (${indicators.macd.macd}) > Signal (${indicators.macd.signal}).`);
       } else if (indicators.macd.macd < indicators.macd.signal) {
-        signalScore -= 1;
-        reasons.push(`🔻 MACD Bearish Crossover: MACD line (${indicators.macd.macd}) below Signal (${indicators.macd.signal}).`);
+        macdScore = -1;
+        reasons.push(`🔻 MACD Bearish: Line (${indicators.macd.macd}) < Signal (${indicators.macd.signal}).`);
       }
     }
 
-    // 3. ADX Trend Filter (Average Directional Index)
+    // Factor 4: ADX-Weighted Trend (SMA20 vs SMA50) (weight: 0.25)
     const isWeakTrend = (indicators.adx || 20) < 20;
-    const trendWeight = isWeakTrend ? 0.5 : 1.0;
+    const trendDampen = isWeakTrend ? 0.5 : 1.0;
+    let trendScore = 0;
     if (isWeakTrend) {
-      reasons.push(`ℹ️ ADX (${indicators.adx || 20}) indicates ranging / low trend strength market.`);
+      reasons.push(`ℹ️ ADX (${indicators.adx || 20}) low trend - signal weight reduced.`);
     }
-
-    // 4. Moving Average Rules (weighted by ADX trend factor)
     if (indicators.sma20 > indicators.sma50) {
-      signalScore += Math.round(1 * trendWeight);
-      reasons.push(`✨ Bullish Trend: SMA 20 (${indicators.sma20}) is above SMA 50 (${indicators.sma50}).`);
+      trendScore = 1 * trendDampen;
+      reasons.push(`✨ Bullish: SMA20 (${indicators.sma20}) > SMA50 (${indicators.sma50}).`);
     } else if (indicators.sma20 < indicators.sma50) {
-      signalScore -= Math.round(1 * trendWeight);
-      reasons.push(`🔻 Bearish Trend: SMA 20 (${indicators.sma20}) is below SMA 50 (${indicators.sma50}).`);
+      trendScore = -1 * trendDampen;
+      reasons.push(`🔻 Bearish: SMA20 (${indicators.sma20}) < SMA50 (${indicators.sma50}).`);
     }
 
-    // 5. Support / Resistance Breakout Rules
+    // Factor 5: Volume Profile (weight: 0.15)
+    let volumeScore = 0;
+    if (indicators.volumeRatio >= 1.5) {
+      volumeScore = 1;
+      reasons.push(`🔥 Volume Spike: ${indicators.volumeRatio}× average (institutional interest).`);
+    } else if (indicators.volumeRatio < 0.8) {
+      volumeScore = -1;
+      reasons.push(`📉 Low Volume: ${indicators.volumeRatio}× average (weak conviction).`);
+    }
+
+    // Support / Resistance Breakout (bonus, not weighted — additive)
+    let breakoutBonus = 0;
     const distToResistance = ((indicators.resistance - price) / price) * 100;
     const distToSupport = ((price - indicators.support) / price) * 100;
 
-    if (price >= indicators.resistance) {
-      if (indicators.volumeSpike) {
-        signalScore += 3;
-        reasons.push(`🔥 BREAKOUT CONFIRMED: Price broke Resistance at ${indicators.resistance} EGP with Volume ${indicators.volumeRatio}x average!`);
-      } else {
-        signalScore -= 1;
-        reasons.push(`⚠️ Price is testing Resistance at ${indicators.resistance} EGP.`);
-      }
-    } else if (distToResistance <= 2) {
-      signalScore -= 1;
-      reasons.push(`📍 Price is close to Resistance (${indicators.resistance} EGP).`);
-    }
-
-    if (distToSupport <= 3 && price >= indicators.support) {
-      signalScore += 2;
-      reasons.push(`🎯 Price is touching key Support level (${indicators.support} EGP) - Good entry risk/reward.`);
+    if (price >= indicators.resistance && indicators.volumeSpike) {
+      breakoutBonus = 1.5;
+      reasons.push(`🔥 BREAKOUT CONFIRMED: Broke resistance ${indicators.resistance} EGP with volume ${indicators.volumeRatio}× avg!`);
+    } else if (distToSupport <= 3 && price >= indicators.support) {
+      breakoutBonus = 0.5;
+      reasons.push(`🎯 Near Support (${indicators.support} EGP) - good entry zone.`);
     } else if (price < indicators.support) {
-      signalScore -= 3;
-      reasons.push(`🚨 STOP LOSS ALERT: Price broke below Support (${indicators.support} EGP).`);
+      breakoutBonus = -1.5;
+      reasons.push(`🚨 STOP LOSS: Price broke below Support (${indicators.support} EGP).`);
     }
 
-    // Classify Signal Type
+    // Weighted Composite Score
+    let signalScore = (
+      valuationScore * weights.valuation +
+      rsiScore * weights.rsi +
+      macdScore * weights.macd +
+      trendScore * weights.trend +
+      volumeScore * weights.volume +
+      breakoutBonus * 0.30  // Breakout carries 30% weight when triggered
+    );
+
+    // Market Regime Override (Fix #2 from Kimi)
+    if (marketRegime === 'BEARISH' && signalScore > 0) {
+      signalScore *= 0.5; // Halve bullish signals in bear market
+      reasons.push(`⚠️ Bear Market Filter: EGX30 BEARISH regime — bullish signals dampened.`);
+    }
+
+    signalScore = Number(signalScore.toFixed(2));
+
+    // Classify Signal Type (weighted thresholds)
     let signalType: SignalType = 'NEUTRAL';
-    if (signalScore >= 3) {
+    if (signalScore >= 1.5) {
       signalType = 'STRONG_BUY';
-    } else if (signalScore >= 1) {
+    } else if (signalScore >= 0.5) {
       signalType = 'BUY';
-    } else if (signalScore <= -3) {
+    } else if (signalScore <= -1.5) {
       signalType = 'STRONG_SELL';
-    } else if (signalScore <= -1) {
+    } else if (signalScore <= -0.5) {
       signalType = 'SELL';
     }
 
     if (reasons.length === 0) {
-      reasons.push(`Price is consolidating stably around ${price} EGP.`);
+      reasons.push(`Price consolidating around ${price} EGP.`);
     }
 
-    // Calculate Targets, Stop Loss & Position Sizing
+    // ATR-Based Trading Plan (Fix #1 from Kimi)
+    const atr = indicators.atr || price * 0.02;
+
     const suggestedEntry = {
-      min: Number((indicators.support * 1.005).toFixed(2)),
-      max: Number((indicators.support * 1.03).toFixed(2)),
+      min: Number((price - 0.5 * atr).toFixed(2)),
+      max: Number((price + 0.5 * atr).toFixed(2)),
     };
 
     const suggestedTarget = {
-      target1: Number((indicators.resistance * 0.99).toFixed(2)),
-      target2: Number((Math.max(indicators.resistance * 1.05, fairValue)).toFixed(2)),
+      target1: Number((price + 2.0 * atr).toFixed(2)),
+      target2: Number((Math.max(price + 3.0 * atr, fairValue)).toFixed(2)),
     };
 
-    const suggestedStopLoss = Number((indicators.support * 0.96).toFixed(2));
+    const suggestedStopLoss = Number((price - 1.5 * atr).toFixed(2));
 
-    // Risk-Adjusted Position Sizing (Fixed Fractional 2% Portfolio Risk Model)
+    // Risk-Adjusted Position Sizing (1% portfolio risk per trade, capped at 15%)
     const riskPerShare = Math.max(0.01, price - suggestedStopLoss);
-    const riskPercent = (riskPerShare / price);
-    const positionSizePercent = Number(Math.min(15, Math.max(2, Number((2 / riskPercent).toFixed(1)))).toFixed(1));
+    const riskPercent = riskPerShare / price;
+    const positionSizePercent = Number(Math.min(15, Math.max(1, Number((1 / riskPercent).toFixed(1)))).toFixed(1));
+
+    // Liquidity cap: max 20% of average daily volume
+    const adv = (quote.avgVolume || 1) * price;
+    // (informational only — we don't have portfolio value)
+
     const rewardPerShare = suggestedTarget.target1 - price;
-    const riskRewardRatio = Number((rewardPerShare / riskPerShare).toFixed(2));
+    const riskRewardRatio = Number(Math.max(0, rewardPerShare / riskPerShare).toFixed(2));
 
     const result: StockAnalysisResult = {
       quote,
@@ -170,7 +221,9 @@ export class SignalDetectorService {
       signalScore,
       reasons,
       fairValue,
+      fairValueConfidence,
       fairValueUpsidePercent,
+      marketRegime,
       suggestedEntry,
       suggestedTarget,
       suggestedStopLoss,

@@ -27,6 +27,8 @@ export interface StockQuote {
 }
 
 export type SignalType = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
+export type FairValueConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+export type MarketRegime = 'BULLISH' | 'BEARISH' | 'UNKNOWN';
 
 export interface TechnicalIndicators {
   rsi: number;
@@ -38,6 +40,7 @@ export interface TechnicalIndicators {
     histogram?: number;
   };
   adx?: number;
+  atr?: number;
   support: number;
   resistance: number;
   volumeSpike: boolean;
@@ -51,7 +54,9 @@ export interface StockAnalysisResult {
   signalScore: number;
   reasons: string[];
   fairValue: number;
+  fairValueConfidence: FairValueConfidence;
   fairValueUpsidePercent: number;
+  marketRegime: MarketRegime;
   suggestedEntry: { min: number; max: number };
   suggestedTarget: { target1: number; target2: number };
   suggestedStopLoss: number;

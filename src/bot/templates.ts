@@ -19,27 +19,31 @@ export function getSignalEmoji(signal: SignalType): string {
 }
 
 export function formatSignalCard(analysis: StockAnalysisResult, shariaInfo?: ShariaComplianceInfo): string {
-  const { quote, indicators, signalType, signalScore, reasons, suggestedEntry, suggestedTarget, suggestedStopLoss, fairValue, fairValueUpsidePercent, positionSizePercent, riskRewardRatio } = analysis;
+  const { quote, indicators, signalType, signalScore, reasons, suggestedEntry, suggestedTarget, suggestedStopLoss, fairValue, fairValueConfidence, fairValueUpsidePercent, marketRegime, positionSizePercent, riskRewardRatio } = analysis;
 
   const icon = quote.change >= 0 ? '📈' : '📉';
   const sign = quote.change >= 0 ? '+' : '';
   const upsideSign = fairValueUpsidePercent >= 0 ? '+' : '';
   const signalBadge = getSignalEmoji(signalType);
   const shariaBadge = shariaInfo ? shariaInfo.statusText : '🟢 متوافق شرعياً';
+  const confidenceBadge = fairValueConfidence === 'HIGH' ? '🟢 ثقة عالية (أرباح موثقة)' : '🟡 نموذج الفيبوناتشي (تقديري)';
+  const regimeBadge = marketRegime === 'BULLISH' ? '🟢 سوق صاعد (Bullish)' : marketRegime === 'BEARISH' ? '🔴 سوق هابط (Bearish)' : '🟡 مستقر';
 
   const macdStr = indicators.macd?.macd !== undefined ? `${indicators.macd.macd} (Signal: ${indicators.macd.signal})` : 'N/A';
   const adxStr = indicators.adx !== undefined ? `${indicators.adx}` : '20';
+  const atrStr = indicators.atr !== undefined ? `${indicators.atr} ج.م` : 'N/A';
 
   return `
 <b>${signalBadge}</b> (النتيجة: <code>${signalScore > 0 ? '+' : ''}${signalScore}</code>)
+<b>🌐 اتجاه مؤشر EGX30 العام:</b> ${regimeBadge}
 <b>🕌 موقف التوافق الشرعي:</b> ${shariaBadge}
 
 <b>📊 تقرير التحليل الفني والقيمة العادلة لسهم ${quote.nameAr} (${quote.symbol})</b>
 
 💵 <b>السعر اللحظي:</b> <code>${quote.currentPrice} ج.م</code> (${icon} ${sign}${quote.changePercent}%)
-💎 <b>القيمة العادلة (Fair Value):</b> <code>${fairValue} ج.م</code> (نسبة نمو مقترحة <b>${upsideSign}${fairValueUpsidePercent}%</b>)
+💎 <b>القيمة العادلة (Fair Value):</b> <code>${fairValue} ج.م</code> [${confidenceBadge}] (نمو متوقع <b>${upsideSign}${fairValueUpsidePercent}%</b>)
 📊 <b>مؤشر القوة النسبية RSI (14):</b> <code>${indicators.rsi}</code>
-📉 <b>مؤشر MACD:</b> <code>${macdStr}</code> | 📈 <b>قوة الاتجاه ADX:</b> <code>${adxStr}</code>
+📉 <b>مؤشر MACD:</b> <code>${macdStr}</code> | 📈 <b>قوة الاتجاه ADX:</b> <code>${adxStr}</code> | ⚡ <b>التذبذب ATR:</b> <code>${atrStr}</code>
 🔹 <b>المتوسطات:</b> SMA20: <code>${indicators.sma20}</code> | SMA50: <code>${indicators.sma50}</code>
 🛡️ <b>الدعم الحسابي:</b> <code>${indicators.support} ج.م</code> | 🛡️ <b>المقاومة الحسابية:</b> <code>${indicators.resistance} ج.م</code>
 
@@ -55,6 +59,7 @@ ${reasons.map((r) => `• ${r}`).join('\n')}
 • 💰 <b>حجم المحفظة المقترح (Position Size):</b> <code>${positionSizePercent}%</code> من إجمالي المحفظة
 • ⚖️ <b>نسبة العائد للمخاطرة (Risk/Reward):</b> <code>1:${riskRewardRatio}</code>
 
+⚠️ <i>إخلاء مسؤولية: القيمة العادلة تقدير رقمي وليست توصية استثمارية ملزمة. رأس المال المستثمر في خطر. الفحص الشرعي آلي ولا يغني عن استشارة هيئة شريعة معتمدة.</i>
 ⏰ <i>توقيت الفحص: ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</i>
 `.trim();
 }

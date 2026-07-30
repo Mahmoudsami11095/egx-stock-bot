@@ -19,18 +19,23 @@ export interface TemplatesnippetStockItem {
   haram_investments_compliant?: boolean;
 }
 
+export type ShariaTier = 'COMPLIANT' | 'MARGINAL' | 'NON_COMPLIANT' | 'UNDER_REVIEW';
+
 export interface ShariaComplianceInfo {
   symbol: string;
   nameAr: string;
   isHalal: boolean;
+  tier: ShariaTier;
   statusText: string;
   haramRevenuePercent: number;
   debtRatioPercent: number;
+  purificationPercent?: number;
   reason?: string;
 }
 
 export class ShariaService {
   private liveHalalMap = new Map<string, StockMeta>();
+  private liveMarginalMap = new Map<string, { symbol: string; nameAr: string; reason: string; loansPercent: number; haramPercent: number }>();
   private liveNonHalalMap = new Map<string, { symbol: string; nameAr: string; reason: string }>();
 
   constructor() {
@@ -61,6 +66,7 @@ export class ShariaService {
           try {
             const rawList: TemplatesnippetStockItem[] = JSON.parse(body);
             this.liveHalalMap.clear();
+            this.liveMarginalMap.clear();
             this.liveNonHalalMap.clear();
 
             let latestTimestamp = 0;
@@ -90,11 +96,25 @@ export class ShariaService {
               // 3. Impurities / Haram Earnings Revenue <= 5%
               if (!isCoreCompliant) {
                 this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: 'نشاط غير متوافق' });
-              } else if (loansPercent > 33) {
-                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: `نسبة القروض مرتفعة (${loansPercent.toFixed(1)}%)` });
-              } else if (haramPercent > 5) {
-                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: `نسبة الإيرادات المحرمة مرتفعة (${haramPercent.toFixed(1)}%)` });
+              } else if (loansPercent > 37 || haramPercent > 5) {
+                // Hard non-compliant: debt > 37% OR haram revenue > 5%
+                const reason = loansPercent > 37
+                  ? `نسبة القروض مرتفعة (${loansPercent.toFixed(1)}%)`
+                  : `نسبة الإيرادات المحرمة مرتفعة (${haramPercent.toFixed(1)}%)`;
+                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason });
+              } else if (loansPercent > 30 && loansPercent <= 37) {
+                // Marginal: debt between 30-37% (borderline AAOIFI)
+                this.liveMarginalMap.set(sym, { symbol: sym, nameAr, reason: `نسبة القروض حدية (${loansPercent.toFixed(1)}%)`, loansPercent, haramPercent });
+                // Still add to watchlist but with warning
+                this.liveHalalMap.set(sym, {
+                  symbol: sym,
+                  yahooSymbol: `${sym}.CA`,
+                  nameEn,
+                  nameAr,
+                  sector: 'Halal EGX',
+                });
               } else {
+                // Fully compliant
                 this.liveHalalMap.set(sym, {
                   symbol: sym,
                   yahooSymbol: `${sym}.CA`,
@@ -188,6 +208,7 @@ export class ShariaService {
         symbol: 'SUGR',
         nameAr: 'الدلتا للسكر',
         isHalal: false,
+        tier: 'NON_COMPLIANT',
         statusText: '🔴 غير متوافق شرعياً (نسبة القروض 57.59% - مصفى، كاشف، وبورصة حلال)',
         haramRevenuePercent: 0.44,
         debtRatioPercent: 57.59,
@@ -201,10 +222,27 @@ export class ShariaService {
         symbol: sym,
         nameAr: nonHalal.nameAr,
         isHalal: false,
+        tier: 'NON_COMPLIANT',
         statusText: `🔴 غير متوافق شرعياً (${nonHalal.reason})`,
         haramRevenuePercent: 15,
         debtRatioPercent: 45,
         reason: nonHalal.reason,
+      };
+    }
+
+    const marginal = this.liveMarginalMap.get(sym);
+    if (marginal) {
+      const purification = Number((marginal.haramPercent + 1.0).toFixed(2));
+      return {
+        symbol: sym,
+        nameAr: marginal.nameAr,
+        isHalal: true,
+        tier: 'MARGINAL',
+        statusText: `⚠️ متوافق حدي (${marginal.reason}) - يُوصى بالتطهير بنسبة ${purification}%`,
+        haramRevenuePercent: marginal.haramPercent,
+        debtRatioPercent: marginal.loansPercent,
+        purificationPercent: purification,
+        reason: marginal.reason,
       };
     }
 
@@ -213,7 +251,8 @@ export class ShariaService {
       symbol: sym,
       nameAr: halal?.nameAr || sym,
       isHalal: true,
-      statusText: '🟢 متوافق مع أحكام الشريعة الإسلامية',
+      tier: 'COMPLIANT',
+      statusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
       haramRevenuePercent: 0.5,
       debtRatioPercent: 15,
     };
