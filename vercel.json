@@ -3,15 +3,7 @@
   "outputDirectory": "frontend/dist/frontend/browser",
   "rewrites": [
     {
-      "source": "/api/stocks",
-      "destination": "/api/stocks"
-    },
-    {
-      "source": "/api/gold",
-      "destination": "/api/gold"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
