@@ -53,7 +53,7 @@ export function setupCommands(
     }
   });
 
-  // 3. /status - ⚡ LIGHTNING FAST BATCH SCAN (<1s)
+  // 3. /status - ⚡ LIGHTNING FAST BATCH SCAN & CHUNKED DELIVERY (<1s)
   bot.command('status', async (ctx: Context) => {
     ctx.reply('🔍 جاري فحص الأسعار اللحظية وحساب القيمة العادلة لأسهم البورصة المصرية...');
     try {
@@ -68,7 +68,13 @@ export function setupCommands(
         signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
       );
 
-      ctx.replyWithHTML(formatWatchlistStatus(analyses));
+      // Send in chunks of 6 stocks to guarantee instant delivery and zero Telegram size limit errors
+      const chunkSize = 6;
+      for (let i = 0; i < analyses.length; i += chunkSize) {
+        const chunk = analyses.slice(i, i + chunkSize);
+        const htmlMsg = formatWatchlistStatus(chunk);
+        await ctx.replyWithHTML(htmlMsg);
+      }
     } catch (error) {
       logger.error(`Error handling /status: ${error}`);
       ctx.reply('❌ حدث خطأ أثناء جلب حالة الأسهم.');
