@@ -19,6 +19,17 @@ export function setupCommands(
   exportService: ExportService = new ExportService(),
   googleSheetsService: GoogleSheetsService = new GoogleSheetsService()
 ) {
+  // Middleware: Automatically register user Chat ID for push notifications on ANY command
+  bot.use((ctx: Context, next) => {
+    const chatId = ctx.chat?.id.toString();
+    if (chatId) {
+      const added = stateManager.addSubscriber(chatId);
+      if (added) {
+        logger.info(`📲 Automatically registered new Telegram subscriber Chat ID: ${chatId}`);
+      }
+    }
+    return next();
+  });
   // 1. /start & /help
   bot.command(['start', 'help'], (ctx: Context) => {
     const chatId = ctx.chat?.id.toString();
