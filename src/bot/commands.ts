@@ -61,7 +61,7 @@ export function setupCommands(
       analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
       // Sync to Live Google Sheet
-      googleSheetsService.syncToGoogleSheet(analyses);
+      await googleSheetsService.syncToGoogleSheet(analyses);
 
       const filePath = exportService.generateCsv(analyses);
       await ctx.replyWithDocument({ source: filePath }, { caption: '📊 شيت تحليل أسهم البورصة المصرية المحدث والقيم العادلة وتوصيات الشراء (Excel / Google Sheets Compatible)' });
@@ -109,8 +109,8 @@ export function setupCommands(
       // Sort descending by Fair Value Upside %
       analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
-      // 1. Sync Live Data to Google Sheet
-      googleSheetsService.syncToGoogleSheet(analyses);
+      // 1. Sync Live Data to Google Sheet (AWAITED)
+      await googleSheetsService.syncToGoogleSheet(analyses);
 
       // 2. Send HTML status text cards in chunks
       const chunkSize = 6;
