@@ -27,18 +27,20 @@ async function bootstrap() {
   app.get('/api/stocks', async (req, res) => {
     try {
       const watchlist = stateManager.getWatchlist();
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
       const results = [];
-      for (const stock of watchlist) {
-        try {
-          const { quote, indicators, automatedFairValue } = await dataFetcher.getQuoteAndIndicators(stock);
-          const analysis = signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue);
-          results.push(analysis);
-        } catch (err) {
-          logger.error(`Error fetching stock ${stock.symbol} for API: ${err}`);
-        }
+      for (const item of batchResults) {
+        const analysis = signalDetector.analyzeStockWithIndicators(
+          item.stock,
+          item.quote,
+          item.indicators,
+          item.automatedFairValue
+        );
+        results.push(analysis);
       }
       res.json(results);
     } catch (err: any) {
+      logger.error(`Error in /api/stocks: ${err}`);
       res.status(500).json({ error: err.message });
     }
   });
