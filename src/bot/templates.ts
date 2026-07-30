@@ -3,60 +3,70 @@ import { StockAnalysisResult, SignalType } from '../types/stock';
 export function getSignalEmoji(signal: SignalType): string {
   switch (signal) {
     case 'STRONG_BUY':
-      return '🚀🟢 [STRONG BUY / شراء قوي]';
+      return '🚀🟢 شراء قوي (Strong Buy)';
     case 'BUY':
-      return '🟢 [BUY / شراء]';
+      return '🟢 شراء (Buy)';
+    case 'NEUTRAL':
+      return '🟡 محايد (Hold/Neutral)';
     case 'SELL':
-      return '🔴 [SELL / بيع]';
+      return '🔴 بيع / جني أرباح (Sell)';
     case 'STRONG_SELL':
-      return '🚨🔴 [STRONG SELL / بيع قوي - وقف خسارة]';
+      return '🚨🔴 بيع قوي (Strong Sell)';
     default:
-      return '🟡 [NEUTRAL / محايد]';
+      return '🟡 محايد';
   }
 }
 
 export function formatSignalCard(analysis: StockAnalysisResult): string {
-  const { quote, indicators, signalType, reasons, fairValue, fairValueUpsidePercent, suggestedEntry, suggestedTarget, suggestedStopLoss } = analysis;
-  const emojiHeader = getSignalEmoji(signalType);
-  const changeIcon = quote.change >= 0 ? '📈' : '📉';
+  const { quote, indicators, signalType, reasons, suggestedEntry, suggestedTarget, suggestedStopLoss, fairValue, fairValueUpsidePercent } = analysis;
+
+  const icon = quote.change >= 0 ? '📈' : '📉';
   const sign = quote.change >= 0 ? '+' : '';
   const upsideSign = fairValueUpsidePercent >= 0 ? '+' : '';
-  const upsideBadge = fairValueUpsidePercent >= 0 ? '💚 فرصة نمو' : '⚠️ أعلى من القيمة العادلة';
+  const signalBadge = getSignalEmoji(signalType);
 
   return `
-<b>${emojiHeader}</b>
-<b>السهم: ${quote.nameAr} (${quote.symbol})</b>
-<i>${quote.nameEn}</i>
+<b>${signalBadge}</b>
+<b>📊 تقرير التحليل الفني والقيمة العادلة لسهم ${quote.nameAr} (${quote.symbol})</b>
 
-💵 <b>السعر الحالي:</b> <code>${quote.currentPrice} EGP</code> (${changeIcon} ${sign}${quote.changePercent}%)
-💎 <b>القيمة العادلة (Fair Value):</b> <code>${fairValue} EGP</code> (فارق <b>${upsideSign}${fairValueUpsidePercent}%</b> ${upsideBadge})
-📊 <b>حجم التداول اليومي:</b> <code>${quote.volume.toLocaleString()}</code> (مقارنة بـ ${indicators.volumeRatio}x المتوسط)
-----------------------------------------
-<b>📐 المؤشرات الفنية (Technical Indicators):</b>
-• <b>RSI (14):</b> <code>${indicators.rsi}</code> ${indicators.rsi < 35 ? '🔥 (قاع/تشبع بيعي)' : indicators.rsi > 70 ? '⚠️ (تضخم)' : ''}
-• <b>المتوسط المتحرك 20:</b> <code>${indicators.sma20} EGP</code>
-• <b>المتوسط المتحرك 50:</b> <code>${indicators.sma50} EGP</code>
-• <b>مستوى الدعم (Support):</b> <code>${indicators.support} EGP</code>
-• <b>مستوى المقاومة (Resistance):</b> <code>${indicators.resistance} EGP</code>
+💵 <b>السعر اللحظي:</b> <code>${quote.currentPrice} ج.م</code> (${icon} ${sign}${quote.changePercent}%)
+💎 <b>القيمة العادلة (Fair Value):</b> <code>${fairValue} ج.م</code> (نسبة نمو مقترحة <b>${upsideSign}${fairValueUpsidePercent}%</b>)
+📊 <b>مؤشر القوة النسبية RSI (14):</b> <code>${indicators.rsi}</code>
+🔹 <b>المتوسطات:</b> SMA20: <code>${indicators.sma20}</code> | SMA50: <code>${indicators.sma50}</code>
+🛡️ <b>الدعم:</b> <code>${indicators.support} ج.م</code> | 🛡️ <b>المقاومة:</b> <code>${indicators.resistance} ج.م</code>
 
-<b>💡 أسباب التوصية (Key Signals):</b>
+<b>💡 أسباب التوصية:</b>
 ${reasons.map((r) => `• ${r}`).join('\n')}
 
 ----------------------------------------
-<b>🎯 خطة التداول المقترحة (Trading Plan):</b>
-• 📥 <b>نطاق الدخول الآمن:</b> <code>${suggestedEntry.min} - ${suggestedEntry.max} EGP</code>
-• 🎯 <b>الهدف الأول (Target 1):</b> <code>${suggestedTarget.target1} EGP</code>
-• 🚀 <b>الهدف الثاني (القيمة العادلة Target 2):</b> <code>${suggestedTarget.target2} EGP</code>
-• 🛑 <b>وقف الخسارة (Stop Loss):</b> <code>${suggestedStopLoss} EGP</code>
+🎯 <b>خطة التداول المقترحة (Trading Plan):</b>
+• 📥 <b>نطاق الدخول الآمن:</b> <code>${suggestedEntry.min} - ${suggestedEntry.max} ج.م</code>
+• 🎯 <b>الهدف الأول (Target 1):</b> <code>${suggestedTarget.target1} ج.م</code>
+• 🚀 <b>الهدف الثاني (القيمة العادلة):</b> <code>${suggestedTarget.target2} ج.م</code>
+• 🛑 <b>موقف الخسارة (Stop Loss):</b> <code>${suggestedStopLoss} ج.م</code>
 
-⏰ <i>التوقيت: ${analysis.timestamp.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</i>
+⏰ <i>توقيت الفحص: ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</i>
 `.trim();
 }
 
 export function formatWatchlistStatus(analyses: StockAnalysisResult[]): string {
-  let text = `<b>📊 ملخص أسهم البورصة المصرية والقيمة العادلة (EGX Watchlist & Fair Values)</b>\n\n`;
+  // Sort descending by Fair Value Upside % (Highest gap first!)
+  const sorted = [...analyses].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
-  for (const a of analyses) {
+  // Top recommended buy stocks (BUY or STRONG_BUY with highest upside)
+  const topBuys = sorted.filter((a) => a.signalType === 'BUY' || a.signalType === 'STRONG_BUY').slice(0, 3);
+
+  let text = `<b>📊 ملخص أسهم البورصة المصرية مرتبة حسب أعلى فارق للقيمة العادلة (EGX Upside Ranking)</b>\n\n`;
+
+  if (topBuys.length > 0) {
+    text += `<b>⭐ أفضل الأسهم الموصى بشرائها حالياً (Top Recommended Buy Opportunities):</b>\n`;
+    for (const b of topBuys) {
+      text += `🏆 <b>${b.quote.symbol} (${b.quote.nameAr}):</b> سعر <code>${b.quote.currentPrice} ج.م</code> ⬅️ قيمة عادلة <code>${b.fairValue} ج.م</code> (نمو متوقع <b>+${b.fairValueUpsidePercent}%</b>)\n`;
+    }
+    text += `----------------------------------------\n\n`;
+  }
+
+  for (const a of sorted) {
     const icon = a.quote.change >= 0 ? '🟢' : '🔴';
     const sign = a.quote.change >= 0 ? '+' : '';
     const signalBadge = getSignalEmoji(a.signalType);
@@ -64,11 +74,11 @@ export function formatWatchlistStatus(analyses: StockAnalysisResult[]): string {
 
     text += `<b>${icon} ${a.quote.symbol} - ${a.quote.nameAr}</b>\n`;
     text += `السعر اللحظي: <code>${a.quote.currentPrice} ج.م</code> (${sign}${a.quote.changePercent}%)\n`;
-    text += `💎 <b>القيمة العادلة:</b> <code>${a.fairValue} ج.م</code> (فارق <b>${upsideSign}${a.fairValueUpsidePercent}%</b>)\n`;
+    text += `💎 <b>القيمة العادلة:</b> <code>${a.fairValue} ج.م</code> (فارق نمو <b>${upsideSign}${a.fairValueUpsidePercent}%</b>)\n`;
     text += `الإشارة: ${signalBadge}\n`;
     text += `الدعم: <code>${a.indicators.support}</code> | المقاومة: <code>${a.indicators.resistance}</code>\n\n`;
   }
 
-  text += `<i>💡 استخدم الأمر <code>/signals TICKER</code> (مثل <code>/signals MPCI</code>) للحصول على تقرير فني تفصيلي والقيمة العادلة.</i>`;
+  text += `<i>💡 استخدم <code>/signals TICKER</code> للحصول على خطة تداول تفصيلية لسهم محدد.</i>`;
   return text;
 }

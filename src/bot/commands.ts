@@ -32,7 +32,7 @@ export function setupCommands(
 <b>📋 الأوامر المتاحة (Commands):</b>
 • <code>/halal</code> - 🕌 عرض قائمة الأسهم الحلال المتوافقة مع الشريعة في البورصة المصرية.
 • <code>/gold</code> - ⚜️ أسعار الذهب اللحظية في مصر (عيار 24، 21، 18 والجنيه الذهب) وعالمياً.
-• <code>/status</code> - ملخص سريع لحالة جميع الأسهم المتابعة والتغير اليومي والأسعار والقيمة العادلة.
+• <code>/status</code> - ملخص سريع للأسهم مرتبة حسب أعلى فارق للقيمة العادلة وأفضل أسهم للشراء.
 • <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لسهم معين (مثال: <code>/signals MPCI</code>).
 • <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة.
 • <code>/remove TICKER</code> - حذف سهم من قائمة المتابعة.
@@ -63,9 +63,9 @@ export function setupCommands(
     }
   });
 
-  // 4. /status - ⚡ LIGHTNING FAST BATCH SCAN & CHUNKED DELIVERY (<1s)
+  // 4. /status - ⚡ SORTED BY BIGGEST FAIR VALUE GAP & TOP RECOMMENDED BUYS
   bot.command('status', async (ctx: Context) => {
-    ctx.reply('🔍 جاري فحص الأسعار اللحظية وحساب القيمة العادلة لأسهم البورصة المصرية...');
+    ctx.reply('🔍 جاري فحص الأسعار اللحظية وترتيب الأسهم حسب أعلى فارق للقيمة العادلة والتوصيات...');
     try {
       const watchlist = stateManager.getWatchlist();
       const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
@@ -77,6 +77,9 @@ export function setupCommands(
       const analyses = batchResults.map((r) =>
         signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
       );
+
+      // Sort descending by Fair Value Upside %
+      analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
       // Send in chunks of 6 stocks to guarantee instant delivery and zero Telegram size limit errors
       const chunkSize = 6;
