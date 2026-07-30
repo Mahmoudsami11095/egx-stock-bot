@@ -34,11 +34,12 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
 
       <!-- Search & Filtering Bar -->
       <div class="glass-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
-        <!-- Search Input -->
+  <!-- Search Input -->
         <div class="relative flex-1 min-w-[240px]">
           <i class="pi pi-search absolute right-3 top-3.5 text-gray-400 text-sm"></i>
           <input type="text"
-                 [(ngModel)]="searchQuery"
+                 [ngModel]="searchQuery()"
+                 (ngModelChange)="searchQuery.set($event)"
                  placeholder="بحث برمز السهم أو الاسم (مثال: MPCI, AMOC, السويدى)..."
                  class="w-full bg-darkBg/90 border border-darkBorder rounded-xl pr-9 pl-4 py-2.5 text-sm text-white focus:outline-none focus:border-emeraldAccent transition-colors">
         </div>
@@ -164,7 +165,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
 export class StockScreenerComponent {
   public apiService = inject(StockApiService);
 
-  public searchQuery = '';
+  public searchQuery = signal('');
   public activeFilter = signal<'ALL' | 'BUY' | 'UNDERVALUED'>('ALL');
   public modalVisible = false;
   public selectedStock: StockAnalysisResult | null = null;
@@ -175,7 +176,7 @@ export class StockScreenerComponent {
 
   public filteredStocks = computed(() => {
     let list = this.apiService.stocks();
-    const query = this.searchQuery.trim().toLowerCase();
+    const query = this.searchQuery().trim().toLowerCase();
     const filter = this.activeFilter();
 
     if (query) {
