@@ -27,7 +27,7 @@ function testBatchScan() {
     ]
   });
 
-  console.log(`🔍 Testing 1-click BATCH request for ${tickers.length} stocks...`);
+  console.log(`🔍 Testing 1-click BATCH request for ${tickers.length} Halal EGX stocks...`);
   const start = Date.now();
 
   const options = {

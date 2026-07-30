@@ -24,13 +24,27 @@ export class StateManager {
     if (fs.existsSync(this.watchlistFile)) {
       try {
         const raw = fs.readFileSync(this.watchlistFile, 'utf-8');
-        this.watchlist = JSON.parse(raw);
+        const loaded: StockMeta[] = JSON.parse(raw);
+        this.watchlist = loaded;
       } catch (err) {
         logger.error(`Error loading watchlist.json: ${err}`);
         this.watchlist = [...INITIAL_STOCKS];
       }
     } else {
       this.watchlist = [...INITIAL_STOCKS];
+    }
+
+    // Merge missing stocks from INITIAL_STOCKS so all 23 Halal stocks are present
+    let updated = false;
+    for (const initStock of INITIAL_STOCKS) {
+      const exists = this.watchlist.some((s) => s.symbol.toUpperCase() === initStock.symbol.toUpperCase());
+      if (!exists) {
+        this.watchlist.push(initStock);
+        updated = true;
+      }
+    }
+
+    if (updated || !fs.existsSync(this.watchlistFile)) {
       this.saveWatchlist();
     }
 
