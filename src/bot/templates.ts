@@ -1,4 +1,5 @@
 import { StockAnalysisResult, SignalType } from '../types/stock';
+import { ShariaComplianceInfo } from '../services/shariaService';
 
 export function getSignalEmoji(signal: SignalType): string {
   switch (signal) {
@@ -17,16 +18,19 @@ export function getSignalEmoji(signal: SignalType): string {
   }
 }
 
-export function formatSignalCard(analysis: StockAnalysisResult): string {
+export function formatSignalCard(analysis: StockAnalysisResult, shariaInfo?: ShariaComplianceInfo): string {
   const { quote, indicators, signalType, reasons, suggestedEntry, suggestedTarget, suggestedStopLoss, fairValue, fairValueUpsidePercent } = analysis;
 
   const icon = quote.change >= 0 ? '📈' : '📉';
   const sign = quote.change >= 0 ? '+' : '';
   const upsideSign = fairValueUpsidePercent >= 0 ? '+' : '';
   const signalBadge = getSignalEmoji(signalType);
+  const shariaBadge = shariaInfo ? shariaInfo.statusText : '🟢 متوافق شرعياً';
 
   return `
 <b>${signalBadge}</b>
+<b>🕌 موقف التوافق الشرعي:</b> ${shariaBadge}
+
 <b>📊 تقرير التحليل الفني والقيمة العادلة لسهم ${quote.nameAr} (${quote.symbol})</b>
 
 💵 <b>السعر اللحظي:</b> <code>${quote.currentPrice} ج.م</code> (${icon} ${sign}${quote.changePercent}%)

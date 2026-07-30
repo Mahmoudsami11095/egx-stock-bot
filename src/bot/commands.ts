@@ -38,8 +38,8 @@ export function setupCommands(
 • <code>/sheet</code> - 📁 إرسال شيت Excel/CSV الحالي وتحديث Google Sheet أونلاين.
 • <code>/halal</code> - 🕌 عرض قائمة الأسهم الحلال المتوافقة مع الشريعة في البورصة المصرية.
 • <code>/gold</code> - ⚜️ أسعار الذهب اللحظية في مصر (عيار 24، 21، 18 والجنيه الذهب) وعالمياً.
-• <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لسهم معين (مثال: <code>/signals MPCI</code>).
-• <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة.
+• <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لأي سهم (مثال: <code>/signals ABUK</code> أو <code>/signals MPCI</code>).
+• <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة الحلال.
 • <code>/remove TICKER</code> - حذف سهم من قائمة المتابعة.
 
 <b>📊 الأسهم المتابعة حالياً:</b>
@@ -109,7 +109,7 @@ export function setupCommands(
       // Sort descending by Fair Value Upside %
       analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
-      // 1. Sync Live Data to Google Sheet (AWAITED)
+      // 1. Sync Live Data to Google Sheet
       await googleSheetsService.syncToGoogleSheet(analyses);
 
       // 2. Send HTML status text cards in chunks
@@ -129,12 +129,12 @@ export function setupCommands(
     }
   });
 
-  // 6. /signals [TICKER]
+  // 6. /signals [TICKER] - Allow technical analysis for ANY stock, with Sharia Compliance Badge!
   bot.command('signals', async (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);
     const symbol = parts[1]?.toUpperCase();
-    if (!symbol) return ctx.reply('⚠️ يرجى تحديد رمز السهم. مثال: `/signals MPCI`', { parse_mode: 'Markdown' });
+    if (!symbol) return ctx.reply('⚠️ يرجى تحديد رمز السهم. مثال: `/signals ABUK` أو `/signals MPCI`', { parse_mode: 'Markdown' });
 
     if (symbol === 'GOLD' || symbol === 'الذهب') {
       try {
@@ -145,20 +145,15 @@ export function setupCommands(
       }
     }
 
-    // Check Sharia status
-    if (!shariaService.isStockHalal(symbol)) {
-      return ctx.replyWithHTML(
-        `⚠️ <b>تنويه شرعي (Sharia Warning):</b> السهم <b>${symbol}</b> غير مدرج ضمن قائمة الأسهم المتوافقة مع الشريعة الإسلامية.`
-      );
-    }
+    const shariaInfo = shariaService.getShariaInfo(symbol);
+    const stock = stateManager.findStock(symbol) || { symbol, yahooSymbol: `${symbol}.CA`, nameEn: symbol, nameAr: shariaInfo.nameAr || symbol, sector: 'General' };
 
-    const stock = stateManager.findStock(symbol) || { symbol, yahooSymbol: `${symbol}.CA`, nameEn: symbol, nameAr: symbol, sector: 'General' };
-    ctx.reply(`📊 جاري حساب القيمة العادلة وإجراء التحليل الفني لسهم ${stock.nameAr} (${symbol})...`);
+    ctx.reply(`📊 جاري إجراء التحليل الفني وحساب القيمة العادلة لسهم ${stock.nameAr} (${symbol})...`);
 
     try {
       const { quote, indicators, automatedFairValue } = await dataFetcher.getQuoteAndIndicators(stock);
       const analysis = signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue);
-      ctx.replyWithHTML(formatSignalCard(analysis));
+      ctx.replyWithHTML(formatSignalCard(analysis, shariaInfo));
     } catch (err) { logger.error(`Error in /signals for ${symbol}: ${err}`); ctx.reply(`❌ تعذر جلب التحليل لسهم ${symbol}. تأكد من صحة الرمز.`); }
   });
 
@@ -170,7 +165,7 @@ export function setupCommands(
     if (!symbol) return ctx.reply('⚠️ اكتب رمز السهم. مثال: `/add EGAL`', { parse_mode: 'Markdown' });
 
     if (!shariaService.isStockHalal(symbol)) {
-      return ctx.reply(`⚠️ عذراً، السهم <b>${symbol}</b> غير متوافق مع أحكام الشريعة الإسلامية ولا يمكن إضافته.`, { parse_mode: 'HTML' });
+      return ctx.reply(`⚠️ عذراً، السهم <b>${symbol}</b> غير متوافق مع أحكام الشريعة الإسلامية ولا يمكن إضافته للقائمة الحلال.`, { parse_mode: 'HTML' });
     }
 
     const added = stateManager.addStock({ symbol, yahooSymbol: `${symbol}.CA`, nameEn: symbol, nameAr: symbol, sector: 'Custom' });
