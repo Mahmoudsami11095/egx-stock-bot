@@ -34,6 +34,9 @@ export class CronSchedulerService {
     // 2. Weekly Sharia Audit Sync Cron (Every Sunday at 2:00 AM: '0 2 * * 0')
     logger.info(`🕌 Scheduling Weekly Sharia Audit Sync ('0 2 * * 0')...`);
     cron.schedule('0 2 * * 0', async () => { await this.runWeeklyShariaAudit(); });
+    
+    // Initial Sharia database sync on startup
+    setImmediate(async () => { await this.runWeeklyShariaAudit(); });
 
     // 3. Daily Market Close Excel & Google Sheet Sync (Sun-Thu at 3:00 PM: '0 15 * * 0-4')
     logger.info(`📁 Scheduling Daily Market Close Excel & Google Sheet Sync ('0 15 * * 0-4')...`);
@@ -66,15 +69,15 @@ export class CronSchedulerService {
   }
 
   public async runWeeklyShariaAudit(): Promise<void> {
-    logger.info('🕌 Running Weekly Sharia Compliance Audit...');
+    logger.info('🕌 Running Live Sharia Compliance Audit from stocks.templatesnippet.com ...');
     try {
       const { added, removed } = await this.shariaService.syncHalalWatchlist(this.stateManager);
       
       if (removed.length > 0) {
         const msg = `
-<b>⚠️ تنويه شرعي هام (Weekly Sharia Audit Alert)</b>
+<b>⚠️ تنويه شرعي هام (Live Sharia Compliance Alert)</b>
 
-تم إجراء الفحص الدوري الشرعي للأسهم اليوم، وتم تلقائياً استبعاد الأسهم التالية من قائمة المتابعة لعدم توافقها مع أحكام الشريعة:
+تم فحص قاعدة البيانات المباشرة للأسهم (stocks.templatesnippet.com)، وتم استبعاد الأسهم التالية من قائمة المتابعة لعدم توافقها شرعياً:
 <b>${removed.join(', ')}</b>
 `.trim();
         await this.telegramBot.broadcastRawMessage(msg);

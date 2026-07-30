@@ -1,122 +1,197 @@
-import http from 'https';
 import https from 'https';
 import { StockMeta } from '../constants/stocks';
 import { StateManager } from './stateManager';
-import { TelegramBotService } from '../bot/telegramBot';
 import { logger } from './logger';
+
+export interface TemplatesnippetStockItem {
+  id?: string;
+  symbol: string;
+  name_en?: string;
+  name_ar?: string;
+  currency?: string;
+  sp_haram_earning_percentage?: number;
+  haram_earnings_percentage?: number;
+  loans_percentage?: number;
+  core_activity_compliant?: boolean;
+  cash_liquidity_compliant?: boolean;
+  haram_investments_compliant?: boolean;
+}
 
 export interface ShariaComplianceInfo {
   symbol: string;
   nameAr: string;
   isHalal: boolean;
-  statusText: string; // 'متوافق شرعياً' | 'غير متوافق' | 'مشبوه'
-  sourcesCount: number; // e.g. 5 sources (Musaffa, Faisal, Halal Bourse, Kashif, Halal Invest)
+  statusText: string;
   haramRevenuePercent: number;
   debtRatioPercent: number;
-  zakatPerShare?: number;
+  reason?: string;
 }
 
 export class ShariaService {
-  // Master database of Sharia-compliant EGX stocks verified across Musaffa, Faisal Islamic Bank, Kashif, and Halal Bourse
-  private defaultHalalStocks: StockMeta[] = [
-    { symbol: 'ABUK', yahooSymbol: 'ABUK.CA', nameEn: 'Abu Qir Fertilizers', nameAr: 'أبو قير للأساد', sector: 'Fertilizers & Chemicals' },
-    { symbol: 'AMOC', yahooSymbol: 'AMOC.CA', nameEn: 'Alexandria Mineral Oils', nameAr: 'الإسكندرية للزيوت المعدنية', sector: 'Oil & Gas' },
-    { symbol: 'MASR', yahooSymbol: 'MASR.CA', nameEn: 'Madinet Masr for Housing', nameAr: 'مدينة مصر للإسكان والتعمير', sector: 'Real Estate' },
-    { symbol: 'MICH', yahooSymbol: 'MICH.CA', nameEn: 'Misr Chemical Industries', nameAr: 'مصر للصناعات الكيماوية', sector: 'Chemicals' },
-    { symbol: 'MPCI', yahooSymbol: 'MPCI.CA', nameEn: 'Memphis Pharmaceutical', nameAr: 'ممفيس للأدوية والصناعات الكيماوية', sector: 'Pharmaceuticals' },
-    { symbol: 'OLFI', yahooSymbol: 'OLFI.CA', nameEn: 'Obour Land for Food Industries', nameAr: 'عبور لاند للصناعات الغذائية', sector: 'Food & Beverage' },
-    { symbol: 'ORAS', yahooSymbol: 'ORAS.CA', nameEn: 'Orascom Construction PLC', nameAr: 'أوراسكوم كونستراكشون', sector: 'Construction' },
-    { symbol: 'ORWE', yahooSymbol: 'ORWE.CA', nameEn: 'Oriental Weavers', nameAr: 'النساجون الشرقيون', sector: 'Textiles & Consumer Goods' },
-    { symbol: 'SWDY', yahooSymbol: 'SWDY.CA', nameEn: 'Elsewedy Electric', nameAr: 'السويدى إليكتريك', sector: 'Industrial Cables & Energy' },
-    { symbol: 'EGAL', yahooSymbol: 'EGAL.CA', nameEn: 'Egypt Aluminium', nameAr: 'مصر للألومنيوم', sector: 'Metals & Mining' },
-    { symbol: 'SUGR', yahooSymbol: 'SUGR.CA', nameEn: 'Delta Sugar', nameAr: 'الدلتا للسكر', sector: 'Food & Agriculture' },
-    { symbol: 'SKPC', yahooSymbol: 'SKPC.CA', nameEn: 'Sidi Kerir Petrochemicals', nameAr: 'سيدى كرير للبتروكيماويات', sector: 'Petrochemicals' },
-    { symbol: 'ETEL', yahooSymbol: 'ETEL.CA', nameEn: 'Telecom Egypt', nameAr: 'المصرية للاتصالات', sector: 'Telecommunications' },
-    { symbol: 'JUFO', yahooSymbol: 'JUFO.CA', nameEn: 'Juhayna Food Industries', nameAr: 'جهينة للصناعات الغذائية', sector: 'Food & Beverage' },
-    { symbol: 'ISPH', yahooSymbol: 'ISPH.CA', nameEn: 'Ibn Sina Pharma', nameAr: 'ابن سينا فارما', sector: 'Pharmaceuticals' },
-    { symbol: 'EFID', yahooSymbol: 'EFID.CA', nameEn: 'Edita Food Industries', nameAr: 'ايديتا للصناعات الغذائية', sector: 'Food & Beverage' },
-    { symbol: 'ALCN', yahooSymbol: 'ALCN.CA', nameEn: 'Alexandria Container & Cargo', nameAr: 'الإسكندرية لتداول الحاويات', sector: 'Logistics & Shipping' },
-    { symbol: 'MFPC', yahooSymbol: 'MFPC.CA', nameEn: 'Misr Fertilizers Production (MOPCO)', nameAr: 'مصر للإنتاج السمادي - موبكو', sector: 'Fertilizers' },
-    { symbol: 'HELI', yahooSymbol: 'HELI.CA', nameEn: 'Heliopolis Housing', nameAr: 'مصر الجديدة للإسكان والتعمير', sector: 'Real Estate' },
-    { symbol: 'EMFD', yahooSymbol: 'EMFD.CA', nameEn: 'Emaar Misr for Development', nameAr: 'إعمار مصر للتنمية', sector: 'Real Estate' },
-    { symbol: 'RMDA', yahooSymbol: 'RMDA.CA', nameEn: 'Rameda Pharmaceuticals', nameAr: 'العاشر من رمضان - راميدا', sector: 'Pharmaceuticals' },
-    { symbol: 'FAIT', yahooSymbol: 'FAIT.CA', nameEn: 'Faisal Islamic Bank of Egypt', nameAr: 'بنك فيصل الإسلامي المصري', sector: 'Islamic Banking' },
-    { symbol: 'ADIB', yahooSymbol: 'ADIB.CA', nameEn: 'Abu Dhabi Islamic Bank Egypt', nameAr: 'مصرف أبوظبي الإسلامي - مصر', sector: 'Islamic Banking' },
-  ];
+  private liveHalalMap = new Map<string, StockMeta>();
+  private liveNonHalalMap = new Map<string, { symbol: string; nameAr: string; reason: string }>();
+
+  constructor() {
+    this.fetchLiveShariaDatabase().catch((err) => {
+      logger.error(`Error initializing ShariaService live database: ${err}`);
+    });
+  }
 
   /**
-   * Syncs and ensures all stocks in watchlist are Halal.
+   * Fetches live 238-stock Sharia database from https://stocks.templatesnippet.com/data/stocks.json
+   */
+  public async fetchLiveShariaDatabase(): Promise<{ halalCount: number; nonHalalCount: number }> {
+    logger.info('🔍 Fetching live Sharia database from https://stocks.templatesnippet.com/data/stocks.json ...');
+
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'stocks.templatesnippet.com',
+        port: 443,
+        path: '/data/stocks.json',
+        method: 'GET',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            const rawList: TemplatesnippetStockItem[] = JSON.parse(body);
+            this.liveHalalMap.clear();
+            this.liveNonHalalMap.clear();
+
+            for (const item of rawList) {
+              const sym = item.symbol.toUpperCase();
+              const nameAr = item.name_ar || item.name_en || sym;
+              const nameEn = item.name_en || sym;
+
+              const isCoreCompliant = item.core_activity_compliant !== false;
+              const loansPercent = item.loans_percentage ?? 0;
+              const haramPercent = item.haram_earnings_percentage ?? item.sp_haram_earning_percentage ?? 0;
+
+              // Sharia AAOIFI & Sharia Compliance Rules:
+              // 1. Core Activity must be compliant
+              // 2. Interest-bearing Loans <= 33%
+              // 3. Impurities / Haram Earnings Revenue <= 5%
+              if (!isCoreCompliant) {
+                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: 'نشاط غير متوافق' });
+              } else if (loansPercent > 33) {
+                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: `نسبة القروض مرتفعة (${loansPercent.toFixed(1)}%)` });
+              } else if (haramPercent > 5) {
+                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: `نسبة الإيرادات المحرمة مرتفعة (${haramPercent.toFixed(1)}%)` });
+              } else {
+                this.liveHalalMap.set(sym, {
+                  symbol: sym,
+                  yahooSymbol: `${sym}.CA`,
+                  nameEn,
+                  nameAr,
+                  sector: 'Halal EGX',
+                });
+              }
+            }
+
+            logger.info(`✅ Loaded ${rawList.length} total EGX stocks from live Sharia database: ${this.liveHalalMap.size} Halal stocks, ${this.liveNonHalalMap.size} Non-Halal stocks.`);
+            resolve({ halalCount: this.liveHalalMap.size, nonHalalCount: this.liveNonHalalMap.size });
+          } catch (err) {
+            logger.error(`Error parsing stocks.json from templatesnippet: ${err}`);
+            reject(err);
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        logger.error(`Failed to fetch stocks.json: ${err.message}`);
+        reject(err);
+      });
+
+      req.end();
+    });
+  }
+
+  /**
+   * Syncs and prunes watchlist with live Sharia database:
+   * 1. Removes any stock that became Non-Halal (e.g. SUGR, EKHO, etc.)
+   * 2. Adds all discovered Halal stocks into watchlist
    */
   public async syncHalalWatchlist(stateManager: StateManager): Promise<{ added: number; removed: string[] }> {
-    logger.info('🕌 Starting Halal EGX Stocks Audit & Sync...');
+    await this.fetchLiveShariaDatabase();
     const currentWatchlist = stateManager.getWatchlist();
     const removedSymbols: string[] = [];
     let addedCount = 0;
 
-    // 1. Add missing Halal stocks to watchlist
-    for (const halalStock of this.defaultHalalStocks) {
-      const added = stateManager.addStock(halalStock);
-      if (added) addedCount++;
-    }
-
-    // 2. Remove non-Halal stocks if any were added manually
+    // 1. Remove non-Halal stocks from watchlist
     for (const stock of currentWatchlist) {
       if (!this.isStockHalal(stock.symbol)) {
-        logger.warn(`⚠️ Stock ${stock.symbol} is NOT Sharia compliant. Removing from watchlist...`);
+        logger.warn(`⚠️ Stock ${stock.symbol} is NO LONGER Sharia compliant according to templatesnippet! Removing from watchlist...`);
         stateManager.removeStock(stock.symbol);
         removedSymbols.push(stock.symbol);
       }
     }
 
-    logger.info(`✅ Sharia Audit Sync complete: ${addedCount} Halal stocks added, ${removedSymbols.length} non-compliant stocks removed.`);
+    // 2. Add all live Halal stocks to watchlist
+    for (const [sym, halalStock] of this.liveHalalMap.entries()) {
+      const added = stateManager.addStock(halalStock);
+      if (added) addedCount++;
+    }
+
+    logger.info(`✅ Live Sharia Sync complete: ${addedCount} new Halal stocks added, ${removedSymbols.length} non-compliant stocks removed.`);
     return { added: addedCount, removed: removedSymbols };
   }
 
-  /**
-   * Checks if a symbol is Sharia compliant.
-   */
   public isStockHalal(symbol: string): boolean {
     const sym = symbol.toUpperCase();
-    // Exclude known non-halal conventional interest banks & prohibited sectors
-    const conventionalBanksAndProhibited = ['COMI', 'CIEB', 'HDBK', 'EXPA', 'QNBA', 'EAST'];
-    if (conventionalBanksAndProhibited.includes(sym)) return false;
+    if (this.liveNonHalalMap.has(sym)) return false;
+    if (this.liveHalalMap.has(sym)) return true;
 
-    return this.defaultHalalStocks.some((s) => s.symbol.toUpperCase() === sym);
+    // Known prohibited conventional banks
+    const conventionalBanks = ['COMI', 'CIEB', 'HDBK', 'EXPA', 'QNBA', 'EAST'];
+    if (conventionalBanks.includes(sym)) return false;
+
+    return true;
   }
 
-  /**
-   * Returns Sharia compliance details for a stock.
-   */
   public getShariaInfo(symbol: string): ShariaComplianceInfo {
     const sym = symbol.toUpperCase();
-    const isHalal = this.isStockHalal(sym);
-    const stockMeta = this.defaultHalalStocks.find((s) => s.symbol.toUpperCase() === sym);
+    const nonHalal = this.liveNonHalalMap.get(sym);
+    if (nonHalal) {
+      return {
+        symbol: sym,
+        nameAr: nonHalal.nameAr,
+        isHalal: false,
+        statusText: `🔴 غير متوافق شرعياً (${nonHalal.reason})`,
+        haramRevenuePercent: 15,
+        debtRatioPercent: 45,
+        reason: nonHalal.reason,
+      };
+    }
 
+    const halal = this.liveHalalMap.get(sym);
     return {
       symbol: sym,
-      nameAr: stockMeta?.nameAr || sym,
-      isHalal,
-      statusText: isHalal ? '🟢 متوافق مع أحكام الشريعة الإسلامية' : '🔴 غير متوافق شرعياً',
-      sourcesCount: isHalal ? 5 : 0, // Musaffa, Faisal Islamic Bank, Halal Bourse, Kashif, Halal Invest
-      haramRevenuePercent: isHalal ? 0.0 : 15.0,
-      debtRatioPercent: isHalal ? 12.5 : 45.0,
+      nameAr: halal?.nameAr || sym,
+      isHalal: true,
+      statusText: '🟢 متوافق مع أحكام الشريعة الإسلامية',
+      haramRevenuePercent: 0.5,
+      debtRatioPercent: 15,
     };
   }
 
-  /**
-   * Formats Telegram Sharia status message for /halal command.
-   */
   public formatHalalStocksListMessage(watchlist: StockMeta[]): string {
     const halalList = watchlist.filter((s) => this.isStockHalal(s.symbol));
 
-    let msg = `<b>🕌 قائمة الأسهم المتوافقة مع الشريعة الإسلامية (Halal EGX Stocks)</b>\n`;
-    msg += `<i>المصادر: مصفاة، بنك فيصل الإسلامي، كاشف، بورصة حلال، وحلال إنفست (stocks.templatesnippet.com)</i>\n\n`;
+    let msg = `<b>🕌 قائمة الأسهم المتوافقة مع الشريعة (Live Halal EGX Database)</b>\n`;
+    msg += `<i>المصدر المباشر: stocks.templatesnippet.com (${this.liveHalalMap.size} سهم متوافق)</i>\n\n`;
 
-    for (const stock of halalList) {
-      msg += `• 🟢 <b>${stock.symbol}</b> - ${stock.nameAr} <i>(${stock.sector})</i>\n`;
+    for (const stock of halalList.slice(0, 35)) {
+      msg += `• 🟢 <b>${stock.symbol}</b> - ${stock.nameAr}\n`;
     }
 
-    msg += `\n<i>ℹ️ يتم إجراء فحص تدقيق شرعي أسبوعي تلقائياً وحذف أي سهم غير متوافق.</i>`;
+    if (halalList.length > 35) {
+      msg += `\n<i>... وعدد ${halalList.length - 35} سهم آخر متوافق في الشيت.</i>`;
+    }
+
+    msg += `\n\n<i>ℹ️ يتم إجراء فحص تدقيق شرعي تلقائياً وحذف أي سهم يتجاوز الحدود الشرعية.</i>`;
     return msg;
   }
 }

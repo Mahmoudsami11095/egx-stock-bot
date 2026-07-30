@@ -1,31 +1,10 @@
 [
   {
-    "symbol": "ABUK",
-    "yahooSymbol": "ABUK.CA",
-    "nameEn": "Abu Qir Fertilizers",
-    "nameAr": "أبو قير للأساد",
-    "sector": "Fertilizers & Chemicals"
-  },
-  {
     "symbol": "AMOC",
     "yahooSymbol": "AMOC.CA",
     "nameEn": "Alexandria Mineral Oils Company",
     "nameAr": "الإسكندرية للزيوت المعدنية",
     "sector": "Oil & Gas"
-  },
-  {
-    "symbol": "MASR",
-    "yahooSymbol": "MASR.CA",
-    "nameEn": "Madinet Masr for Housing",
-    "nameAr": "مدينة مصر للإسكان والتعمير",
-    "sector": "Real Estate"
-  },
-  {
-    "symbol": "MICH",
-    "yahooSymbol": "MICH.CA",
-    "nameEn": "Misr Chemical Industries",
-    "nameAr": "مصر للصناعات الكيماوية",
-    "sector": "Chemicals"
   },
   {
     "symbol": "MPCI",
@@ -35,13 +14,6 @@
     "sector": "Pharmaceuticals",
     "defaultSupport": 260,
     "defaultResistance": 285
-  },
-  {
-    "symbol": "OLFI",
-    "yahooSymbol": "OLFI.CA",
-    "nameEn": "Obour Land for Food Industries",
-    "nameAr": "عبور لاند للصناعات الغذائية",
-    "sector": "Food & Beverage"
   },
   {
     "symbol": "ORAS",
@@ -72,17 +44,717 @@
     "sector": "Metals & Mining"
   },
   {
-    "symbol": "SUGR",
-    "yahooSymbol": "SUGR.CA",
-    "nameEn": "Delta Sugar",
-    "nameAr": "الدلتا للسكر",
-    "sector": "Food & Agriculture"
-  },
-  {
     "symbol": "SKPC",
     "yahooSymbol": "SKPC.CA",
     "nameEn": "Sidi Kerir Petrochemicals",
     "nameAr": "سيدى كرير للبتروكيماويات",
     "sector": "Petrochemicals"
+  },
+  {
+    "symbol": "ETEL",
+    "yahooSymbol": "ETEL.CA",
+    "nameEn": "Telecom Egypt",
+    "nameAr": "المصرية للاتصالات",
+    "sector": "Telecommunications"
+  },
+  {
+    "symbol": "JUFO",
+    "yahooSymbol": "JUFO.CA",
+    "nameEn": "Juhayna Food Industries",
+    "nameAr": "جهينة للصناعات الغذائية",
+    "sector": "Food & Beverage"
+  },
+  {
+    "symbol": "ISPH",
+    "yahooSymbol": "ISPH.CA",
+    "nameEn": "Ibn Sina Pharma",
+    "nameAr": "ابن سينا فارما",
+    "sector": "Pharmaceuticals"
+  },
+  {
+    "symbol": "EFID",
+    "yahooSymbol": "EFID.CA",
+    "nameEn": "Edita Food Industries",
+    "nameAr": "ايديتا للصناعات الغذائية",
+    "sector": "Food & Beverage"
+  },
+  {
+    "symbol": "RMDA",
+    "yahooSymbol": "RMDA.CA",
+    "nameEn": "Rameda Pharmaceuticals",
+    "nameAr": "العاشر من رمضان - راميدا",
+    "sector": "Pharmaceuticals"
+  },
+  {
+    "symbol": "CAED",
+    "yahooSymbol": "CAED.CA",
+    "nameEn": "CAED",
+    "nameAr": "القاهرة للخدمات التعليمية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ARVA",
+    "yahooSymbol": "ARVA.CA",
+    "nameEn": "ARVA",
+    "nameAr": "العربية للمحابس",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "APSW",
+    "yahooSymbol": "APSW.CA",
+    "nameEn": "APSW",
+    "nameAr": "العربية وبولفارا للغزل والنسيج",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ARAB",
+    "yahooSymbol": "ARAB.CA",
+    "nameEn": "ARAB",
+    "nameAr": "المطورون العرب القابضة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AREH",
+    "yahooSymbol": "AREH.CA",
+    "nameEn": "AREH",
+    "nameAr": "المجموعة المصرية العقاري",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "BIOC",
+    "yahooSymbol": "BIOC.CA",
+    "nameEn": "BIOC",
+    "nameAr": "جلاكسو سميثكلاين",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ACRO",
+    "yahooSymbol": "ACRO.CA",
+    "nameEn": "ACRO",
+    "nameAr": "اكرو مصر للشدات والسقالات المعدنية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AIFI",
+    "yahooSymbol": "AIFI.CA",
+    "nameEn": "AIFI",
+    "nameAr": "اطلس للاستثمار والصناعات الغذائية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ALUM",
+    "yahooSymbol": "ALUM.CA",
+    "nameEn": "ALUM",
+    "nameAr": "الالومنيوم العربية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AJWA",
+    "yahooSymbol": "AJWA.CA",
+    "nameEn": "AJWA",
+    "nameAr": "مجموعة اجواء للصناعات الغذائية - مصر",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AMER",
+    "yahooSymbol": "AMER.CA",
+    "nameEn": "AMER",
+    "nameAr": "مجموعة عامر القابضة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ARCC",
+    "yahooSymbol": "ARCC.CA",
+    "nameEn": "ARCC",
+    "nameAr": "العربية للأسمنت",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "HBCO",
+    "yahooSymbol": "HBCO.CA",
+    "nameEn": "HBCO",
+    "nameAr": "هيبكو للاستثمارات التجارية والتنمية العقارية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "FTNS",
+    "yahooSymbol": "FTNS.CA",
+    "nameEn": "FTNS",
+    "nameAr": "فتنس برايم للاندية الصحية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CPCI",
+    "yahooSymbol": "CPCI.CA",
+    "nameEn": "CPCI",
+    "nameAr": "القاهرة للادوية والصناعات الكيماوية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "DOMT",
+    "yahooSymbol": "DOMT.CA",
+    "nameEn": "DOMT",
+    "nameAr": "الصناعات الغذائية العربية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EFIC",
+    "yahooSymbol": "EFIC.CA",
+    "nameEn": "EFIC",
+    "nameAr": "المالية والصناعية المصرية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ELNA",
+    "yahooSymbol": "ELNA.CA",
+    "nameEn": "ELNA",
+    "nameAr": "النصر لتصنيع الحاصلات الزراعية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "GMCI",
+    "yahooSymbol": "GMCI.CA",
+    "nameEn": "GMCI",
+    "nameAr": "مجموعة جى إم سى للاستثمارات الصناعية والتجارية والمالية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "FNAR",
+    "yahooSymbol": "FNAR.CA",
+    "nameEn": "FNAR",
+    "nameAr": "الفنار للمقاولات العمومية والإنشاءات والتجارة والاستيراد والتصدير",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "GGRN",
+    "yahooSymbol": "GGRN.CA",
+    "nameEn": "GGRN",
+    "nameAr": "جو جرين للاستثمار الزراعي والتنمية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "NCCW",
+    "yahooSymbol": "NCCW.CA",
+    "nameEn": "NCCW",
+    "nameAr": "النصر للأعمال المدنية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "PHGC",
+    "yahooSymbol": "PHGC.CA",
+    "nameEn": "PHGC",
+    "nameAr": "بريميم هيلثكير جروب",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "INFI",
+    "yahooSymbol": "INFI.CA",
+    "nameEn": "INFI",
+    "nameAr": "الاسماعيلية الوطنية للصناعات الغذائية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MTIE",
+    "yahooSymbol": "MTIE.CA",
+    "nameEn": "MTIE",
+    "nameAr": "ام.ام جروب للصناعة والتجارة العالمية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "OBRI",
+    "yahooSymbol": "OBRI.CA",
+    "nameEn": "OBRI",
+    "nameAr": "العبور للأستثمار العقارى",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "POUL",
+    "yahooSymbol": "POUL.CA",
+    "nameEn": "POUL",
+    "nameAr": "القاهرة للدواجن",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "SCEM",
+    "yahooSymbol": "SCEM.CA",
+    "nameEn": "SCEM",
+    "nameAr": "اسمنت سيناء.",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MOED",
+    "yahooSymbol": "MOED.CA",
+    "nameEn": "MOED",
+    "nameAr": "المصرية لنظم التعليم الحديثة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "SPMD",
+    "yahooSymbol": "SPMD.CA",
+    "nameEn": "SPMD",
+    "nameAr": "شركة سبيد ميديكال",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CEFM",
+    "yahooSymbol": "CEFM.CA",
+    "nameEn": "CEFM",
+    "nameAr": "مطاحن مصر الوسطى",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "NIPH",
+    "yahooSymbol": "NIPH.CA",
+    "nameEn": "NIPH",
+    "nameAr": "النيل للادوية والصناعات الكيماوية - النيل",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MILS",
+    "yahooSymbol": "MILS.CA",
+    "nameEn": "MILS",
+    "nameAr": "مطاحن ومخابز شمال القاهرة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EALR",
+    "yahooSymbol": "EALR.CA",
+    "nameEn": "EALR",
+    "nameAr": "العربية لاستصلاح الاراضي",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CRST",
+    "yahooSymbol": "CRST.CA",
+    "nameEn": "CRST",
+    "nameAr": "كريستمارك للمقاولات والتطوير العقاري",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EDFM",
+    "yahooSymbol": "EDFM.CA",
+    "nameEn": "EDFM",
+    "nameAr": "مطاحن شرق الدلتا",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "RACC",
+    "yahooSymbol": "RACC.CA",
+    "nameEn": "RACC",
+    "nameAr": "راية لخدمات مراكز الاتصالات",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "SMFR",
+    "yahooSymbol": "SMFR.CA",
+    "nameEn": "SMFR",
+    "nameAr": "سماد مصر",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ZEOT",
+    "yahooSymbol": "ZEOT.CA",
+    "nameEn": "ZEOT",
+    "nameAr": "الزيوت المستخلصة ومنتجاتها",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EPCO",
+    "yahooSymbol": "EPCO.CA",
+    "nameEn": "EPCO",
+    "nameAr": "المصرية للدواجن",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "NAPR",
+    "yahooSymbol": "NAPR.CA",
+    "nameEn": "NAPR",
+    "nameAr": "الوطنية للطباعة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "NEDA",
+    "yahooSymbol": "NEDA.CA",
+    "nameEn": "NEDA",
+    "nameAr": "شمال الصعيد للتنمية والانتاج الزراعى",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ADCI",
+    "yahooSymbol": "ADCI.CA",
+    "nameEn": "ADCI",
+    "nameAr": "العربية للأدوية والصناعات الكيماوية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EPPK",
+    "yahooSymbol": "EPPK.CA",
+    "nameEn": "EPPK",
+    "nameAr": "الأهرام للطباعة والتغليف",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "GTWL",
+    "yahooSymbol": "GTWL.CA",
+    "nameEn": "GTWL",
+    "nameAr": "جولدن تكس للاصواف",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AMPI",
+    "yahooSymbol": "AMPI.CA",
+    "nameEn": "AMPI",
+    "nameAr": "نوفيدا للاستثمار والتكنولوجيا",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AXPH",
+    "yahooSymbol": "AXPH.CA",
+    "nameEn": "AXPH",
+    "nameAr": "الاسكندرية للادوية والصناعات الكيماوية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CCRS",
+    "yahooSymbol": "CCRS.CA",
+    "nameEn": "CCRS",
+    "nameAr": "الخليجية الكندية للاستثمار العقاري العربي",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "LUTS",
+    "yahooSymbol": "LUTS.CA",
+    "nameEn": "LUTS",
+    "nameAr": "لوتس للتنمية والاستثمار الزراعي",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MBSC",
+    "yahooSymbol": "MBSC.CA",
+    "nameEn": "MBSC",
+    "nameAr": "مصر بنى سويف للأسمنت",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "AMES",
+    "yahooSymbol": "AMES.CA",
+    "nameEn": "AMES",
+    "nameAr": "الاسكندرية للخدمات الطبية المركز الطبي الجديد",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "BIGP",
+    "yahooSymbol": "BIGP.CA",
+    "nameEn": "BIGP",
+    "nameAr": "سهم بى اى جى للتجارة والاستثمار",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "GTEX",
+    "yahooSymbol": "GTEX.CA",
+    "nameEn": "GTEX",
+    "nameAr": "جيتكس للاستثمارات التجارية والصناعية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ICMI",
+    "yahooSymbol": "ICMI.CA",
+    "nameEn": "ICMI",
+    "nameAr": "الدولية للصناعات الطبية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "INEG",
+    "yahooSymbol": "INEG.CA",
+    "nameEn": "INEG",
+    "nameAr": "المجموعة المتكاملة للاعمال الهندسية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "LBCT",
+    "yahooSymbol": "LBCT.CA",
+    "nameEn": "LBCT",
+    "nameAr": "انترناشيونال بزنيس كوربوريشن للتجارة والتوكيلات التجارية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MAAL",
+    "yahooSymbol": "MAAL.CA",
+    "nameEn": "MAAL",
+    "nameAr": "مرسيليا المصرية الخليجية للاستثمار العقارى",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MBEG",
+    "yahooSymbol": "MBEG.CA",
+    "nameEn": "MBEG",
+    "nameAr": "إم بي للهندسة والمقاولات",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MBEN",
+    "yahooSymbol": "MBEN.CA",
+    "nameEn": "MBEN",
+    "nameAr": "إم بي للهندسة والمقاولات",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MISR",
+    "yahooSymbol": "MISR.CA",
+    "nameEn": "MISR",
+    "nameAr": "مصر انتركونتننتال لصناعة الجرانيت والرخام",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MKIT",
+    "yahooSymbol": "MKIT.CA",
+    "nameEn": "MKIT",
+    "nameAr": "المصرية الكويتية للاستثمار والتجارة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MOSC",
+    "yahooSymbol": "MOSC.CA",
+    "nameEn": "MOSC",
+    "nameAr": "مصر للزيوت والصابون",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EFIH",
+    "yahooSymbol": "EFIH.CA",
+    "nameEn": "EFIH",
+    "nameAr": "اي فاينانس للاستثمارات المالية والرقمية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "EGAS",
+    "yahooSymbol": "EGAS.CA",
+    "nameEn": "EGAS",
+    "nameAr": "غاز مصر",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "NDRL",
+    "yahooSymbol": "NDRL.CA",
+    "nameEn": "NDRL",
+    "nameAr": "الحفر الوطنية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "OCPH",
+    "yahooSymbol": "OCPH.CA",
+    "nameEn": "OCPH",
+    "nameAr": "اكتوبر فارما",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "RUBX",
+    "yahooSymbol": "RUBX.CA",
+    "nameEn": "RUBX",
+    "nameAr": "روبكس العالميه لتصنيع البلاستيك والاكريلك",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "UEFM",
+    "yahooSymbol": "UEFM.CA",
+    "nameEn": "UEFM",
+    "nameAr": "مطاحن مصر العليا",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CLHO",
+    "yahooSymbol": "CLHO.CA",
+    "nameEn": "CLHO",
+    "nameAr": "شركة مستشفى كليوباترا",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "COSG",
+    "yahooSymbol": "COSG.CA",
+    "nameEn": "COSG",
+    "nameAr": "القاهرة للزيوت والصابون",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "VERT",
+    "yahooSymbol": "VERT.CA",
+    "nameEn": "VERT",
+    "nameAr": "فرتيكا للصناعة والتجارة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CIRA",
+    "yahooSymbol": "CIRA.CA",
+    "nameEn": "CIRA",
+    "nameAr": "القاهره للإستثمار و التنمية العقاريه سيرا للتعليم",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ATQA",
+    "yahooSymbol": "ATQA.CA",
+    "nameEn": "ATQA",
+    "nameAr": "مصر الوطنية للصلب",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "CERA",
+    "yahooSymbol": "CERA.CA",
+    "nameEn": "CERA",
+    "nameAr": "العربية للخزف سيراميكا -ريماس",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "OCDI",
+    "yahooSymbol": "OCDI.CA",
+    "nameEn": "OCDI",
+    "nameAr": "السادس من اكتوبر للتنمية والاستثمار",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "PHDC",
+    "yahooSymbol": "PHDC.CA",
+    "nameEn": "PHDC",
+    "nameAr": "بالم هيلز للتعمير",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "PRDC",
+    "yahooSymbol": "PRDC.CA",
+    "nameEn": "PRDC",
+    "nameAr": "بايونيرز بروبرتيز للتنمية العمرانية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ELKA",
+    "yahooSymbol": "ELKA.CA",
+    "nameEn": "ELKA",
+    "nameAr": "القاهرة للاسكان والتعمير",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ENGC",
+    "yahooSymbol": "ENGC.CA",
+    "nameEn": "ENGC",
+    "nameAr": "الصناعات الهندسية المعمارية للانشاء و التعمير",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ETRS",
+    "yahooSymbol": "ETRS.CA",
+    "nameEn": "ETRS",
+    "nameAr": "المصرية لخدمات النقل",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "GGCC",
+    "yahooSymbol": "GGCC.CA",
+    "nameEn": "GGCC",
+    "nameAr": "الجيزة العامة للمقاولات والاستثمار العقاري",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "IEEC",
+    "yahooSymbol": "IEEC.CA",
+    "nameEn": "IEEC",
+    "nameAr": "المشروعات الصناعية والهندسية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "IFAP",
+    "yahooSymbol": "IFAP.CA",
+    "nameEn": "IFAP",
+    "nameAr": "الدولية للمحاصيل الزراعية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ISMA",
+    "yahooSymbol": "ISMA.CA",
+    "nameEn": "ISMA",
+    "nameAr": "الاسماعيلية مصر للدواجن",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "PRCL",
+    "yahooSymbol": "PRCL.CA",
+    "nameEn": "PRCL",
+    "nameAr": "العامة لمنتجات الخزف والصيني",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "LCSW",
+    "yahooSymbol": "LCSW.CA",
+    "nameEn": "LCSW",
+    "nameAr": "ليسيكو",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "SVCE",
+    "yahooSymbol": "SVCE.CA",
+    "nameEn": "SVCE",
+    "nameAr": "جنوب الوادي للاسمنت",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "KRDI",
+    "yahooSymbol": "KRDI.CA",
+    "nameEn": "KRDI",
+    "nameAr": "نهر الخير للتنمية والأستثمار الزراعى والخدمات البيئية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ICFC",
+    "yahooSymbol": "ICFC.CA",
+    "nameEn": "ICFC",
+    "nameAr": "الدولية للأسمدة والكيماويات",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MCQE",
+    "yahooSymbol": "MCQE.CA",
+    "nameEn": "MCQE",
+    "nameAr": "مصر للأسمنت - قنا",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MOIL",
+    "yahooSymbol": "MOIL.CA",
+    "nameEn": "MOIL",
+    "nameAr": "الخدمات الملاحية والبترولية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MPCO",
+    "yahooSymbol": "MPCO.CA",
+    "nameEn": "MPCO",
+    "nameAr": "المنصورة للدواجن",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "RREI",
+    "yahooSymbol": "RREI.CA",
+    "nameEn": "RREI",
+    "nameAr": "الاستثمار العقاري العربي",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "GOUR",
+    "yahooSymbol": "GOUR.CA",
+    "nameEn": "GOUR",
+    "nameAr": "جورميه ايجيبت دوت كوم للأغذية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "DGTZ",
+    "yahooSymbol": "DGTZ.CA",
+    "nameEn": "DGTZ",
+    "nameAr": "ديجيتايز للاستثمار والتقنية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "SPIN",
+    "yahooSymbol": "SPIN.CA",
+    "nameEn": "SPIN",
+    "nameAr": "الإسكندرية للغزل والنسيج (سبينالكس)",
+    "sector": "Halal EGX"
   }
 ]
