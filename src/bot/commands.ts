@@ -3,6 +3,7 @@ import { DataFetcherService } from '../services/dataFetcher';
 import { SignalDetectorService } from '../services/signalDetector';
 import { StateManager } from '../services/stateManager';
 import { GoldService } from '../services/goldService';
+import { ShariaService } from '../services/shariaService';
 import { formatSignalCard, formatWatchlistStatus } from './templates';
 import { logger } from '../services/logger';
 
@@ -11,7 +12,8 @@ export function setupCommands(
   stateManager: StateManager,
   dataFetcher: DataFetcherService,
   signalDetector: SignalDetectorService,
-  goldService: GoldService = new GoldService()
+  goldService: GoldService = new GoldService(),
+  shariaService: ShariaService = new ShariaService()
 ) {
   // 1. /start & /help
   bot.command(['start', 'help'], (ctx: Context) => {
@@ -21,17 +23,18 @@ export function setupCommands(
     }
 
     const helpMsg = `
-<b>🤖 أهلاً بك في بوت توصيات البورصة والذهب (EGX Stock & Gold Signals Bot)</b>
+<b>🤖 أهلاً بك في بوت توصيات البورصة والذهب المتوافق مع الشريعة (Halal EGX & Gold Bot)</b>
 
 تم تفعيل التنبيهات اللحظية والإشعارات التلقائية لحسابك بنجاح! 🎉
 
-هذا البوت يراقب حركة أسهم البورصة المصرية وأسعار الذهب عالمياً وفي مصر لحظياً، ويقوم بحساب <b>القيمة العادلة تلقائياً</b>، وإرسال إشارات الشراء والبيع وتنبيهات الكسر والارتداد تلقائياً.
+هذا البوت يراقب حركة <b>الأسهم الحلال المتوافقة مع الشريعة الإسلامية</b> وأسعار الذهب لحظياً، ويقوم بحساب <b>القيمة العادلة تلقائياً</b>، ومتابعة التوافق الشرعي أسبوعياً واستبعاد أي أسهم غير شرعية تلقائياً!
 
 <b>📋 الأوامر المتاحة (Commands):</b>
+• <code>/halal</code> - 🕌 عرض قائمة الأسهم الحلال المتوافقة مع الشريعة في البورصة المصرية.
 • <code>/gold</code> - ⚜️ أسعار الذهب اللحظية في مصر (عيار 24، 21، 18 والجنيه الذهب) وعالمياً.
 • <code>/status</code> - ملخص سريع لحالة جميع الأسهم المتابعة والتغير اليومي والأسعار والقيمة العادلة.
 • <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لسهم معين (مثال: <code>/signals MPCI</code>).
-• <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة (مثال: <code>/add COMI</code>).
+• <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة.
 • <code>/remove TICKER</code> - حذف سهم من قائمة المتابعة.
 
 <b>📊 الأسهم المتابعة حالياً:</b>
@@ -40,7 +43,14 @@ export function setupCommands(
     ctx.replyWithHTML(helpMsg);
   });
 
-  // 2. /gold
+  // 2. /halal or /sharia
+  bot.command(['halal', 'sharia'], (ctx: Context) => {
+    const watchlist = stateManager.getWatchlist();
+    const msg = shariaService.formatHalalStocksListMessage(watchlist);
+    ctx.replyWithHTML(msg);
+  });
+
+  // 3. /gold
   bot.command('gold', async (ctx: Context) => {
     ctx.reply('🔍 جاري فحص أسعار الذهب المباشرة في مصر وعالمياً...');
     try {
@@ -53,7 +63,7 @@ export function setupCommands(
     }
   });
 
-  // 3. /status - ⚡ LIGHTNING FAST BATCH SCAN & CHUNKED DELIVERY (<1s)
+  // 4. /status - ⚡ LIGHTNING FAST BATCH SCAN & CHUNKED DELIVERY (<1s)
   bot.command('status', async (ctx: Context) => {
     ctx.reply('🔍 جاري فحص الأسعار اللحظية وحساب القيمة العادلة لأسهم البورصة المصرية...');
     try {
@@ -81,7 +91,7 @@ export function setupCommands(
     }
   });
 
-  // 4. /signals [TICKER]
+  // 5. /signals [TICKER]
   bot.command('signals', async (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);
@@ -97,6 +107,13 @@ export function setupCommands(
       }
     }
 
+    // Check Sharia status
+    if (!shariaService.isStockHalal(symbol)) {
+      return ctx.replyWithHTML(
+        `⚠️ <b>تنويه شرعي (Sharia Warning):</b> السهم <b>${symbol}</b> غير مدرج ضمن قائمة الأسهم المتوافقة مع الشريعة الإسلامية.`
+      );
+    }
+
     const stock = stateManager.findStock(symbol) || { symbol, yahooSymbol: `${symbol}.CA`, nameEn: symbol, nameAr: symbol, sector: 'General' };
     ctx.reply(`📊 جاري حساب القيمة العادلة وإجراء التحليل الفني لسهم ${stock.nameAr} (${symbol})...`);
 
@@ -107,19 +124,23 @@ export function setupCommands(
     } catch (err) { logger.error(`Error in /signals for ${symbol}: ${err}`); ctx.reply(`❌ تعذر جلب التحليل لسهم ${symbol}. تأكد من صحة الرمز.`); }
   });
 
-  // 5. /add [TICKER]
+  // 6. /add [TICKER]
   bot.command('add', (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);
     const symbol = parts[1]?.toUpperCase();
-    if (!symbol) return ctx.reply('⚠️ اكتب رمز السهم. مثال: `/add COMI`', { parse_mode: 'Markdown' });
+    if (!symbol) return ctx.reply('⚠️ اكتب رمز السهم. مثال: `/add EGAL`', { parse_mode: 'Markdown' });
+
+    if (!shariaService.isStockHalal(symbol)) {
+      return ctx.reply(`⚠️ عذراً، السهم <b>${symbol}</b> غير متوافق مع أحكام الشريعة الإسلامية ولا يمكن إضافته.`, { parse_mode: 'HTML' });
+    }
 
     const added = stateManager.addStock({ symbol, yahooSymbol: `${symbol}.CA`, nameEn: symbol, nameAr: symbol, sector: 'Custom' });
-    if (added) ctx.reply(`✅ تم إضافة السهم <b>${symbol}</b> بنجاح إلى قائمة المتابعة!`, { parse_mode: 'HTML' });
+    if (added) ctx.reply(`✅ تم إضافة السهم الحلال <b>${symbol}</b> بنجاح إلى قائمة المتابعة!`, { parse_mode: 'HTML' });
     else ctx.reply(`ℹ️ السهم <b>${symbol}</b> موجود بالفعل في القائمة.`, { parse_mode: 'HTML' });
   });
 
-  // 6. /remove [TICKER]
+  // 7. /remove [TICKER]
   bot.command('remove', (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);

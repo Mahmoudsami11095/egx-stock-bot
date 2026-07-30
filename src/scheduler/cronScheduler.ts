@@ -4,11 +4,13 @@ import { StateManager } from '../services/stateManager';
 import { DataFetcherService } from '../services/dataFetcher';
 import { SignalDetectorService } from '../services/signalDetector';
 import { GoldService } from '../services/goldService';
+import { ShariaService } from '../services/shariaService';
 import { TelegramBotService } from '../bot/telegramBot';
 import { logger } from '../services/logger';
 
 export class CronSchedulerService {
   private goldService = new GoldService();
+  private shariaService = new ShariaService();
 
   constructor(
     private stateManager: StateManager,
@@ -20,8 +22,35 @@ export class CronSchedulerService {
   public startSchedule(): void {
     const cronExpr = config.cronSchedule;
     logger.info(`⏰ Starting Automated Market Monitor Cron Schedule (${cronExpr})`);
+    
+    // 1. Regular 5-minute stock & gold market scan
     cron.schedule(cronExpr, async () => { await this.runMarketScan(); });
     setImmediate(async () => { await this.runMarketScan(); });
+
+    // 2. Weekly Sharia Audit Sync Cron (Every Sunday at 2:00 AM: '0 2 * * 0')
+    logger.info(`🕌 Scheduling Weekly Sharia Audit Sync ('0 2 * * 0')...`);
+    cron.schedule('0 2 * * 0', async () => { await this.runWeeklyShariaAudit(); });
+    // Initial sync on bot startup
+    setImmediate(async () => { await this.runWeeklyShariaAudit(); });
+  }
+
+  public async runWeeklyShariaAudit(): Promise<void> {
+    logger.info('🕌 Running Weekly Sharia Compliance Audit...');
+    try {
+      const { added, removed } = await this.shariaService.syncHalalWatchlist(this.stateManager);
+      
+      if (removed.length > 0) {
+        const msg = `
+<b>⚠️ تنويه شرعي هام (Weekly Sharia Audit Alert)</b>
+
+تم إجراء الفحص الدوري الشرعي للأسهم اليوم، وتم تلقائياً استبعاد الأسهم التالية من قائمة المتابعة لعدم توافقها مع أحكام الشريعة:
+<b>${removed.join(', ')}</b>
+`.trim();
+        await this.telegramBot.broadcastRawMessage(msg);
+      }
+    } catch (err) {
+      logger.error(`Error running weekly Sharia audit: ${err}`);
+    }
   }
 
   public async runMarketScan(): Promise<void> {
