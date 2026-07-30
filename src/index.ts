@@ -1,3 +1,5 @@
+import path from 'path';
+import express from 'express';
 import { StateManager } from './services/stateManager';
 import { DataFetcherService } from './services/dataFetcher';
 import { SignalDetectorService } from './services/signalDetector';
@@ -7,7 +9,7 @@ import { logger } from './services/logger';
 
 async function bootstrap() {
   logger.info('=====================================================');
-  logger.info('🚀 Launching EGX Stock Signal Telegram Bot System');
+  logger.info('🚀 Launching EGX Stock Signal Telegram Bot & Web System');
   logger.info('=====================================================');
 
   const stateManager = new StateManager();
@@ -16,10 +18,26 @@ async function bootstrap() {
   const telegramBot = new TelegramBotService(stateManager, dataFetcher, signalDetector);
   const cronScheduler = new CronSchedulerService(stateManager, dataFetcher, signalDetector, telegramBot);
 
-  // Start Telegram bot instance
+  // 1. Start Express Web Server for Angular App
+  const app = express();
+  const port = process.env.PORT || 3000;
+  const angularDistPath = path.join(process.cwd(), 'frontend', 'dist', 'frontend', 'browser');
+
+  app.use(express.static(angularDistPath));
+
+  // Fallback route for Angular SPA client-side routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(angularDistPath, 'index.html'));
+  });
+
+  app.listen(port, () => {
+    logger.info(`🌐 Angular Web Application live at: http://localhost:${port}`);
+  });
+
+  // 2. Start Telegram bot instance
   await telegramBot.start();
 
-  // Start scheduled market monitoring
+  // 3. Start scheduled market monitoring
   cronScheduler.startSchedule();
 
   // Graceful shutdown handling

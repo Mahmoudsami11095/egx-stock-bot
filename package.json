@@ -5,15 +5,24 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "build": "tsc",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "tsc",
+    "build": "npm run build:frontend && npm run build:backend",
     "start": "node dist/index.js",
     "test-fetch": "ts-node src/scripts/testFetch.ts"
   },
-  "keywords": ["egx", "stocks", "telegram-bot", "technical-analysis", "stock-signals"],
+  "keywords": [
+    "egx",
+    "stocks",
+    "telegram-bot",
+    "technical-analysis",
+    "stock-signals"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "node-cron": "^3.0.3",
     "technicalindicators": "^3.1.0",
     "telegraf": "^4.16.3",
@@ -21,6 +30,7 @@
     "yahoo-finance2": "^2.13.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^22.13.0",
     "@types/node-cron": "^3.0.11",
     "nodemon": "^3.1.9",
