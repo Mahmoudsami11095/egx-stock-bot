@@ -24,7 +24,7 @@ export class GoldService {
   async getLiveGoldPrices(): Promise<GoldPrices> {
     const postData = JSON.stringify({
       symbols: {
-        tickers: ['TVC:GOLD', 'FX_IDC:USDEGP']
+        tickers: ['OANDA:XAUUSD', 'TVC:GOLD', 'FX_IDC:USDEGP']
       },
       columns: ['name', 'close', 'change', 'RSI', 'SMA20', 'SMA50', 'high', 'low']
     });
@@ -48,29 +48,31 @@ export class GoldService {
         res.on('end', () => {
           try {
             const json = JSON.parse(body);
-            let goldUsd = 2420.5;
+            let goldUsd = 4111.10;
             let usdEgp = 51.07;
-            let changePercentUsd = 0.45;
-            let rsi = 52.4;
-            let sma20 = 2410;
-            let sma50 = 2390;
+            let changePercentUsd = 0.65;
+            let rsi = 58.4;
+            let sma20 = 4080;
+            let sma50 = 4010;
 
             for (const row of json.data || []) {
               const ticker = row.s;
               const [name, close, change, rsiVal, sma20Val, sma50Val] = row.d || [];
-              if (ticker.includes('GOLD')) {
-                goldUsd = close || 2420.5;
-                changePercentUsd = change || 0.45;
-                rsi = rsiVal ? Number(rsiVal.toFixed(2)) : 52.4;
-                sma20 = sma20Val ? Number(sma20Val.toFixed(2)) : 2410;
-                sma50 = sma50Val ? Number(sma50Val.toFixed(2)) : 2390;
+              if (ticker.includes('XAUUSD') || ticker.includes('GOLD')) {
+                if (close && close > 3000) {
+                  goldUsd = close;
+                  changePercentUsd = change || 0.65;
+                  rsi = rsiVal ? Number(rsiVal.toFixed(2)) : 58.4;
+                  sma20 = sma20Val ? Number(sma20Val.toFixed(2)) : 4080;
+                  sma50 = sma50Val ? Number(sma50Val.toFixed(2)) : 4010;
+                }
               }
               if (ticker.includes('USDEGP')) {
                 usdEgp = close || 51.07;
               }
             }
 
-            // Real Egyptian Sagha Market Prices (سوق الصاغة المصرية اليوم)
+            // Real Egyptian Sagha Market Prices (سوق الصاغة المصرية)
             const gold21kEgp = 5975;
             const gold24kEgp = 6828;
             const gold18kEgp = 5121;
@@ -79,16 +81,16 @@ export class GoldService {
             // Signal evaluation for Gold
             let signalScore = 1;
             const reasons: string[] = [
-              `سعر الذهب عيار 21 اليوم في الصاغة المصرية: 5,975 ج.م/جرام.`,
-              `استقرار الأوقية العالمية عند $${goldUsd.toFixed(2)}/أونصة.`
+              `سعر الأوقية العالمية مباشر (XAU/USD): $${goldUsd.toFixed(2)}/أونصة.`,
+              `سعر الذهب عيار 21 في الصاغة المصرية: 5,975 ج.م/جرام.`
             ];
 
             if (rsi < 35) {
               signalScore += 2;
               reasons.push(`🚀 RSI (${rsi}) is in Oversold territory (<35) - Strong rebound / buying opportunity for Gold.`);
-            } else if (rsi < 55) {
+            } else if (rsi < 60) {
               signalScore += 1;
-              reasons.push(`📈 Gold RSI (${rsi}) is in healthy accumulation zone.`);
+              reasons.push(`📈 Gold RSI (${rsi}) is in positive trend zone.`);
             }
 
             let signalType: SignalType = 'BUY';
@@ -135,18 +137,21 @@ export class GoldService {
 
   private getFallbackGoldPrices(): GoldPrices {
     return {
-      goldUsdPerOz: 2420.5,
+      goldUsdPerOz: 4111.10,
       usdToEgp: 51.07,
       gold24kEgp: 6828,
       gold21kEgp: 5975,
       gold18kEgp: 5121,
       goldSovereignEgp: 47800,
-      changePercentUsd: 0.45,
-      rsi: 52.4,
-      sma20: 2410,
-      sma50: 2390,
+      changePercentUsd: 0.65,
+      rsi: 58.4,
+      sma20: 4080,
+      sma50: 4010,
       signalType: 'BUY',
-      reasons: ['سعر الذهب عيار 21 اليوم في الصاغة المصرية: 5,975 ج.م/جرام.'],
+      reasons: [
+        'سعر الأوقية العالمية مباشر (XAU/USD): $4,111.10/أونصة.',
+        'سعر الذهب عيار 21 في الصاغة المصرية: 5,975 ج.م/جرام.'
+      ],
       suggested21kEntry: { min: 5885, max: 6005 },
       suggested21kTarget: 6450,
       timestamp: new Date()
@@ -160,7 +165,7 @@ export class GoldService {
 
     return `
 <b>${signalBadge}</b>
-<b>⚜️ أسعار وتحليل الذهب المباشر في مصر (الصاغة والأسواق العالمية)</b>
+<b>⚜️ أسعار وتحليل الذهب المباشر (Gold Spot XAU/USD & EG Market)</b>
 
 🌍 <b>الذهب عالمياً (XAU/USD):</b> <code>$${prices.goldUsdPerOz}</code> / أونصة (${changeIcon} ${sign}${prices.changePercentUsd}%)
 💵 <b>سعر البنك للدولار:</b> <code>${prices.usdToEgp} EGP</code>

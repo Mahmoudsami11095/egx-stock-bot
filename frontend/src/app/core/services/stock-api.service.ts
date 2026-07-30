@@ -66,14 +66,14 @@ export class StockApiService {
     this.topBuys.set(defaultStocks.slice(0, 4));
 
     this.goldPrices.set({
-      goldUsdPerOz: 2420.5,
+      goldUsdPerOz: 4111.10,
       usdEgpRate: 51.07,
       gold24kEgp: 6828,
       gold21kEgp: 5975,
       gold18kEgp: 5121,
       goldCoinEgp: 47800,
       signalType: 'BUY',
-      rsi: 52.4
+      rsi: 58.4
     });
 
     this.usdEgp.set(51.07);
