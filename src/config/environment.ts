@@ -5,6 +5,7 @@ dotenv.config();
 export const config = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
+  googleSheetsWebhookUrl: process.env.GOOGLE_SHEETS_WEBHOOK_URL || '',
   pollIntervalMinutes: parseInt(process.env.POLL_INTERVAL_MINUTES || '5', 10),
   marketHoursOnly: process.env.MARKET_HOURS_ONLY === 'true',
   cronSchedule: process.env.CRON_SCHEDULE || '*/5 * * * *',

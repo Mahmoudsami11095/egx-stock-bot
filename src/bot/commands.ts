@@ -5,6 +5,7 @@ import { StateManager } from '../services/stateManager';
 import { GoldService } from '../services/goldService';
 import { ShariaService } from '../services/shariaService';
 import { ExportService } from '../services/exportService';
+import { GoogleSheetsService } from '../services/googleSheetsService';
 import { formatSignalCard, formatWatchlistStatus } from './templates';
 import { logger } from '../services/logger';
 
@@ -15,7 +16,8 @@ export function setupCommands(
   signalDetector: SignalDetectorService,
   goldService: GoldService = new GoldService(),
   shariaService: ShariaService = new ShariaService(),
-  exportService: ExportService = new ExportService()
+  exportService: ExportService = new ExportService(),
+  googleSheetsService: GoogleSheetsService = new GoogleSheetsService()
 ) {
   // 1. /start & /help
   bot.command(['start', 'help'], (ctx: Context) => {
@@ -29,11 +31,11 @@ export function setupCommands(
 
 تم تفعيل التنبيهات اللحظية والإشعارات التلقائية لحسابك بنجاح! 🎉
 
-هذا البوت يراقب حركة <b>الأسهم الحلال المتوافقة مع الشريعة الإسلامية</b> وأسعار الذهب لحظياً، ويقوم بحساب <b>القيمة العادلة تلقائياً</b>، ومتابعة التوافق الشرعي أسبوعياً واستبعاد أي أسهم غير شرعية تلقائياً!
+هذا البوت يراقب حركة <b>الأسهم الحلال المتوافقة مع الشريعة الإسلامية</b> وأسعار الذهب لحظياً، ويقوم بحساب <b>القيمة العادلة تلقائياً</b>، ومتابعة التوافق الشرعي أسبوعياً، وتحديث شيت Google Sheets و CSV أوتوماتيكياً!
 
 <b>📋 الأوامر المتاحة (Commands):</b>
-• <code>/status</code> - 📊 ملخص سريع للأسهم المتابعة وإرسال شيت Excel/CSV المحدث تلقائياً.
-• <code>/sheet</code> - 📁 تحضير وتنزيل شيت Excel/CSV الحالي لجميع الأسهم والقيم العادلة والتوصيات.
+• <code>/status</code> - 📊 ملخص للأسهم المتابعة وتحديث شيت Google Sheets و Excel تلقائياً.
+• <code>/sheet</code> - 📁 إرسال شيت Excel/CSV الحالي وتحديث Google Sheet أونلاين.
 • <code>/halal</code> - 🕌 عرض قائمة الأسهم الحلال المتوافقة مع الشريعة في البورصة المصرية.
 • <code>/gold</code> - ⚜️ أسعار الذهب اللحظية في مصر (عيار 24، 21، 18 والجنيه الذهب) وعالمياً.
 • <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لسهم معين (مثال: <code>/signals MPCI</code>).
@@ -46,9 +48,9 @@ export function setupCommands(
     ctx.replyWithHTML(helpMsg);
   });
 
-  // 2. /sheet - Generate and send Excel/CSV spreadsheet report
+  // 2. /sheet - Generate CSV and sync to live Google Sheet
   bot.command(['sheet', 'excel', 'csv'], async (ctx: Context) => {
-    ctx.reply('📊 جاري تجهيز وتوليد شيت Excel/CSV المحدث لجميع أسهم البورصة والقيم العادلة...');
+    ctx.reply('📊 جاري تجهيز وتحديث شيت Excel و Google Sheets أونلاين...');
     try {
       const watchlist = stateManager.getWatchlist();
       const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
@@ -56,8 +58,13 @@ export function setupCommands(
         signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
       );
 
+      analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
+
+      // Sync to Live Google Sheet
+      googleSheetsService.syncToGoogleSheet(analyses);
+
       const filePath = exportService.generateCsv(analyses);
-      await ctx.replyWithDocument({ source: filePath }, { caption: '📊 شيت تحليل أسهم البورصة المصرية المحدث والقيم العادلة وتوصيات الشراء والبيع (Excel / Google Sheets Compatible)' });
+      await ctx.replyWithDocument({ source: filePath }, { caption: '📊 شيت تحليل أسهم البورصة المصرية المحدث والقيم العادلة وتوصيات الشراء (Excel / Google Sheets Compatible)' });
     } catch (error) {
       logger.error(`Error generating sheet: ${error}`);
       ctx.reply('❌ حدث خطأ أثناء إنشاء شيت البيانات.');
@@ -84,9 +91,9 @@ export function setupCommands(
     }
   });
 
-  // 5. /status - ⚡ LIGHTNING FAST BATCH SCAN & AUTO EXCEL SHEET ATTACHMENT
+  // 5. /status - BATCH SCAN & AUTO SYNC TO GOOGLE SHEETS & EXCEL
   bot.command('status', async (ctx: Context) => {
-    ctx.reply('🔍 جاري فحص الأسعار اللحظية وتوليد شيت البيانات وترتيب الأسهم حسب أعلى فارق للقيمة العادلة...');
+    ctx.reply('🔍 جاري فحص الأسعار اللحظية وتحديث شيت Google Sheets وشيت Excel المحدث...');
     try {
       const watchlist = stateManager.getWatchlist();
       const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
@@ -102,7 +109,10 @@ export function setupCommands(
       // Sort descending by Fair Value Upside %
       analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
-      // 1. Send HTML status text cards in chunks
+      // 1. Sync Live Data to Google Sheet
+      googleSheetsService.syncToGoogleSheet(analyses);
+
+      // 2. Send HTML status text cards in chunks
       const chunkSize = 6;
       for (let i = 0; i < analyses.length; i += chunkSize) {
         const chunk = analyses.slice(i, i + chunkSize);
@@ -110,7 +120,7 @@ export function setupCommands(
         await ctx.replyWithHTML(htmlMsg);
       }
 
-      // 2. Automatically generate and attach updated Excel/CSV sheet
+      // 3. Automatically generate and attach updated Excel/CSV sheet
       const filePath = exportService.generateCsv(analyses);
       await ctx.replyWithDocument({ source: filePath }, { caption: '📊 شيت Excel/CSV المحدث لجميع أسهم البورصة وقيمها العادلة وتوصيات الشراء' });
     } catch (error) {

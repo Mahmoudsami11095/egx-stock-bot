@@ -6,6 +6,7 @@ import { SignalDetectorService } from '../services/signalDetector';
 import { GoldService } from '../services/goldService';
 import { ShariaService } from '../services/shariaService';
 import { ExportService } from '../services/exportService';
+import { GoogleSheetsService } from '../services/googleSheetsService';
 import { TelegramBotService } from '../bot/telegramBot';
 import { logger } from '../services/logger';
 
@@ -13,6 +14,7 @@ export class CronSchedulerService {
   private goldService = new GoldService();
   private shariaService = new ShariaService();
   private exportService = new ExportService();
+  private googleSheetsService = new GoogleSheetsService();
 
   constructor(
     private stateManager: StateManager,
@@ -33,8 +35,8 @@ export class CronSchedulerService {
     logger.info(`🕌 Scheduling Weekly Sharia Audit Sync ('0 2 * * 0')...`);
     cron.schedule('0 2 * * 0', async () => { await this.runWeeklyShariaAudit(); });
 
-    // 3. Daily Market Close Excel Sheet Report (Sun-Thu at 3:00 PM: '0 15 * * 0-4')
-    logger.info(`📁 Scheduling Daily Market Close Excel Sheet Report ('0 15 * * 0-4')...`);
+    // 3. Daily Market Close Excel & Google Sheet Sync (Sun-Thu at 3:00 PM: '0 15 * * 0-4')
+    logger.info(`📁 Scheduling Daily Market Close Excel & Google Sheet Sync ('0 15 * * 0-4')...`);
     cron.schedule('0 15 * * 0-4', async () => { await this.sendDailySheetReport(); });
   }
 
@@ -47,6 +49,12 @@ export class CronSchedulerService {
         this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
       );
 
+      analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
+
+      // 1. Sync Live Google Sheet (Online)
+      await this.googleSheetsService.syncToGoogleSheet(analyses);
+
+      // 2. Generate and send CSV file
       const filePath = this.exportService.generateCsv(analyses);
       await this.telegramBot.sendDocumentToSubscribers(
         filePath,
