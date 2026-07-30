@@ -26,7 +26,7 @@ export class CronSchedulerService {
 
   public async runMarketScan(): Promise<void> {
     logger.info('🔍 Starting automated market scan via TradingView...');
-    
+
     // 1. Scan Gold
     try {
       const goldPrices = await this.goldService.getLiveGoldPrices();
@@ -41,21 +41,24 @@ export class CronSchedulerService {
       logger.error(`Error scanning Gold: ${err}`);
     }
 
-    // 2. Scan Stocks Watchlist
-    const watchlist = this.stateManager.getWatchlist();
+    // 2. Batch Scan Stocks Watchlist (<1s)
+    try {
+      const watchlist = this.stateManager.getWatchlist();
+      const batchResults = await this.dataFetcher.getBatchQuoteAndIndicators(watchlist);
 
-    for (const stock of watchlist) {
-      try {
-        const { quote, indicators, automatedFairValue } = await this.dataFetcher.getQuoteAndIndicators(stock);
-        const analysis = this.signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue);
-        logger.info(`[Scan] ${stock.symbol}: ${quote.currentPrice} EGP | Fair Value: ${automatedFairValue} EGP | Signal: ${analysis.signalType}`);
+      for (const r of batchResults) {
+        const analysis = this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue);
+        logger.info(`[Scan] ${r.stock.symbol}: ${r.quote.currentPrice} EGP | Fair Value: ${r.automatedFairValue} EGP | Signal: ${analysis.signalType}`);
 
-        if (this.stateManager.shouldSendAlert(stock.symbol, analysis.signalType, quote.currentPrice)) {
-          logger.info(`🚨 New signal for ${stock.symbol}! Sending Telegram alert...`);
+        if (this.stateManager.shouldSendAlert(r.stock.symbol, analysis.signalType, r.quote.currentPrice)) {
+          logger.info(`🚨 New signal for ${r.stock.symbol}! Sending Telegram alert...`);
           await this.telegramBot.sendNotificationCard(analysis);
         }
-      } catch (error) { logger.error(`Error scanning ${stock.symbol}: ${error}`); }
+      }
+    } catch (error) {
+      logger.error(`Error scanning stocks watchlist: ${error}`);
     }
+
     logger.info('✅ Market scan completed.');
   }
 }

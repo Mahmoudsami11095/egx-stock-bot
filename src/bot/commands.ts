@@ -53,22 +53,26 @@ export function setupCommands(
     }
   });
 
-  // 3. /status
+  // 3. /status - ⚡ LIGHTNING FAST BATCH SCAN (<1s)
   bot.command('status', async (ctx: Context) => {
-    ctx.reply('🔍 جاري فحص الأسعار اللحظية وحساب القيمة العادلة التلقائية لأسهم البورصة المصرية...');
+    ctx.reply('🔍 جاري فحص الأسعار اللحظية وحساب القيمة العادلة لأسهم البورصة المصرية...');
     try {
       const watchlist = stateManager.getWatchlist();
-      const analyses = [];
-      for (const stock of watchlist) {
-        try {
-          const { quote, indicators, automatedFairValue } = await dataFetcher.getQuoteAndIndicators(stock);
-          const analysis = signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue);
-          analyses.push(analysis);
-        } catch (err) { logger.error(`Error analyzing ${stock.symbol} for status: ${err}`); }
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
+
+      if (batchResults.length === 0) {
+        return ctx.reply('⚠️ تعذر جلب بيانات الأسهم حالياً. يرجى المحاولة لاحقاً.');
       }
-      if (analyses.length === 0) return ctx.reply('⚠️ تعذر جلب بيانات الأسهم حالياً.');
+
+      const analyses = batchResults.map((r) =>
+        signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
+      );
+
       ctx.replyWithHTML(formatWatchlistStatus(analyses));
-    } catch (error) { logger.error(`Error handling /status: ${error}`); ctx.reply('❌ حدث خطأ أثناء تنفيذ الأمر.'); }
+    } catch (error) {
+      logger.error(`Error handling /status: ${error}`);
+      ctx.reply('❌ حدث خطأ أثناء جلب حالة الأسهم.');
+    }
   });
 
   // 4. /signals [TICKER]
@@ -94,7 +98,7 @@ export function setupCommands(
       const { quote, indicators, automatedFairValue } = await dataFetcher.getQuoteAndIndicators(stock);
       const analysis = signalDetector.analyzeStockWithIndicators(stock, quote, indicators, automatedFairValue);
       ctx.replyWithHTML(formatSignalCard(analysis));
-    } catch (err) { logger.error(`Error in /signals for ${symbol}: ${err}`); ctx.reply(`❌ تعذر جلب التحليل لسهم ${symbol}.`); }
+    } catch (err) { logger.error(`Error in /signals for ${symbol}: ${err}`); ctx.reply(`❌ تعذر جلب التحليل لسهم ${symbol}. تأكد من صحة الرمز.`); }
   });
 
   // 5. /add [TICKER]
