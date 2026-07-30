@@ -1,30 +1,32 @@
-import http from 'https';
 import https from 'https';
 import { StockAnalysisResult } from '../types/stock';
 import { config } from '../config/environment';
 import { logger } from './logger';
 
 export class GoogleSheetsService {
-  private webhookUrl: string | undefined;
+  private webhookUrl: string;
 
   constructor() {
-    this.webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+    this.webhookUrl =
+      config.googleSheetsWebhookUrl ||
+      'https://script.google.com/macros/s/AKfycbz7QaHLl3lQhPfYdyjQG6ZAc1e0C3bNj7O7XXn5caUFPknyvOaEE7wdtn_1sDxV7bAJ/exec';
   }
 
   /**
    * Automatically pushes live stock analysis data to user's Google Sheet (17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck).
    */
   public async syncToGoogleSheet(analyses: StockAnalysisResult[]): Promise<boolean> {
-    if (!this.webhookUrl) {
+    const urlStr = this.webhookUrl;
+    if (!urlStr) {
       logger.info('ℹ️ Google Sheets Webhook URL not set. Skipping live Google Sheets push sync.');
       return false;
     }
 
     const sorted = [...analyses].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
-    const payload = {
+    const payload = JSON.stringify({
       sheetId: '17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toLocaleString('ar-EG'),
       stocks: sorted.map((a) => ({
         symbol: a.quote.symbol,
         nameAr: a.quote.nameAr,
@@ -45,28 +47,44 @@ export class GoogleSheetsService {
         stopLoss: a.suggestedStopLoss,
         shariaStatus: 'Halal - Sharia Compliant'
       }))
-    };
+    });
 
     return new Promise((resolve) => {
       try {
-        const postData = JSON.stringify(payload);
-        const url = new URL(this.webhookUrl!);
-
+        const u = new URL(urlStr);
         const options = {
-          hostname: url.hostname,
-          port: url.port || 443,
-          path: url.pathname + url.search,
+          hostname: u.hostname,
+          port: 443,
+          path: u.pathname + u.search,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData)
+            'Content-Length': Buffer.byteLength(payload)
           }
         };
 
-        const client = url.protocol === 'https:' ? https : http;
-        const req = client.request(options, (res) => {
-          logger.info(`✅ Google Sheets sync HTTP Status: ${res.statusCode}`);
-          resolve(true);
+        const req = https.request(options, (res) => {
+          if (res.statusCode === 302 || res.statusCode === 301) {
+            const redirectUrl = res.headers.location;
+            if (redirectUrl) {
+              https.get(redirectUrl, (res2) => {
+                let body = '';
+                res2.on('data', (chunk) => (body += chunk));
+                res2.on('end', () => {
+                  logger.info(`✅ Google Sheets live sync complete! Response: ${body}`);
+                  resolve(true);
+                });
+              });
+              return;
+            }
+          }
+
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => {
+            logger.info(`✅ Google Sheets live sync response: ${body}`);
+            resolve(true);
+          });
         });
 
         req.on('error', (err) => {
@@ -74,7 +92,7 @@ export class GoogleSheetsService {
           resolve(false);
         });
 
-        req.write(postData);
+        req.write(payload);
         req.end();
       } catch (err) {
         logger.error(`Failed to trigger Google Sheet sync: ${err}`);
