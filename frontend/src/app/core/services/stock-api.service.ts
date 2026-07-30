@@ -66,15 +66,17 @@ export class StockApiService {
     this.topBuys.set(defaultStocks.slice(0, 4));
 
     this.goldPrices.set({
-      goldUsdPerOz: 2410.5,
-      usdEgpRate: 48.5,
-      gold24kEgp: 3755,
-      gold21kEgp: 3285,
-      gold18kEgp: 2816,
-      goldCoinEgp: 26280,
+      goldUsdPerOz: 2420.5,
+      usdEgpRate: 51.07,
+      gold24kEgp: 3960,
+      gold21kEgp: 3465,
+      gold18kEgp: 2970,
+      goldCoinEgp: 27720,
       signalType: 'BUY',
       rsi: 42.5
     });
+
+    this.usdEgp.set(51.07);
 
     try {
       // 1. Fetch from relative /api/stocks REST endpoint served by Node Express backend

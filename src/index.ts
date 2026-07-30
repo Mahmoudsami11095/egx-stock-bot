@@ -7,6 +7,8 @@ import { TelegramBotService } from './bot/telegramBot';
 import { CronSchedulerService } from './scheduler/cronScheduler';
 import { logger } from './services/logger';
 
+import { GoldService } from './services/goldService';
+
 async function bootstrap() {
   logger.info('=====================================================');
   logger.info('🚀 Launching EGX Stock Signal Telegram Bot & Web System');
@@ -15,6 +17,7 @@ async function bootstrap() {
   const stateManager = new StateManager();
   const dataFetcher = new DataFetcherService();
   const signalDetector = new SignalDetectorService();
+  const goldService = new GoldService();
   const telegramBot = new TelegramBotService(stateManager, dataFetcher, signalDetector);
   const cronScheduler = new CronSchedulerService(stateManager, dataFetcher, signalDetector, telegramBot);
 
@@ -47,24 +50,19 @@ async function bootstrap() {
 
   app.get('/api/gold', async (req, res) => {
     try {
-      const usdEgp = await dataFetcher.fetchUsdEgp();
-      const goldUsd = 2410.5;
-      const gold24k = Number(((goldUsd / 31.1035) * usdEgp).toFixed(2));
-      const gold21k = Number((gold24k * 0.875).toFixed(2));
-      const gold18k = Number((gold24k * 0.750).toFixed(2));
-      const goldCoin = Number((gold21k * 8).toFixed(2));
-
+      const goldPrices = await goldService.getLiveGoldPrices();
       res.json({
-        goldUsdPerOz: goldUsd,
-        usdEgpRate: usdEgp,
-        gold24kEgp: gold24k,
-        gold21kEgp: gold21k,
-        gold18kEgp: gold18k,
-        goldCoinEgp: goldCoin,
-        signalType: 'BUY',
-        rsi: 42.5
+        goldUsdPerOz: goldPrices.goldUsdPerOz,
+        usdEgpRate: goldPrices.usdToEgp,
+        gold24kEgp: goldPrices.gold24kEgp,
+        gold21kEgp: goldPrices.gold21kEgp,
+        gold18kEgp: goldPrices.gold18kEgp,
+        goldCoinEgp: goldPrices.goldSovereignEgp,
+        signalType: goldPrices.signalType,
+        rsi: goldPrices.rsi
       });
     } catch (err: any) {
+      logger.error(`Error fetching live gold prices: ${err}`);
       res.status(500).json({ error: err.message });
     }
   });
