@@ -4,6 +4,7 @@ import { SignalDetectorService } from '../services/signalDetector';
 import { StateManager } from '../services/stateManager';
 import { GoldService } from '../services/goldService';
 import { ShariaService } from '../services/shariaService';
+import { ExportService } from '../services/exportService';
 import { formatSignalCard, formatWatchlistStatus } from './templates';
 import { logger } from '../services/logger';
 
@@ -13,7 +14,8 @@ export function setupCommands(
   dataFetcher: DataFetcherService,
   signalDetector: SignalDetectorService,
   goldService: GoldService = new GoldService(),
-  shariaService: ShariaService = new ShariaService()
+  shariaService: ShariaService = new ShariaService(),
+  exportService: ExportService = new ExportService()
 ) {
   // 1. /start & /help
   bot.command(['start', 'help'], (ctx: Context) => {
@@ -30,9 +32,10 @@ export function setupCommands(
 هذا البوت يراقب حركة <b>الأسهم الحلال المتوافقة مع الشريعة الإسلامية</b> وأسعار الذهب لحظياً، ويقوم بحساب <b>القيمة العادلة تلقائياً</b>، ومتابعة التوافق الشرعي أسبوعياً واستبعاد أي أسهم غير شرعية تلقائياً!
 
 <b>📋 الأوامر المتاحة (Commands):</b>
+• <code>/status</code> - 📊 ملخص سريع للأسهم المتابعة وإرسال شيت Excel/CSV المحدث تلقائياً.
+• <code>/sheet</code> - 📁 تحضير وتنزيل شيت Excel/CSV الحالي لجميع الأسهم والقيم العادلة والتوصيات.
 • <code>/halal</code> - 🕌 عرض قائمة الأسهم الحلال المتوافقة مع الشريعة في البورصة المصرية.
 • <code>/gold</code> - ⚜️ أسعار الذهب اللحظية في مصر (عيار 24، 21، 18 والجنيه الذهب) وعالمياً.
-• <code>/status</code> - ملخص سريع للأسهم مرتبة حسب أعلى فارق للقيمة العادلة وأفضل أسهم للشراء.
 • <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لسهم معين (مثال: <code>/signals MPCI</code>).
 • <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة.
 • <code>/remove TICKER</code> - حذف سهم من قائمة المتابعة.
@@ -43,14 +46,32 @@ export function setupCommands(
     ctx.replyWithHTML(helpMsg);
   });
 
-  // 2. /halal or /sharia
+  // 2. /sheet - Generate and send Excel/CSV spreadsheet report
+  bot.command(['sheet', 'excel', 'csv'], async (ctx: Context) => {
+    ctx.reply('📊 جاري تجهيز وتوليد شيت Excel/CSV المحدث لجميع أسهم البورصة والقيم العادلة...');
+    try {
+      const watchlist = stateManager.getWatchlist();
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
+      const analyses = batchResults.map((r) =>
+        signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
+      );
+
+      const filePath = exportService.generateCsv(analyses);
+      await ctx.replyWithDocument({ source: filePath }, { caption: '📊 شيت تحليل أسهم البورصة المصرية المحدث والقيم العادلة وتوصيات الشراء والبيع (Excel / Google Sheets Compatible)' });
+    } catch (error) {
+      logger.error(`Error generating sheet: ${error}`);
+      ctx.reply('❌ حدث خطأ أثناء إنشاء شيت البيانات.');
+    }
+  });
+
+  // 3. /halal or /sharia
   bot.command(['halal', 'sharia'], (ctx: Context) => {
     const watchlist = stateManager.getWatchlist();
     const msg = shariaService.formatHalalStocksListMessage(watchlist);
     ctx.replyWithHTML(msg);
   });
 
-  // 3. /gold
+  // 4. /gold
   bot.command('gold', async (ctx: Context) => {
     ctx.reply('🔍 جاري فحص أسعار الذهب المباشرة في مصر وعالمياً...');
     try {
@@ -63,9 +84,9 @@ export function setupCommands(
     }
   });
 
-  // 4. /status - ⚡ SORTED BY BIGGEST FAIR VALUE GAP & TOP RECOMMENDED BUYS
+  // 5. /status - ⚡ LIGHTNING FAST BATCH SCAN & AUTO EXCEL SHEET ATTACHMENT
   bot.command('status', async (ctx: Context) => {
-    ctx.reply('🔍 جاري فحص الأسعار اللحظية وترتيب الأسهم حسب أعلى فارق للقيمة العادلة والتوصيات...');
+    ctx.reply('🔍 جاري فحص الأسعار اللحظية وتوليد شيت البيانات وترتيب الأسهم حسب أعلى فارق للقيمة العادلة...');
     try {
       const watchlist = stateManager.getWatchlist();
       const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
@@ -81,20 +102,24 @@ export function setupCommands(
       // Sort descending by Fair Value Upside %
       analyses.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
 
-      // Send in chunks of 6 stocks to guarantee instant delivery and zero Telegram size limit errors
+      // 1. Send HTML status text cards in chunks
       const chunkSize = 6;
       for (let i = 0; i < analyses.length; i += chunkSize) {
         const chunk = analyses.slice(i, i + chunkSize);
         const htmlMsg = formatWatchlistStatus(chunk);
         await ctx.replyWithHTML(htmlMsg);
       }
+
+      // 2. Automatically generate and attach updated Excel/CSV sheet
+      const filePath = exportService.generateCsv(analyses);
+      await ctx.replyWithDocument({ source: filePath }, { caption: '📊 شيت Excel/CSV المحدث لجميع أسهم البورصة وقيمها العادلة وتوصيات الشراء' });
     } catch (error) {
       logger.error(`Error handling /status: ${error}`);
       ctx.reply('❌ حدث خطأ أثناء جلب حالة الأسهم.');
     }
   });
 
-  // 5. /signals [TICKER]
+  // 6. /signals [TICKER]
   bot.command('signals', async (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);
@@ -127,7 +152,7 @@ export function setupCommands(
     } catch (err) { logger.error(`Error in /signals for ${symbol}: ${err}`); ctx.reply(`❌ تعذر جلب التحليل لسهم ${symbol}. تأكد من صحة الرمز.`); }
   });
 
-  // 6. /add [TICKER]
+  // 7. /add [TICKER]
   bot.command('add', (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);
@@ -143,7 +168,7 @@ export function setupCommands(
     else ctx.reply(`ℹ️ السهم <b>${symbol}</b> موجود بالفعل في القائمة.`, { parse_mode: 'HTML' });
   });
 
-  // 7. /remove [TICKER]
+  // 8. /remove [TICKER]
   bot.command('remove', (ctx: Context) => {
     const messageText = (ctx.message as any)?.text || '';
     const parts = messageText.trim().split(/\s+/);

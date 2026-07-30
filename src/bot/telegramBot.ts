@@ -30,6 +30,24 @@ export class TelegramBotService {
     } catch (error) { logger.error(`Failed to launch Telegram Bot: ${error}`); }
   }
 
+  public async sendDocumentToSubscribers(filePath: string, caption?: string): Promise<void> {
+    if (!this.bot) return;
+
+    const subscribers = this.stateManager.getSubscribers();
+    if (config.telegramChatId && !subscribers.includes(config.telegramChatId)) {
+      subscribers.push(config.telegramChatId);
+    }
+
+    for (const chatId of subscribers) {
+      try {
+        await this.bot.telegram.sendDocument(chatId, { source: filePath }, { caption });
+        logger.info(`📄 Spreadsheet document sent to Chat ID (${chatId}).`);
+      } catch (error) {
+        logger.error(`Failed to send document to ${chatId}: ${error}`);
+      }
+    }
+  }
+
   public async broadcastRawMessage(htmlMessage: string): Promise<void> {
     if (!this.bot) return;
 

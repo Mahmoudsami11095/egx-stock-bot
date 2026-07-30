@@ -5,12 +5,14 @@ import { DataFetcherService } from '../services/dataFetcher';
 import { SignalDetectorService } from '../services/signalDetector';
 import { GoldService } from '../services/goldService';
 import { ShariaService } from '../services/shariaService';
+import { ExportService } from '../services/exportService';
 import { TelegramBotService } from '../bot/telegramBot';
 import { logger } from '../services/logger';
 
 export class CronSchedulerService {
   private goldService = new GoldService();
   private shariaService = new ShariaService();
+  private exportService = new ExportService();
 
   constructor(
     private stateManager: StateManager,
@@ -30,8 +32,29 @@ export class CronSchedulerService {
     // 2. Weekly Sharia Audit Sync Cron (Every Sunday at 2:00 AM: '0 2 * * 0')
     logger.info(`🕌 Scheduling Weekly Sharia Audit Sync ('0 2 * * 0')...`);
     cron.schedule('0 2 * * 0', async () => { await this.runWeeklyShariaAudit(); });
-    // Initial sync on bot startup
-    setImmediate(async () => { await this.runWeeklyShariaAudit(); });
+
+    // 3. Daily Market Close Excel Sheet Report (Sun-Thu at 3:00 PM: '0 15 * * 0-4')
+    logger.info(`📁 Scheduling Daily Market Close Excel Sheet Report ('0 15 * * 0-4')...`);
+    cron.schedule('0 15 * * 0-4', async () => { await this.sendDailySheetReport(); });
+  }
+
+  public async sendDailySheetReport(): Promise<void> {
+    logger.info('📊 Generating Daily Market Close Excel/CSV Sheet Report...');
+    try {
+      const watchlist = this.stateManager.getWatchlist();
+      const batchResults = await this.dataFetcher.getBatchQuoteAndIndicators(watchlist);
+      const analyses = batchResults.map((r) =>
+        this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue)
+      );
+
+      const filePath = this.exportService.generateCsv(analyses);
+      await this.telegramBot.sendDocumentToSubscribers(
+        filePath,
+        '📊 **تقرير شيت البيانات اليومي الختامي لأسهم البورصة المصرية والقيم العادلة وتوصيات الشراء**'
+      );
+    } catch (err) {
+      logger.error(`Error sending daily sheet report: ${err}`);
+    }
   }
 
   public async runWeeklyShariaAudit(): Promise<void> {
