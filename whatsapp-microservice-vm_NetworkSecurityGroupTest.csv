@@ -1,0 +1,41 @@
+Diagnostic details
+Last test = ,2026-07-30T07:25:04.781Z
+Test ran = ,Inbound
+Source = ,*
+VM destination details = ,HTTP/80/TCP
+Traffic status = ,Deny (1 security group blocking traffic to VM)
+
+Summary,To resolve update security rules to allow traffic or add a new security rule with a higher priority. Default security rules can't be updated but you can override them with rules that have a higher priority. If there are Network Manager security rules blocking traffic you may or may not have authorization to update these rules and will need to contact your network administrator for assistance.
+
+
+Network security group,Security rule,Applied action
+whatsapp-microservice-vm-nsg,DenyAllInBound,Deny
+
+--------------------------------------------------
+
+Test ran = ,Inbound
+Source = ,*
+VM destination details = ,RDP/3389/TCP
+Traffic status = ,Deny (1 security group blocking traffic to VM)
+
+Summary,To resolve update security rules to allow traffic or add a new security rule with a higher priority. Default security rules can't be updated but you can override them with rules that have a higher priority. If there are Network Manager security rules blocking traffic you may or may not have authorization to update these rules and will need to contact your network administrator for assistance.
+
+
+Network security group,Security rule,Applied action
+whatsapp-microservice-vm-nsg,DenyAllInBound,Deny
+
+--------------------------------------------------
+
+Test ran = ,Inbound
+Source = ,*
+VM destination details = ,HTTPS/443/TCP
+Traffic status = ,Deny (1 security group blocking traffic to VM)
+
+Summary,To resolve update security rules to allow traffic or add a new security rule with a higher priority. Default security rules can't be updated but you can override them with rules that have a higher priority. If there are Network Manager security rules blocking traffic you may or may not have authorization to update these rules and will need to contact your network administrator for assistance.
+
+
+Network security group,Security rule,Applied action
+whatsapp-microservice-vm-nsg,DenyAllInBound,Deny
+
+--------------------------------------------------
+

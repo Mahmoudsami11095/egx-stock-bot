@@ -1,0 +1,3 @@
+@echo off
+echo Connecting to Azure VM (20.91.240.54) via plink...
+d:\Stocks\plink.exe -batch -ssh azureuser@20.91.240.54 -pw azureuserSami@11095 "echo azureuserSami@11095 | sudo -S ufw allow 3000/tcp && echo azureuserSami@11095 | sudo -S bash -c 'cd /root/egx-stock-bot && git checkout -- package-lock.json && git pull && cd frontend && npm install --legacy-peer-deps && npm run build && cd .. && npm run build && pm2 restart egx-stock-bot && pm2 status'"
