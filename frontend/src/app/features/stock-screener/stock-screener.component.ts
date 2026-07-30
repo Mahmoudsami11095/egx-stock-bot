@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
 import { StockApiService } from '../../core/services/stock-api.service';
 import { StockModalComponent } from '../../shared/components/stock-modal/stock-modal.component';
 import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
@@ -11,7 +10,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
 @Component({
   selector: 'app-stock-screener',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, InputTextModule, DropdownModule, StockModalComponent],
+  imports: [CommonModule, FormsModule, TableModule, InputTextModule, StockModalComponent],
   template: `
     <div class="space-y-6 pb-12">
       <!-- Page Header -->
