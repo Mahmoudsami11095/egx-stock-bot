@@ -33,10 +33,11 @@ export interface TechnicalIndicators {
   sma20: number;
   sma50: number;
   macd?: {
-    MACD?: number;
+    macd?: number;
     signal?: number;
     histogram?: number;
   };
+  adx?: number;
   support: number;
   resistance: number;
   volumeSpike: boolean;
@@ -47,12 +48,15 @@ export interface StockAnalysisResult {
   quote: StockQuote;
   indicators: TechnicalIndicators;
   signalType: SignalType;
+  signalScore: number;
   reasons: string[];
   fairValue: number;
   fairValueUpsidePercent: number;
   suggestedEntry: { min: number; max: number };
   suggestedTarget: { target1: number; target2: number };
   suggestedStopLoss: number;
+  positionSizePercent: number;
+  riskRewardRatio: number;
   timestamp: Date;
 }
 

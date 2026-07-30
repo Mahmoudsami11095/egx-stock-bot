@@ -9,6 +9,8 @@ export interface TemplatesnippetStockItem {
   name_en?: string;
   name_ar?: string;
   currency?: string;
+  updated_at?: string;
+  last_updated?: string;
   sp_haram_earning_percentage?: number;
   haram_earnings_percentage?: number;
   loans_percentage?: number;
@@ -61,10 +63,16 @@ export class ShariaService {
             this.liveHalalMap.clear();
             this.liveNonHalalMap.clear();
 
+            let latestTimestamp = 0;
             for (const item of rawList) {
               const sym = item.symbol.toUpperCase();
               const nameAr = item.name_ar || item.name_en || sym;
               const nameEn = item.name_en || sym;
+
+              if (item.updated_at || item.last_updated) {
+                const ts = new Date(item.updated_at || item.last_updated || 0).getTime();
+                if (ts > latestTimestamp) latestTimestamp = ts;
+              }
 
               const isCoreCompliant = item.core_activity_compliant !== false;
               const loansPercent = item.loans_percentage ?? 0;
@@ -95,6 +103,12 @@ export class ShariaService {
                   sector: 'Halal EGX',
                 });
               }
+            }
+
+            // Freshness / Staleness check (Warn if data > 60 days old)
+            const daysOld = Math.floor((Date.now() - latestTimestamp) / (1000 * 60 * 60 * 24));
+            if (daysOld > 60 && latestTimestamp > 0) {
+              logger.warn(`⚠️ Sharia Database Warning: Live data is ${daysOld} days old (last updated: ${new Date(latestTimestamp).toISOString().split('T')[0]}).`);
             }
 
             logger.info(`✅ Loaded ${rawList.length} total EGX stocks from live Sharia database: ${this.liveHalalMap.size} Halal stocks, ${this.liveNonHalalMap.size} Non-Halal stocks.`);

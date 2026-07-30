@@ -8,6 +8,31 @@ export interface StockMeta {
   defaultResistance?: number;
 }
 
+export const SECTOR_PE_MULTIPLIERS: Record<string, number> = {
+  'Pharmaceuticals': 18.0,
+  'Food & Beverage': 16.0,
+  'Telecommunications': 14.0,
+  'Construction': 12.0,
+  'Textiles & Consumer Goods': 13.0,
+  'Industrial Cables & Energy': 12.0,
+  'Oil & Gas': 10.0,
+  'Petrochemicals': 10.0,
+  'Metals & Mining': 9.0,
+  'Banking': 8.0,
+  'Halal EGX': 13.5, // Standard baseline fallback
+  'General': 13.5
+};
+
+export function getSectorPE(sector?: string): number {
+  if (!sector) return 13.5;
+  for (const [key, val] of Object.entries(SECTOR_PE_MULTIPLIERS)) {
+    if (sector.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(sector.toLowerCase())) {
+      return val;
+    }
+  }
+  return 13.5;
+}
+
 export const INITIAL_STOCKS: StockMeta[] = [
   { symbol: 'AMOC', yahooSymbol: 'AMOC.CA', nameEn: 'Alexandria Mineral Oils Company', nameAr: 'الإسكندرية للزيوت المعدنية', sector: 'Oil & Gas' },
   { symbol: 'MPCI', yahooSymbol: 'MPCI.CA', nameEn: 'Memphis Pharmaceutical', nameAr: 'ممفيس للأدوية والصناعات الكيماوية', sector: 'Pharmaceuticals' },

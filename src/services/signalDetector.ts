@@ -1,7 +1,46 @@
+import fs from 'fs';
+import path from 'path';
 import { StockQuote, StockAnalysisResult, SignalType, TechnicalIndicators } from '../types/stock';
 import { StockMeta } from '../constants/stocks';
+import { logger } from './logger';
 
 export class SignalDetectorService {
+  private historyFilePath = path.join(process.cwd(), 'data', 'signal_history.json');
+
+  constructor() {
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+  }
+
+  private logSignalHistory(analysis: StockAnalysisResult): void {
+    try {
+      let history: any[] = [];
+      if (fs.existsSync(this.historyFilePath)) {
+        const raw = fs.readFileSync(this.historyFilePath, 'utf8');
+        history = JSON.parse(raw);
+      }
+      history.push({
+        symbol: analysis.quote.symbol,
+        timestamp: new Date().toISOString(),
+        signalType: analysis.signalType,
+        signalScore: analysis.signalScore,
+        currentPrice: analysis.quote.currentPrice,
+        fairValue: analysis.fairValue,
+        suggestedTarget1: analysis.suggestedTarget.target1,
+        suggestedStopLoss: analysis.suggestedStopLoss,
+        positionSizePercent: analysis.positionSizePercent,
+        riskRewardRatio: analysis.riskRewardRatio,
+      });
+      // Keep last 500 signals
+      if (history.length > 500) history = history.slice(-500);
+      fs.writeFileSync(this.historyFilePath, JSON.stringify(history, null, 2), 'utf8');
+    } catch (e) {
+      logger.error(`Error writing signal history log: ${e}`);
+    }
+  }
+
   analyzeStockWithIndicators(
     stock: StockMeta,
     quote: StockQuote,
@@ -36,16 +75,34 @@ export class SignalDetectorService {
       reasons.push(`⚠️ RSI (${indicators.rsi}) is in Overbought zone (>70) - Caution near peaks.`);
     }
 
-    // 2. Moving Average Rules
+    // 2. MACD Rules (Moving Average Convergence Divergence)
+    if (indicators.macd && indicators.macd.macd !== undefined && indicators.macd.signal !== undefined) {
+      if (indicators.macd.macd > indicators.macd.signal) {
+        signalScore += 1;
+        reasons.push(`✨ MACD Bullish Crossover: MACD line (${indicators.macd.macd}) above Signal (${indicators.macd.signal}).`);
+      } else if (indicators.macd.macd < indicators.macd.signal) {
+        signalScore -= 1;
+        reasons.push(`🔻 MACD Bearish Crossover: MACD line (${indicators.macd.macd}) below Signal (${indicators.macd.signal}).`);
+      }
+    }
+
+    // 3. ADX Trend Filter (Average Directional Index)
+    const isWeakTrend = (indicators.adx || 20) < 20;
+    const trendWeight = isWeakTrend ? 0.5 : 1.0;
+    if (isWeakTrend) {
+      reasons.push(`ℹ️ ADX (${indicators.adx || 20}) indicates ranging / low trend strength market.`);
+    }
+
+    // 4. Moving Average Rules (weighted by ADX trend factor)
     if (indicators.sma20 > indicators.sma50) {
-      signalScore += 1;
+      signalScore += Math.round(1 * trendWeight);
       reasons.push(`✨ Bullish Trend: SMA 20 (${indicators.sma20}) is above SMA 50 (${indicators.sma50}).`);
     } else if (indicators.sma20 < indicators.sma50) {
-      signalScore -= 1;
+      signalScore -= Math.round(1 * trendWeight);
       reasons.push(`🔻 Bearish Trend: SMA 20 (${indicators.sma20}) is below SMA 50 (${indicators.sma50}).`);
     }
 
-    // 3. Support / Resistance Breakout Rules
+    // 5. Support / Resistance Breakout Rules
     const distToResistance = ((indicators.resistance - price) / price) * 100;
     const distToSupport = ((price - indicators.support) / price) * 100;
 
@@ -86,7 +143,7 @@ export class SignalDetectorService {
       reasons.push(`Price is consolidating stably around ${price} EGP.`);
     }
 
-    // Calculate Targets and Stop Loss
+    // Calculate Targets, Stop Loss & Position Sizing
     const suggestedEntry = {
       min: Number((indicators.support * 1.005).toFixed(2)),
       max: Number((indicators.support * 1.03).toFixed(2)),
@@ -99,18 +156,33 @@ export class SignalDetectorService {
 
     const suggestedStopLoss = Number((indicators.support * 0.96).toFixed(2));
 
-    return {
+    // Risk-Adjusted Position Sizing (Fixed Fractional 2% Portfolio Risk Model)
+    const riskPerShare = Math.max(0.01, price - suggestedStopLoss);
+    const riskPercent = (riskPerShare / price);
+    const positionSizePercent = Number(Math.min(15, Math.max(2, Number((2 / riskPercent).toFixed(1)))).toFixed(1));
+    const rewardPerShare = suggestedTarget.target1 - price;
+    const riskRewardRatio = Number((rewardPerShare / riskPerShare).toFixed(2));
+
+    const result: StockAnalysisResult = {
       quote,
       indicators,
       signalType,
+      signalScore,
       reasons,
       fairValue,
       fairValueUpsidePercent,
       suggestedEntry,
       suggestedTarget,
       suggestedStopLoss,
+      positionSizePercent,
+      riskRewardRatio,
       timestamp: new Date(),
     };
+
+    // Log signal to history for backtesting
+    this.logSignalHistory(result);
+
+    return result;
   }
 
   // Compatibility method
