@@ -30,8 +30,8 @@ async function bootstrap() {
     res.sendFile(path.join(angularDistPath, 'index.html'));
   });
 
-  app.listen(port, () => {
-    logger.info(`🌐 Angular Web Application live at: http://localhost:${port}`);
+  app.listen(Number(port), '0.0.0.0', () => {
+    logger.info(`🌐 Angular Web Application live at: http://0.0.0.0:${port} (Public Access)`);
   });
 
   // 2. Start Telegram bot instance
