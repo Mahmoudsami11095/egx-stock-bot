@@ -70,6 +70,12 @@ export class ShariaService {
               const loansPercent = item.loans_percentage ?? 0;
               const haramPercent = item.haram_earnings_percentage ?? item.sp_haram_earning_percentage ?? 0;
 
+              // Explicit Non-Halal override
+              if (sym === 'SUGR') {
+                this.liveNonHalalMap.set(sym, { symbol: sym, nameAr, reason: 'نسبة القروض مرتفعة (57.59%) - غير متوافق في مصفى وبورصة حلال وكاشف وبنك فيصل' });
+                continue;
+              }
+
               // Sharia AAOIFI & Sharia Compliance Rules:
               // 1. Core Activity must be compliant
               // 2. Interest-bearing Loans <= 33%
@@ -111,7 +117,7 @@ export class ShariaService {
 
   /**
    * Syncs and prunes watchlist with live Sharia database:
-   * 1. Removes any stock that became Non-Halal (e.g. SUGR, EKHO, etc.)
+   * 1. Removes any stock that became Non-Halal (SUGR, EKHO, ABUK, etc.)
    * 2. Adds all discovered Halal stocks into watchlist
    */
   public async syncHalalWatchlist(stateManager: StateManager): Promise<{ added: number; removed: string[] }> {
@@ -120,17 +126,26 @@ export class ShariaService {
     const removedSymbols: string[] = [];
     let addedCount = 0;
 
+    // Explicitly purge SUGR
+    if (stateManager.findStock('SUGR')) {
+      stateManager.removeStock('SUGR');
+      removedSymbols.push('SUGR');
+    }
+
     // 1. Remove non-Halal stocks from watchlist
     for (const stock of currentWatchlist) {
       if (!this.isStockHalal(stock.symbol)) {
         logger.warn(`⚠️ Stock ${stock.symbol} is NO LONGER Sharia compliant according to templatesnippet! Removing from watchlist...`);
         stateManager.removeStock(stock.symbol);
-        removedSymbols.push(stock.symbol);
+        if (!removedSymbols.includes(stock.symbol)) {
+          removedSymbols.push(stock.symbol);
+        }
       }
     }
 
     // 2. Add all live Halal stocks to watchlist
     for (const [sym, halalStock] of this.liveHalalMap.entries()) {
+      if (sym === 'SUGR') continue; // Extra safety guard
       const added = stateManager.addStock(halalStock);
       if (added) addedCount++;
     }
@@ -141,11 +156,12 @@ export class ShariaService {
 
   public isStockHalal(symbol: string): boolean {
     const sym = symbol.toUpperCase();
+    if (sym === 'SUGR') return false; // Explicit override
     if (this.liveNonHalalMap.has(sym)) return false;
     if (this.liveHalalMap.has(sym)) return true;
 
-    // Known prohibited conventional banks
-    const conventionalBanks = ['COMI', 'CIEB', 'HDBK', 'EXPA', 'QNBA', 'EAST'];
+    // Known prohibited conventional banks & non-compliant stocks
+    const conventionalBanks = ['COMI', 'CIEB', 'HDBK', 'EXPA', 'QNBA', 'EAST', 'SUGR', 'EKHO'];
     if (conventionalBanks.includes(sym)) return false;
 
     return true;
@@ -153,6 +169,18 @@ export class ShariaService {
 
   public getShariaInfo(symbol: string): ShariaComplianceInfo {
     const sym = symbol.toUpperCase();
+    if (sym === 'SUGR') {
+      return {
+        symbol: 'SUGR',
+        nameAr: 'الدلتا للسكر',
+        isHalal: false,
+        statusText: '🔴 غير متوافق شرعياً (نسبة القروض 57.59% - مصفى، كاشف، وبورصة حلال)',
+        haramRevenuePercent: 0.44,
+        debtRatioPercent: 57.59,
+        reason: 'نسبة القروض 57.59%'
+      };
+    }
+
     const nonHalal = this.liveNonHalalMap.get(sym);
     if (nonHalal) {
       return {
