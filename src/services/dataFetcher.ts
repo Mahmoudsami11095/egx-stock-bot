@@ -1,4 +1,4 @@
-import http from 'https';
+import https from 'https';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime } from '../types/stock';
 import { StockMeta, getSectorPE } from '../constants/stocks';
 import { logger } from './logger';
@@ -46,7 +46,7 @@ export class DataFetcherService {
         }
       };
 
-      const req = http.request(options, (res) => {
+      const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
         res.on('end', () => {
@@ -95,7 +95,7 @@ export class DataFetcherService {
         }
       };
 
-      const req = http.request(options, (res) => {
+      const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
         res.on('end', () => {
@@ -185,7 +185,7 @@ export class DataFetcherService {
         }
       };
 
-      const req = http.request(options, (res) => {
+      const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
         res.on('end', () => {

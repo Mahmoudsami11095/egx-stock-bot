@@ -1,4 +1,4 @@
-import http from 'https';
+import https from 'https';
 import { SignalType } from '../types/stock';
 import { logger } from './logger';
 
@@ -42,7 +42,7 @@ export class GoldService {
         }
       };
 
-      const req = http.request(options, (res) => {
+      const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
         res.on('end', () => {
