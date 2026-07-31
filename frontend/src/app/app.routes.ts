@@ -1,20 +1,17 @@
 import { Routes } from '@angular/router';
-import { DashboardComponent } from './features/dashboard/dashboard.component';
-import { StockScreenerComponent } from './features/stock-screener/stock-screener.component';
-import { GoldTrackerComponent } from './features/gold-tracker/gold-tracker.component';
 
 export const routes: Routes = [
   {
     path: '',
-    component: DashboardComponent
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
   },
   {
     path: 'screener',
-    component: StockScreenerComponent
+    loadComponent: () => import('./features/stock-screener/stock-screener.component').then(m => m.StockScreenerComponent)
   },
   {
     path: 'gold',
-    component: GoldTrackerComponent
+    loadComponent: () => import('./features/gold-tracker/gold-tracker.component').then(m => m.GoldTrackerComponent)
   },
   {
     path: '**',
