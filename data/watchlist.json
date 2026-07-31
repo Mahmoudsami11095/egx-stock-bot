@@ -777,5 +777,33 @@
     "nameEn": "MCRO",
     "nameAr": "ماكرو جروب للمستحضرات الطبية - ماكرو كابيتال",
     "sector": "Halal EGX"
+  },
+  {
+    "symbol": "ADIB",
+    "yahooSymbol": "ADIB.CA",
+    "nameEn": "Abu Dhabi Islamic Bank",
+    "nameAr": "مصرف أبوظبي الإسلامي - مصر",
+    "sector": "Banking"
+  },
+  {
+    "symbol": "ABUK",
+    "yahooSymbol": "ABUK.CA",
+    "nameEn": "Abu Qir Fertilizers",
+    "nameAr": "أبوقير للأسمدة والصناعات الكيماوية",
+    "sector": "Petrochemicals"
+  },
+  {
+    "symbol": "TMGH",
+    "yahooSymbol": "TMGH.CA",
+    "nameEn": "Talaat Moustafa Group",
+    "nameAr": "مجموعة طلعت مصطفى القابضة",
+    "sector": "Construction"
+  },
+  {
+    "symbol": "HELI",
+    "yahooSymbol": "HELI.CA",
+    "nameEn": "Heliopolis Housing",
+    "nameAr": "مصر الجديدة للإسكان والتعمير",
+    "sector": "Construction"
   }
 ]
