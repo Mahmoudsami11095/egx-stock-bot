@@ -2,6 +2,7 @@ import { Component, inject, signal, ViewChild, ElementRef, AfterViewChecked, OnI
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { timeout } from 'rxjs';
 import { StockApiService } from '../../../core/services/stock-api.service';
 
@@ -107,8 +108,8 @@ export interface ChatMessage {
           <!-- Message Box -->
           <div [class]="msg.sender === 'user'
                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl rounded-tr-none px-4 py-2.5 max-w-[85%] shadow-md font-medium'
-                 : 'bg-darkBg/90 text-gray-200 border border-darkBorder rounded-2xl rounded-tl-none px-4 py-3 max-w-[88%] shadow-md whitespace-pre-line leading-relaxed'">
-            <div>{{ msg.text }}</div>
+                 : 'bg-darkBg/90 text-gray-200 border border-darkBorder rounded-2xl rounded-tl-none px-4 py-3 max-w-[88%] shadow-md leading-relaxed'">
+            <div [innerHTML]="getFormattedMessage(msg.text)"></div>
             <div class="flex items-center justify-between mt-1.5 text-[9px] font-sans">
               <span [class]="msg.sender === 'user' ? 'text-emerald-200' : 'text-gray-400'">
                 {{ msg.timestamp | date:'shortTime' }}
@@ -179,9 +180,44 @@ export class AiChatbotComponent implements OnInit, AfterViewChecked {
 
   public apiService = inject(StockApiService);
   private http = inject(HttpClient);
+  private sanitizer = inject(DomSanitizer);
 
   public isOpen = signal<boolean>(false);
   public isTyping = signal<boolean>(false);
+
+  getFormattedMessage(text: string): SafeHtml {
+    if (!text) return '';
+    return this.sanitizer.bypassSecurityTrustHtml(this.parseMarkdown(text));
+  }
+
+  private parseMarkdown(text: string): string {
+    if (!text) return '';
+    let html = text;
+
+    html = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    html = html.replace(/^### (.*$)/gim, '<h4 class="text-xs sm:text-sm font-black text-emeraldAccent mt-2.5 mb-1.5">$1</h4>');
+    html = html.replace(/^## (.*$)/gim, '<h3 class="text-sm sm:text-base font-black text-amber-400 mt-2.5 mb-1.5">$1</h3>');
+    html = html.replace(/^# (.*$)/gim, '<h2 class="text-base sm:text-lg font-black text-white mt-2.5 mb-1.5">$1</h2>');
+
+    html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-black text-amber-300">$1</strong>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-amber-300">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em class="text-gray-300">$1</em>');
+
+    html = html.replace(/^\s*[\*\-]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1"><span class="text-emeraldAccent font-extrabold select-none">•</span><span>$1</span></div>');
+    html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1"><span class="text-amber-400 font-extrabold select-none">$1.</span><span>$2</span></div>');
+
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-darkBg border border-darkBorder px-1.5 py-0.5 rounded text-cyanAccent font-mono text-[11px]">$1</code>');
+    html = html.replace(/\*\*/g, '');
+
+    html = html.replace(/\n\n/g, '<div class="h-2"></div>');
+    html = html.replace(/\n/g, '<br/>');
+
+    return html;
+  }
   public showApiKeyInput = signal<boolean>(false);
   public userInput: string = '';
   public customApiKey: string = '';

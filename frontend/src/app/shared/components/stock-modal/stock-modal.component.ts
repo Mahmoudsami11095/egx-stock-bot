@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { timeout } from 'rxjs';
 import { StockAnalysisResult, SignalType } from '../../../core/models/stock.model';
 
@@ -245,8 +246,7 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
           </div>
 
           <!-- AI Response -->
-          <div *ngIf="aiRecommendation && !aiLoading" class="bg-darkBg/80 p-4 rounded-2xl border border-purple-500/20 text-xs text-gray-200 whitespace-pre-line leading-relaxed">
-            {{ aiRecommendation }}
+          <div *ngIf="aiRecommendation && !aiLoading" [innerHTML]="getFormattedMessage(aiRecommendation)" class="bg-darkBg/80 p-4 rounded-2xl border border-purple-500/20 text-xs text-gray-200 leading-relaxed">
           </div>
 
           <div *ngIf="aiProvider" class="text-[10px] text-purple-400/80 font-bold flex items-center gap-1 pt-1">
@@ -340,8 +340,7 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
             </div>
 
             <!-- Intraday AI Response -->
-            <div *ngIf="intradayRecommendation && !intradayLoading" class="bg-darkBg/80 p-4 rounded-2xl border border-orange-500/20 text-xs text-gray-200 whitespace-pre-line leading-relaxed">
-              {{ intradayRecommendation }}
+            <div *ngIf="intradayRecommendation && !intradayLoading" [innerHTML]="getFormattedMessage(intradayRecommendation)" class="bg-darkBg/80 p-4 rounded-2xl border border-orange-500/20 text-xs text-gray-200 leading-relaxed">
             </div>
 
             <div *ngIf="intradayProvider" class="text-[10px] text-orange-400/80 font-bold flex items-center gap-1 pt-1">
@@ -359,6 +358,41 @@ export class StockModalComponent {
   @Output() visibleChange = new EventEmitter<boolean>();
 
   private http = inject(HttpClient);
+  private sanitizer = inject(DomSanitizer);
+
+  getFormattedMessage(text: string): SafeHtml {
+    if (!text) return '';
+    return this.sanitizer.bypassSecurityTrustHtml(this.parseMarkdown(text));
+  }
+
+  private parseMarkdown(text: string): string {
+    if (!text) return '';
+    let html = text;
+
+    html = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    html = html.replace(/^### (.*$)/gim, '<h4 class="text-xs sm:text-sm font-black text-emeraldAccent mt-2.5 mb-1.5">$1</h4>');
+    html = html.replace(/^## (.*$)/gim, '<h3 class="text-sm sm:text-base font-black text-amber-400 mt-2.5 mb-1.5">$1</h3>');
+    html = html.replace(/^# (.*$)/gim, '<h2 class="text-base sm:text-lg font-black text-white mt-2.5 mb-1.5">$1</h2>');
+
+    html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-black text-amber-300">$1</strong>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-amber-300">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em class="text-gray-300">$1</em>');
+
+    html = html.replace(/^\s*[\*\-]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1"><span class="text-emeraldAccent font-extrabold select-none">•</span><span>$1</span></div>');
+    html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1"><span class="text-amber-400 font-extrabold select-none">$1.</span><span>$2</span></div>');
+
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-darkBg border border-darkBorder px-1.5 py-0.5 rounded text-cyanAccent font-mono text-[11px]">$1</code>');
+    html = html.replace(/\*\*/g, '');
+
+    html = html.replace(/\n\n/g, '<div class="h-2"></div>');
+    html = html.replace(/\n/g, '<br/>');
+
+    return html;
+  }
 
   aiRecommendation: string = '';
   aiProvider: string = '';
