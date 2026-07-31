@@ -34,6 +34,10 @@ function fetchGoldPrices(): Promise<GoldPriceData | null> {
     const req = https.request(options, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
+      res.on('error', (e) => {
+        console.error('Gold API response error:', e);
+        resolve(null);
+      });
       res.on('end', () => {
         try {
           const json = JSON.parse(body);
@@ -66,6 +70,12 @@ function fetchGoldPrices(): Promise<GoldPriceData | null> {
           resolve(null);
         }
       });
+    });
+
+    req.setTimeout(7000, () => {
+      console.error('Gold API request timed out (7s)');
+      req.destroy();
+      resolve(null);
     });
 
     req.on('error', (e) => {

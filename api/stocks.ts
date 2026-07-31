@@ -54,6 +54,10 @@ function fetchTradingViewScan(): Promise<StockResult[]> {
     const req = https.request(options, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
+      res.on('error', (e) => {
+        console.error('TradingView response error:', e);
+        resolve([]);
+      });
       res.on('end', () => {
         try {
           const json = JSON.parse(body);
@@ -100,6 +104,12 @@ function fetchTradingViewScan(): Promise<StockResult[]> {
           resolve([]);
         }
       });
+    });
+
+    req.setTimeout(7000, () => {
+      console.error('TradingView API request timed out (7s)');
+      req.destroy();
+      resolve([]);
     });
 
     req.on('error', (e) => {
