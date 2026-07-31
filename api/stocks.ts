@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { DataFetcherService } from '../src/services/dataFetcher';
 import { SignalDetectorService } from '../src/services/signalDetector';
 import { ShariaService } from '../src/services/shariaService';
-import { INITIAL_STOCKS } from '../src/constants/stocks';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,20 +16,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const signalDetector = new SignalDetectorService();
     const shariaService = new ShariaService();
 
-    // Fetch live Sharia database to get all current Halal stocks
+    // 1. Fetch live real-time EGX quotes for top 120 stocks directly from TradingView in 1 request (~200ms)
+    const scanResults = await dataFetcher.fetchFullEgxScan(120);
+
+    // 2. Fetch live Sharia DB status (optional enrichment)
     try {
       await shariaService.fetchLiveShariaDatabase();
-    } catch (e) {
-      console.warn('Live Sharia DB fetch warn:', e);
-    }
+    } catch (_) {}
 
-    const halalStocks = shariaService.getHalalStocksList();
-    const stocksToScan = halalStocks.length > 0 ? halalStocks : INITIAL_STOCKS;
-
-    const batchResults = await dataFetcher.getBatchQuoteAndIndicators(stocksToScan);
     const results = [];
 
-    for (const item of batchResults) {
+    for (const item of scanResults) {
+      const shariaInfo = shariaService.getShariaInfo(item.stock.symbol);
+      
+      item.stock.nameAr = shariaInfo.nameAr || item.stock.nameAr;
+      item.quote.nameAr = shariaInfo.nameAr || item.quote.nameAr;
+
       const analysis: any = signalDetector.analyzeStockWithIndicators(
         item.stock,
         item.quote,
@@ -39,7 +40,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         item.fairValueConfidence
       );
 
-      const shariaInfo = shariaService.getShariaInfo(item.stock.symbol);
       analysis.shariaTier = shariaInfo.tier;
       analysis.shariaStatusText = shariaInfo.statusText;
       if (shariaInfo.purificationPercent !== undefined) {
