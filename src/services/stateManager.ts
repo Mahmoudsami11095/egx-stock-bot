@@ -13,10 +13,15 @@ export class StateManager {
   private cooldownMs = 2 * 60 * 60 * 1000; // 2 hour cooldown per stock signal
 
   constructor() {
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-    this.watchlistFile = path.join(dataDir, 'watchlist.json');
-    this.subscribersFile = path.join(dataDir, 'subscribers.json');
+    try {
+      const dataDir = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      this.watchlistFile = path.join(dataDir, 'watchlist.json');
+      this.subscribersFile = path.join(dataDir, 'subscribers.json');
+    } catch (_) {
+      this.watchlistFile = path.join('/tmp', 'watchlist.json');
+      this.subscribersFile = path.join('/tmp', 'subscribers.json');
+    }
     this.loadData();
   }
 
