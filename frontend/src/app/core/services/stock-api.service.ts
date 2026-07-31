@@ -44,7 +44,7 @@ export class StockApiService {
       {
         quote: { symbol: 'COMI', nameEn: 'Commercial International Bank', nameAr: 'البنك التجاري الدولي', currentPrice: 141.00, previousClose: 140.30, change: 0.70, changePercent: 0.50, dayHigh: 141.00, dayLow: 138.40, fiftyTwoWeekHigh: 145.00, fiftyTwoWeekLow: 84.30, volume: 2002578, avgVolume: 3264457, peRatio: 6.78 },
         indicators: { rsi: 61.2, sma20: 136.2, sma50: 134.1, support: 136.0, resistance: 145.0, volumeSpike: false, volumeRatio: 0.8 },
-        signalType: 'BUY', signalScore: 4.0, reasons: ['قيادي السوق ومحرك المؤشر الرئيسي', 'نمو صافي عائد الدخل من الفوائد'], fairValue: 195.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 38.30, marketRegime: 'BULLISH', shariaTier: 'NOT_COMPLIANT', shariaStatusText: '🔴 نشاط مصرفي تجاري (غير متوافق ماليًا)',
+        signalType: 'BUY', signalScore: 4.0, reasons: ['قيادي السوق ومحرك المؤشر الرئيسي', 'نمو صافي عائد الدخل من الفوائد'], fairValue: 195.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 38.30, marketRegime: 'BULLISH', shariaTier: 'NON_COMPLIANT', shariaStatusText: '🔴 نشاط مصرفي تجاري (غير متوافق ماليًا)',
         suggestedEntry: { min: 137.00, max: 141.00 }, suggestedTarget: { target1: 165.00, target2: 195.00 }, suggestedStopLoss: 132.00, positionSizePercent: 10, riskRewardRatio: 2.9
       },
       {
@@ -62,13 +62,13 @@ export class StockApiService {
       {
         quote: { symbol: 'TMGH', nameEn: 'Talaat Moustafa Group', nameAr: 'مجموعة طلعت مصطفى القابضة', currentPrice: 97.30, previousClose: 97.60, change: -0.30, changePercent: -0.30, dayHigh: 97.89, dayLow: 95.20, fiftyTwoWeekHigh: 103.87, fiftyTwoWeekLow: 52.25, volume: 3985718, avgVolume: 4220528, peRatio: 13.71 },
         indicators: { rsi: 47.4, sma20: 98.6, sma50: 96.9, support: 94.0, resistance: 104.0, volumeSpike: false, volumeRatio: 0.9 },
-        signalType: 'HOLD', signalScore: 3.1, reasons: ['مبيعات تعاقدية ضخمة بمشروع رأس الحكمة', 'تذبذب قصير المدى حول الدعم'], fairValue: 140.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 43.88, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
+        signalType: 'NEUTRAL', signalScore: 3.1, reasons: ['مبيعات تعاقدية ضخمة بمشروع رأس الحكمة', 'تذبذب قصير المدى حول الدعم'], fairValue: 140.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 43.88, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
         suggestedEntry: { min: 94.00, max: 97.50 }, suggestedTarget: { target1: 115.00, target2: 140.00 }, suggestedStopLoss: 91.00, positionSizePercent: 7, riskRewardRatio: 2.4
       },
       {
         quote: { symbol: 'JUFO', nameEn: 'Juhayna Food Industries', nameAr: 'جهينة للصناعات الغذائية', currentPrice: 28.67, previousClose: 28.72, change: -0.05, changePercent: -0.17, dayHigh: 28.83, dayLow: 28.48, fiftyTwoWeekHigh: 32.30, fiftyTwoWeekLow: 20.27, volume: 718576, avgVolume: 862228, peRatio: 20.67 },
         indicators: { rsi: 39.7, sma20: 29.7, sma50: 29.6, support: 28.0, resistance: 32.0, volumeSpike: false, volumeRatio: 0.8 },
-        signalType: 'HOLD', signalScore: 3.2, reasons: ['استقرار المبيعات المحلية والنمو التصديري', 'اختبار نطاق تجميعي محوري'], fairValue: 41.00, fairValueConfidence: 'MEDIUM', fairValueUpsidePercent: 43.00, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
+        signalType: 'NEUTRAL', signalScore: 3.2, reasons: ['استقرار المبيعات المحلية والنمو التصديري', 'اختبار نطاق تجميعي محوري'], fairValue: 41.00, fairValueConfidence: 'MEDIUM', fairValueUpsidePercent: 43.00, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
         suggestedEntry: { min: 28.00, max: 29.00 }, suggestedTarget: { target1: 34.00, target2: 41.00 }, suggestedStopLoss: 26.50, positionSizePercent: 8, riskRewardRatio: 2.5
       },
       {
@@ -86,7 +86,7 @@ export class StockApiService {
       {
         quote: { symbol: 'HRHO', nameEn: 'EFG Hermes Holding', nameAr: 'مجموعة إي إف جي القابضة', currentPrice: 26.20, previousClose: 26.45, change: -0.25, changePercent: -0.95, dayHigh: 26.50, dayLow: 25.95, fiftyTwoWeekHigh: 31.50, fiftyTwoWeekLow: 23.15, volume: 2523436, avgVolume: 3977056, peRatio: 9.32 },
         indicators: { rsi: 39.7, sma20: 26.7, sma50: 26.9, support: 25.5, resistance: 29.0, volumeSpike: false, volumeRatio: 0.6 },
-        signalType: 'BUY', signalScore: 3.5, reasons: ['نمو إيرادات بنك الاستثمار غير المصرفي', 'توسع إقليمي في الأسواق الواعدة'], fairValue: 38.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 45.04, marketRegime: 'BULLISH', shariaTier: 'NOT_COMPLIANT', shariaStatusText: '🔴 خدمات مالية غير مصرفية وبنك استثماري',
+        signalType: 'BUY', signalScore: 3.5, reasons: ['نمو إيرادات بنك الاستثمار غير المصرفي', 'توسع إقليمي في الأسواق الواعدة'], fairValue: 38.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 45.04, marketRegime: 'BULLISH', shariaTier: 'NON_COMPLIANT', shariaStatusText: '🔴 خدمات مالية غير مصرفية وبنك استثماري',
         suggestedEntry: { min: 25.50, max: 26.50 }, suggestedTarget: { target1: 31.00, target2: 38.00 }, suggestedStopLoss: 24.50, positionSizePercent: 8, riskRewardRatio: 2.6
       }
     ];
