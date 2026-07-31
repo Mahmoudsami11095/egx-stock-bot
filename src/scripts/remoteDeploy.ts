@@ -42,5 +42,6 @@ conn.on('ready', () => {
   username: 'azureuser',
   password: 'azureuserSami@11095',
   tryKeyboard: true,
-  readyTimeout: 30000,
+  readyTimeout: 60000,
+  keepaliveInterval: 5000
 });

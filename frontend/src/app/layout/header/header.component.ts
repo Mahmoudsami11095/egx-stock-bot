@@ -21,7 +21,7 @@ import { StockApiService } from '../../core/services/stock-api.service';
               💱 الدولار/جنيه: <strong class="text-white">{{ apiService.usdEgp() }} ج.م</strong>
             </span>
             <span class="text-gray-400 hidden md:inline">
-              ⚜️ الذهب عيار 21: <strong class="text-amberAccent">{{ apiService.goldPrices()?.gold21kEgp }} ج.م</strong>
+              ⚜️ الذهب عيار 24: <strong class="text-amberAccent">{{ apiService.goldPrices()?.gold24kEgp }} ج.م</strong>
             </span>
           </div>
 

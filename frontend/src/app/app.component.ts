@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from './layout/header/header.component';
+import { AiChatbotComponent } from './shared/components/ai-chatbot/ai-chatbot.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, HeaderComponent],
+  imports: [CommonModule, RouterOutlet, HeaderComponent, AiChatbotComponent],
   template: `
     <div class="min-h-screen flex flex-col bg-darkBg text-gray-100 font-cairo">
       <!-- Top Navigation Header -->
@@ -16,6 +17,9 @@ import { HeaderComponent } from './layout/header/header.component';
       <main class="flex-1 max-w-7xl w-full mx-auto px-4 pt-6">
         <router-outlet></router-outlet>
       </main>
+
+      <!-- Floating AI Financial Assistant Widget -->
+      <app-ai-chatbot></app-ai-chatbot>
 
       <!-- Footer -->
       <footer class="bg-darkCard/80 border-t border-darkBorder py-6 text-xs text-gray-400 mt-auto">

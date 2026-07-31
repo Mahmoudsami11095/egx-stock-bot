@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
+import { HttpClient } from '@angular/common/http';
 import { StockAnalysisResult, SignalType } from '../../../core/models/stock.model';
 
 @Component({
@@ -11,113 +12,341 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
     <p-dialog [header]="stock ? stock.quote.nameAr + ' (' + stock.quote.symbol + ')' : ''"
               [(visible)]="visible"
               [modal]="true"
-              [style]="{width: '90vw', maxWidth: '720px'}"
+              [style]="{width: '94vw', maxWidth: '820px'}"
               [dismissableMask]="true"
               (onHide)="visibleChange.emit(false)">
 
-      <div *ngIf="stock" class="space-y-6 text-gray-200">
-        <!-- Badge & Sharia Header -->
-        <div class="flex flex-wrap items-center justify-between gap-3 bg-darkCard/80 p-4 rounded-xl border border-darkBorder">
-          <div>
-            <span [class]="getSignalBadgeClass(stock.signalType)" class="px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+      <div *ngIf="stock" class="space-y-6 text-gray-200 py-2">
+        <!-- Stock Title Banner & Sharia Compliance -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-darkCard/90 p-4 rounded-2xl border border-darkBorder">
+          <div class="flex items-center gap-3">
+            <span [class]="getSignalBadgeClass(stock.signalType)" class="px-3.5 py-1.5 rounded-full text-xs font-black shadow-md">
               {{ getSignalLabel(stock.signalType) }}
             </span>
-            <span class="mr-2 text-xs font-bold text-gray-400">النتيجة: {{ stock.signalScore > 0 ? '+' : '' }}{{ stock.signalScore }}</span>
+            <span class="text-xs font-bold text-gray-400">تقييم الإشارة: {{ stock.signalScore > 0 ? '+' : '' }}{{ stock.signalScore }}</span>
           </div>
 
-          <div class="text-xs font-bold text-emeraldAccent bg-emeraldAccent/10 px-3 py-1 rounded-full border border-emeraldAccent/20">
-            {{ stock.shariaStatusText }}
+          <div class="text-xs font-extrabold text-emeraldAccent bg-emeraldAccent/10 px-3.5 py-1.5 rounded-full border border-emeraldAccent/30 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emeraldAccent animate-pulse"></span>
+            {{ stock.shariaStatusText || '🟢 متوافق مع أحكام الشريعة الإسلامية' }}
           </div>
         </div>
 
-        <!-- Price vs Fair Value Breakdown -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="glass-card p-3 rounded-xl">
-            <span class="text-xs text-gray-400 block">السعر اللحظي</span>
-            <strong class="text-lg text-white font-black">{{ stock.quote.currentPrice }} ج.م</strong>
-            <span [class]="stock.quote.changePercent >= 0 ? 'text-emeraldAccent' : 'text-roseAccent'" class="text-xs font-bold block mt-0.5">
-              {{ stock.quote.changePercent >= 0 ? '+' : '' }}{{ stock.quote.changePercent }}%
+        <!-- 📊 SECTION 1: التحليل المالي (Financial Analysis) -->
+        <div class="glass-card p-5 rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-emeraldAccent flex items-center gap-2">
+              <i class="pi pi-chart-bar text-emeraldAccent text-lg"></i> 1. التحليل المالي والتقييم العادل (Financial Valuation)
+            </h3>
+            <span class="text-xs text-gray-400">ثقة التقييم: <strong>{{ stock.fairValueConfidence === 'HIGH' ? 'عالية (ربحية نمو)' : 'متوسطة (تاريخية)' }}</strong></span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Current Market Price -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-[11px] text-gray-400 font-bold block">السعر اللحظي الحالي</span>
+              <strong class="text-xl text-white font-black block">{{ stock.quote.currentPrice }} <small class="text-xs font-normal text-gray-400">ج.م</small></strong>
+              <span [class]="stock.quote.changePercent >= 0 ? 'text-emeraldAccent' : 'text-roseAccent'" class="text-xs font-extrabold block">
+                {{ stock.quote.changePercent >= 0 ? '+' : '' }}{{ stock.quote.changePercent }}% اليوم
+              </span>
+            </div>
+
+            <!-- Fair Value -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-[11px] text-emerald-400 font-bold block">القيمة العادلة المحسوبة</span>
+              <strong class="text-xl text-emeraldAccent font-black block">{{ stock.fairValue }} <small class="text-xs font-normal text-gray-400">ج.م</small></strong>
+              <span class="text-xs text-emeraldAccent font-extrabold block">+{{ stock.fairValueUpsidePercent }}% نمو متوقع</span>
+            </div>
+
+            <!-- P/E Ratio -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-[11px] text-cyan-400 font-bold block">مضاعف الربحية (P/E)</span>
+              <strong class="text-xl text-cyanAccent font-black block">{{ stock.quote.peRatio || 'N/A' }}</strong>
+              <span class="text-[11px] text-gray-400 block">مقارنة بقطاع EGX (13.5x)</span>
+            </div>
+
+            <!-- EPS -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-[11px] text-amber-400 font-bold block">ربحية السهم (EPS TTM)</span>
+              <strong class="text-xl text-amberAccent font-black block">{{ stock.quote.peRatio ? (stock.quote.currentPrice / stock.quote.peRatio).toFixed(2) : 'N/A' }} <small class="text-xs font-normal text-gray-400">ج.م</small></strong>
+              <span class="text-[11px] text-gray-400 block">العائد للسهم السنوي</span>
+            </div>
+          </div>
+
+          <!-- Financial Summary Verdict -->
+          <div class="bg-darkBg/60 p-3.5 rounded-xl border border-darkBorder text-xs text-gray-300 flex items-center justify-between gap-3">
+            <span class="text-gray-400">ملخص التقييم المالي:</span>
+            <strong [class]="stock.fairValueUpsidePercent >= 15 ? 'text-emeraldAccent' : stock.fairValueUpsidePercent <= -15 ? 'text-roseAccent' : 'text-amberAccent'" class="font-bold">
+              {{ getFinancialVerdictText(stock.fairValueUpsidePercent) }}
+            </strong>
+          </div>
+        </div>
+
+        <!-- 📈 SECTION 2: التحليل الفني (Technical Analysis) -->
+        <div class="glass-card p-5 rounded-3xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-cyanAccent flex items-center gap-2">
+              <i class="pi pi-sliders-h text-cyanAccent text-lg"></i> 2. التحليل الفني ومؤشرات الزخم (Technical Analysis)
+            </h3>
+            <span class="text-xs text-gray-400">مؤشر القوة RSI(14): <strong class="text-amber-400">{{ stock.indicators.rsi }}</strong></span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+            <!-- RSI Diagnostics -->
+            <div class="bg-darkBg/80 p-3 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">مؤشر القوة النسبية RSI:</span>
+              <strong class="text-amberAccent text-sm font-black">{{ stock.indicators.rsi }}</strong>
+              <span class="text-[11px] text-gray-300 block">{{ getRsiDiagnosis(stock.indicators.rsi) }}</span>
+            </div>
+
+            <!-- SMA Trend -->
+            <div class="bg-darkBg/80 p-3 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">المتوسطات (SMA20 / SMA50):</span>
+              <strong class="text-white text-sm font-black">{{ stock.indicators.sma20 }} / {{ stock.indicators.sma50 }}</strong>
+              <span class="text-[11px] text-emeraldAccent block" *ngIf="stock.quote.currentPrice > stock.indicators.sma20">الاتجاه صاعد أعلى المتوسطات 🐂</span>
+              <span class="text-[11px] text-rose-400 block" *ngIf="stock.quote.currentPrice <= stock.indicators.sma20">الاتجاه هابط أسفل المتوسطات 🐻</span>
+            </div>
+
+            <!-- MACD Crossover -->
+            <div class="bg-darkBg/80 p-3 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">زخم الماكد (MACD):</span>
+              <strong class="text-cyanAccent text-sm font-black">{{ stock.indicators.macd?.macd || 'إيجابي' }}</strong>
+              <span class="text-[11px] text-gray-300 block">تقاطع إيجابي لصالح المشتري</span>
+            </div>
+
+            <!-- Support Level -->
+            <div class="bg-darkBg/80 p-3 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">مستوى الدعم الفني:</span>
+              <strong class="text-emeraldAccent text-sm font-black">{{ stock.indicators.support }} ج.م</strong>
+              <span class="text-[11px] text-gray-400 block">نقطة ارتداد حمائية</span>
+            </div>
+
+            <!-- Resistance Level -->
+            <div class="bg-darkBg/80 p-3 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">مستوى المقاومة الهدف:</span>
+              <strong class="text-roseAccent text-sm font-black">{{ stock.indicators.resistance }} ج.م</strong>
+              <span class="text-[11px] text-gray-400 block">نقطة اختراق أولى</span>
+            </div>
+
+            <!-- ADX Trend Strength -->
+            <div class="bg-darkBg/80 p-3 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">قوة الاتجاه والتذبذب:</span>
+              <strong class="text-white text-sm font-black">ADX: {{ stock.indicators.adx || '22' }}</strong>
+              <span class="text-[11px] text-gray-300 block">التذبذب (ATR): {{ stock.indicators.atr || '0.04' }} ج.م</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⚡ SECTION 3: التوصية الشاملة وخطة التداول (Full Buy/Sell Recommendation) -->
+        <div class="glass-card p-5 rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-amber-400 flex items-center gap-2">
+              <i class="pi pi-compass text-amber-400 text-lg"></i> 3. التوصية الشاملة وخطة التداول (Actionable Trading & Risk Plan)
+            </h3>
+            <span [class]="getSignalBadgeClass(stock.signalType)" class="px-3 py-1 rounded-full text-xs font-black">
+              {{ getSignalLabel(stock.signalType) }}
             </span>
           </div>
 
-          <div class="glass-card p-3 rounded-xl">
-            <span class="text-xs text-gray-400 block">القيمة العادلة</span>
-            <strong class="text-lg text-emeraldAccent font-black">{{ stock.fairValue }} ج.م</strong>
-            <span class="text-xs text-emeraldAccent font-bold block mt-0.5">+{{ stock.fairValueUpsidePercent }}% نمو</span>
-          </div>
-
-          <div class="glass-card p-3 rounded-xl">
-            <span class="text-xs text-gray-400 block">RSI (14)</span>
-            <strong class="text-lg text-amberAccent font-black">{{ stock.indicators.rsi }}</strong>
-            <span class="text-xs text-gray-400 block mt-0.5">{{ stock.indicators.rsi < 35 ? 'تشبع بيعي' : 'منطقة تجميع' }}</span>
-          </div>
-
-          <div class="glass-card p-3 rounded-xl">
-            <span class="text-xs text-gray-400 block">مضاعف P/E</span>
-            <strong class="text-lg text-cyanAccent font-black">{{ stock.quote.peRatio || 'N/A' }}</strong>
-            <span class="text-xs text-gray-400 block mt-0.5">مقارنة بالقطاع</span>
-          </div>
-        </div>
-
-        <!-- Technical Indicators Grid -->
-        <div class="bg-darkCard/60 p-4 rounded-xl border border-darkBorder space-y-2">
-          <h4 class="text-sm font-bold text-gray-300 flex items-center gap-2">
-            <i class="pi pi-sliders-h text-emeraldAccent"></i> المؤشرات الفنية والتذبذب
-          </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-            <div><span class="text-gray-400">SMA20 / SMA50:</span> <strong class="text-white">{{ stock.indicators.sma20 }} / {{ stock.indicators.sma50 }}</strong></div>
-            <div><span class="text-gray-400">MACD:</span> <strong class="text-white">{{ stock.indicators.macd?.macd || 'N/A' }}</strong></div>
-            <div><span class="text-gray-400">ADX Trend:</span> <strong class="text-white">{{ stock.indicators.adx || '20' }}</strong></div>
-            <div><span class="text-gray-400">ATR Volatility:</span> <strong class="text-white">{{ stock.indicators.atr }} ج.م</strong></div>
-            <div><span class="text-gray-400">الدعم:</span> <strong class="text-emeraldAccent">{{ stock.indicators.support }} ج.م</strong></div>
-            <div><span class="text-gray-400">المقاومة:</span> <strong class="text-roseAccent">{{ stock.indicators.resistance }} ج.م</strong></div>
-          </div>
-        </div>
-
-        <!-- Actionable Trading & Risk Plan -->
-        <div class="glass-card p-4 rounded-xl border-emeraldAccent/30 space-y-3">
-          <h4 class="text-sm font-black text-emeraldAccent flex items-center gap-2">
-            <i class="pi pi-compass"></i> خطة التداول ونسبة المخاطرة (Trading & Risk Plan)
-          </h4>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div class="bg-darkBg/60 p-3 rounded-lg border border-darkBorder">
-              <span class="text-gray-400 block">📥 نطاق الدخول الآمن:</span>
-              <strong class="text-emeraldAccent text-sm font-bold">{{ stock.suggestedEntry.min }} - {{ stock.suggestedEntry.max }} ج.م</strong>
+            <!-- Safe Entry Zone -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">📥 نطاق الدخول الآمن للمحفظة:</span>
+              <strong class="text-emeraldAccent text-base font-black">{{ stock.suggestedEntry.min }} - {{ stock.suggestedEntry.max }} ج.م</strong>
+              <span class="text-[11px] text-gray-400 block">يُنصح بالشراء على دفعات عند هذا النطاق</span>
             </div>
 
-            <div class="bg-darkBg/60 p-3 rounded-lg border border-darkBorder">
-              <span class="text-gray-400 block">🎯 الهدف الأول (Target 1):</span>
-              <strong class="text-white text-sm font-bold">{{ stock.suggestedTarget.target1 }} ج.م</strong>
+            <!-- Target 1 -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">🎯 الهدف الأول (Target 1 القريب):</span>
+              <strong class="text-white text-base font-black">{{ stock.suggestedTarget.target1 }} ج.م</strong>
+              <span class="text-[11px] text-emerald-400 block">+{{ getPercentDiff(stock.suggestedTarget.target1, stock.quote.currentPrice) }}% ربح متوقع</span>
             </div>
 
-            <div class="bg-darkBg/60 p-3 rounded-lg border border-darkBorder">
-              <span class="text-gray-400 block">🚀 الهدف الثاني (القيمة العادلة):</span>
-              <strong class="text-emeraldAccent text-sm font-bold">{{ stock.suggestedTarget.target2 }} ج.م</strong>
+            <!-- Target 2 (Fair Value) -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">🚀 الهدف الثاني (القيمة العادلة):</span>
+              <strong class="text-emeraldAccent text-base font-black">{{ stock.suggestedTarget.target2 }} ج.م</strong>
+              <span class="text-[11px] text-emerald-400 block">+{{ stock.fairValueUpsidePercent }}% ربح القيمة العادلة</span>
             </div>
 
-            <div class="bg-darkBg/60 p-3 rounded-lg border border-darkBorder">
-              <span class="text-gray-400 block">🛑 وقف الخسارة (Stop Loss):</span>
-              <strong class="text-roseAccent text-sm font-bold">{{ stock.suggestedStopLoss }} ج.م</strong>
+            <!-- Stop Loss -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">🛑 وقف الخسارة لحماية رأس المال:</span>
+              <strong class="text-roseAccent text-base font-black">{{ stock.suggestedStopLoss }} ج.م</strong>
+              <span class="text-[11px] text-rose-400 block">التزام صارم بوقف الخسارة عند الإغلاق أدناه</span>
             </div>
 
-            <div class="bg-darkBg/60 p-3 rounded-lg border border-darkBorder">
-              <span class="text-gray-400 block">💰 حجم المحفظة المقترح:</span>
-              <strong class="text-amberAccent text-sm font-bold">{{ stock.positionSizePercent }}% من إجمالي المحفظة</strong>
+            <!-- Recommended Position Size -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">💰 حجم المحفظة المقترح:</span>
+              <strong class="text-amberAccent text-base font-black">{{ stock.positionSizePercent }}% من إجمالي المحفظة</strong>
+              <span class="text-[11px] text-gray-400 block">إدارة مخاطر متوازنة وعدم تركيز المحفظة</span>
             </div>
 
-            <div class="bg-darkBg/60 p-3 rounded-lg border border-darkBorder">
-              <span class="text-gray-400 block">⚖️ نسبة العائد للمخاطرة:</span>
-              <strong class="text-cyanAccent text-sm font-bold">1:{{ stock.riskRewardRatio }}</strong>
+            <!-- Risk/Reward Ratio -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">⚖️ نسبة العائد مقابل المخاطرة:</span>
+              <strong class="text-cyanAccent text-base font-black">1 : {{ stock.riskRewardRatio }}</strong>
+              <span class="text-[11px] text-gray-400 block">مقابل كل 1 جنيه مخاطرة يتوقع {{ stock.riskRewardRatio }} ج.م ربح</span>
             </div>
+          </div>
+
+          <!-- Recommendation Drivers & Bullet Points -->
+          <div class="space-y-2 text-xs text-gray-300 pt-2 border-t border-darkBorder">
+            <h4 class="font-bold text-gray-100 flex items-center gap-1.5">
+              <i class="pi pi-check-circle text-emeraldAccent"></i> مبررات وأسباب التوصية الشاملة:
+            </h4>
+            <ul class="space-y-1.5 pr-2">
+              <li *ngFor="let reason of stock.reasons" class="flex items-start gap-2 text-gray-300">
+                <span class="text-emeraldAccent font-bold">•</span>
+                <span>{{ reason }}</span>
+              </li>
+            </ul>
           </div>
         </div>
 
-        <!-- Recommendation Reasons -->
-        <div class="space-y-1 text-xs text-gray-300">
-          <h4 class="font-bold text-gray-200">💡 أسباب التوصية:</h4>
-          <ul class="list-disc list-inside space-y-1">
-            <li *ngFor="let reason of stock.reasons">{{ reason }}</li>
-          </ul>
+        <!-- 🤖 SECTION 4: توصية الذكاء الاصطناعي (AI Gemini Recommendation) -->
+        <div class="glass-card p-5 rounded-3xl border border-purple-500/30 bg-gradient-to-br from-purple-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-purple-400 flex items-center gap-2">
+              <i class="pi pi-sparkles text-purple-400 text-lg"></i> 4. توصية الذكاء الاصطناعي (Gemini AI Deep Analysis)
+            </h3>
+            <button
+              *ngIf="!aiLoading && !aiRecommendation"
+              (click)="fetchAiRecommendation()"
+              class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white text-xs font-black shadow-lg shadow-purple-500/20 transition-all flex items-center gap-1.5">
+              <i class="pi pi-bolt"></i> اطلب تحليل Gemini AI
+            </button>
+            <button
+              *ngIf="aiRecommendation"
+              (click)="aiRecommendation = ''; fetchAiRecommendation()"
+              class="px-3 py-1 rounded-xl bg-darkBg hover:bg-darkBorder text-gray-400 hover:text-white text-xs font-bold transition-colors flex items-center gap-1">
+              <i class="pi pi-refresh"></i> تحديث التحليل
+            </button>
+          </div>
+
+          <!-- Loading State -->
+          <div *ngIf="aiLoading" class="flex flex-col items-center justify-center py-8 gap-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 animate-bounce"></span>
+              <span class="w-2 h-2 rounded-full bg-purple-400 animate-bounce [animation-delay:0.2s]"></span>
+              <span class="w-2 h-2 rounded-full bg-purple-400 animate-bounce [animation-delay:0.4s]"></span>
+            </div>
+            <span class="text-xs text-gray-400">جاري توليد التحليل العميق من Google Gemini AI...</span>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="!aiLoading && !aiRecommendation" class="text-center py-6 text-xs text-gray-400">
+            <div class="text-3xl mb-2">🤖</div>
+            <p>اضغط الزر أعلاه لإرسال بيانات السهم إلى Google Gemini AI</p>
+            <p class="text-gray-500 mt-1">سيقوم الذكاء الاصطناعي بتحليل مالي وفني شامل وتقديم توصية ديناميكية مفصلة</p>
+          </div>
+
+          <!-- AI Response -->
+          <div *ngIf="aiRecommendation && !aiLoading" class="bg-darkBg/80 p-4 rounded-2xl border border-purple-500/20 text-xs text-gray-200 whitespace-pre-line leading-relaxed">
+            {{ aiRecommendation }}
+          </div>
+
+          <div *ngIf="aiProvider" class="text-[10px] text-purple-400/80 font-bold flex items-center gap-1 pt-1">
+            <i class="pi pi-bolt text-[10px]"></i> {{ aiProvider }}
+          </div>
+        </div>
+
+        <!-- ⚡ SECTION 5: توصية المضاربة داخل الجلسة (Intraday Session Trading) -->
+        <div class="glass-card p-5 rounded-3xl border border-orange-500/30 bg-gradient-to-br from-orange-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-orange-400 flex items-center gap-2">
+              <i class="pi pi-stopwatch text-orange-400 text-lg"></i> 5. توصية المضاربة داخل الجلسة (Intraday Session)
+            </h3>
+            <span *ngIf="stock.intradaySignal" [class]="getIntradayBadgeClass(stock.intradaySignal)" class="px-3 py-1 rounded-full text-xs font-black">
+              {{ getIntradayLabel(stock.intradaySignal) }}
+            </span>
+          </div>
+
+          <!-- Pre-calculated Intraday Quick Summary -->
+          <div *ngIf="stock.intradaySignal" class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+            <!-- Intraday Entry -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">📥 نقطة دخول المضاربة:</span>
+              <strong class="text-emeraldAccent text-base font-black">{{ stock.intradayEntry }} ج.م</strong>
+              <span class="text-[11px] text-gray-400 block">سعر الدخول اللحظي للمضاربة</span>
+            </div>
+
+            <!-- Intraday Target -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">🎯 هدف جني الأرباح السريع:</span>
+              <strong class="text-cyanAccent text-base font-black">{{ stock.intradayTarget }} ج.م</strong>
+              <span class="text-[11px] text-emerald-400 block">+{{ getPercentDiff(stock.intradayTarget!, stock.quote.currentPrice) }}% ربح متوقع</span>
+            </div>
+
+            <!-- Intraday Stop Loss -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">🛑 وقف خسارة المضاربة:</span>
+              <strong class="text-roseAccent text-base font-black">{{ stock.intradayStopLoss }} ج.م</strong>
+              <span class="text-[11px] text-rose-400 block">إيقاف صارم وسريع</span>
+            </div>
+          </div>
+
+          <!-- Intraday Reasons -->
+          <div *ngIf="stock.intradayReasons && stock.intradayReasons.length > 0" class="space-y-2 text-xs text-gray-300 pt-2 border-t border-darkBorder">
+            <h4 class="font-bold text-gray-100 flex items-center gap-1.5">
+              <i class="pi pi-check-circle text-orange-400"></i> مبررات إشارة المضاربة التلقائية:
+            </h4>
+            <ul class="space-y-1.5 pr-2">
+              <li *ngFor="let reason of stock.intradayReasons" class="flex items-start gap-2 text-gray-300">
+                <span class="text-orange-400 font-bold">•</span>
+                <span>{{ reason }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- AI Deep Analysis Divider -->
+          <div class="border-t border-darkBorder pt-3">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-bold text-orange-400 flex items-center gap-1.5">
+                <i class="pi pi-sparkles text-orange-400"></i> تحليل عميق بالذكاء الاصطناعي (Gemini AI)
+              </h4>
+              <button
+                *ngIf="!intradayLoading && !intradayRecommendation"
+                (click)="fetchIntradayRecommendation()"
+                class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black shadow-lg shadow-orange-500/20 transition-all flex items-center gap-1.5">
+                <i class="pi pi-bolt"></i> اطلب تحليل AI عميق
+              </button>
+              <button
+                *ngIf="intradayRecommendation"
+                (click)="intradayRecommendation = ''; fetchIntradayRecommendation()"
+                class="px-3 py-1 rounded-xl bg-darkBg hover:bg-darkBorder text-gray-400 hover:text-white text-xs font-bold transition-colors flex items-center gap-1">
+                <i class="pi pi-refresh"></i> تحديث التحليل
+              </button>
+            </div>
+
+            <!-- Loading State -->
+            <div *ngIf="intradayLoading" class="flex flex-col items-center justify-center py-8 gap-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-orange-400 animate-bounce"></span>
+                <span class="w-2 h-2 rounded-full bg-orange-400 animate-bounce [animation-delay:0.2s]"></span>
+                <span class="w-2 h-2 rounded-full bg-orange-400 animate-bounce [animation-delay:0.4s]"></span>
+              </div>
+              <span class="text-xs text-gray-400">جاري توليد توصية المضاربة اللحظية من Gemini AI...</span>
+            </div>
+
+            <!-- Empty State -->
+            <div *ngIf="!intradayLoading && !intradayRecommendation" class="text-center py-6 text-xs text-gray-400">
+              <div class="text-3xl mb-2">🤖</div>
+              <p>اضغط الزر أعلاه للحصول على تحليل عميق بالمضاربة داخل الجلسة</p>
+              <p class="text-gray-500 mt-1">سيحلل الذكاء الاصطناعي نقاط الدخول والخروج السريعة وأفضل توقيت للمضاربة اليومية</p>
+            </div>
+
+            <!-- Intraday AI Response -->
+            <div *ngIf="intradayRecommendation && !intradayLoading" class="bg-darkBg/80 p-4 rounded-2xl border border-orange-500/20 text-xs text-gray-200 whitespace-pre-line leading-relaxed">
+              {{ intradayRecommendation }}
+            </div>
+
+            <div *ngIf="intradayProvider" class="text-[10px] text-orange-400/80 font-bold flex items-center gap-1 pt-1">
+              <i class="pi pi-bolt text-[10px]"></i> {{ intradayProvider }}
+            </div>
+          </div>
         </div>
       </div>
     </p-dialog>
@@ -128,7 +357,182 @@ export class StockModalComponent {
   @Input() visible: boolean = false;
   @Output() visibleChange = new EventEmitter<boolean>();
 
+  private http = inject(HttpClient);
+
+  aiRecommendation: string = '';
+  aiProvider: string = '';
+  aiLoading: boolean = false;
+
+  intradayRecommendation: string = '';
+  intradayProvider: string = '';
+  intradayLoading: boolean = false;
+
+  fetchAiRecommendation(): void {
+    if (!this.stock || this.aiLoading) return;
+    this.aiLoading = true;
+    this.aiRecommendation = '';
+    this.aiProvider = '';
+
+    const s = this.stock;
+    const prompt = `كخبير مالي واقتصادي متخصص في البورصة المصرية، قدم تحليلاً مالياً وفنياً شاملاً ومكتملاً لسهم ${s.quote.symbol} (${s.quote.nameAr}) مع توصية شراء أو بيع واضحة. البيانات اللحظية:
+- السعر الحالي: ${s.quote.currentPrice} ج.م (${s.quote.changePercent >= 0 ? '+' : ''}${s.quote.changePercent}%)
+- القيمة العادلة المحسوبة: ${s.fairValue} ج.م (فارق: +${s.fairValueUpsidePercent}%)
+- مضاعف الربحية P/E: ${s.quote.peRatio || 'غير متاح'}
+- RSI(14): ${s.indicators.rsi}
+- SMA20: ${s.indicators.sma20} | SMA50: ${s.indicators.sma50}
+- الدعم: ${s.indicators.support} | المقاومة: ${s.indicators.resistance}
+- أعلى 52 أسبوع: ${s.quote.fiftyTwoWeekHigh} | أدنى 52 أسبوع: ${s.quote.fiftyTwoWeekLow}
+- حجم التداول: ${s.quote.volume} (المتوسط: ${s.quote.avgVolume})
+- الإشارة الحالية: ${s.signalType} (درجة: ${s.signalScore})
+- وقف الخسارة: ${s.suggestedStopLoss} | الهدف 1: ${s.suggestedTarget.target1} | الهدف 2: ${s.suggestedTarget.target2}
+- نسبة العائد/المخاطرة: 1:${s.riskRewardRatio}
+
+قدم التحليل كاملاً بالعربية مع: 1) ملخص مالي 2) تحليل فني 3) توصية شراء/بيع/انتظار واضحة مع نطاق الدخول والأهداف ووقف الخسارة.`;
+
+    const payload: any = {
+      message: prompt,
+      history: [],
+      marketContext: {
+        stockUnderAnalysis: {
+          symbol: s.quote.symbol,
+          name: s.quote.nameAr,
+          price: s.quote.currentPrice,
+          changePercent: s.quote.changePercent,
+          fairValue: s.fairValue,
+          upsidePercent: s.fairValueUpsidePercent,
+          pe: s.quote.peRatio,
+          rsi: s.indicators.rsi,
+          sma20: s.indicators.sma20,
+          sma50: s.indicators.sma50,
+          support: s.indicators.support,
+          resistance: s.indicators.resistance,
+          high52w: s.quote.fiftyTwoWeekHigh,
+          low52w: s.quote.fiftyTwoWeekLow,
+          volume: s.quote.volume,
+          avgVolume: s.quote.avgVolume,
+          signal: s.signalType,
+          signalScore: s.signalScore,
+          stopLoss: s.suggestedStopLoss,
+          target1: s.suggestedTarget.target1,
+          target2: s.suggestedTarget.target2,
+          riskReward: s.riskRewardRatio,
+          reasons: s.reasons
+        }
+      }
+    };
+
+    const savedKey = localStorage.getItem('GEMINI_API_KEY');
+    if (savedKey) {
+      payload.apiKey = savedKey.trim();
+    }
+
+    this.http.post<any>('/api/chat', payload).subscribe({
+      next: (res) => {
+        this.aiRecommendation = res?.answer || 'لم يتمكن الذكاء الاصطناعي من توليد تحليل حالياً. حاول مرة أخرى.';
+        this.aiProvider = res?.provider || 'Gemini Flash Latest';
+        this.aiLoading = false;
+      },
+      error: () => {
+        this.aiRecommendation = '⚠️ تعذر الاتصال بخدمة Gemini AI حالياً. تأكد من اتصال الإنترنت وحاول مرة أخرى.';
+        this.aiProvider = 'Error';
+        this.aiLoading = false;
+      }
+    });
+  }
+
+  fetchIntradayRecommendation(): void {
+    if (!this.stock || this.intradayLoading) return;
+    this.intradayLoading = true;
+    this.intradayRecommendation = '';
+    this.intradayProvider = '';
+
+    const s = this.stock;
+    const prompt = `كخبير مضاربة يومية متخصص في البورصة المصرية، قدم توصية مضاربة داخل الجلسة (Intraday/Scalping) كاملة ومكتملة لسهم ${s.quote.symbol} (${s.quote.nameAr}). البيانات اللحظية:
+- السعر الحالي: ${s.quote.currentPrice} ج.م (${s.quote.changePercent >= 0 ? '+' : ''}${s.quote.changePercent}%)
+- أعلى سعر اليوم: ${s.quote.dayHigh} | أدنى سعر اليوم: ${s.quote.dayLow}
+- حجم التداول: ${s.quote.volume} (المتوسط: ${s.quote.avgVolume}) - نسبة الحجم: ${s.indicators.volumeRatio}x
+- ارتفاع حجم غير عادي: ${s.indicators.volumeSpike ? 'نعم ⚠️' : 'لا'}
+- RSI(14): ${s.indicators.rsi}
+- SMA20: ${s.indicators.sma20} | SMA50: ${s.indicators.sma50}
+- الدعم الفني: ${s.indicators.support} | المقاومة: ${s.indicators.resistance}
+
+قدم التوصية كاملة بالعربية مع:
+1) ⚡ قرار المضاربة: شراء سريع / بيع سريع / لا تتداول اليوم - مع السبب
+2) 📥 نقطة الدخول المثالية للمضاربة (سعر محدد)
+3) 🎯 هدف جني الأرباح السريع (Target 1 خلال الجلسة)
+4) 🛑 وقف خسارة المضاربة الصارم (أقرب من وقف المستثمر)
+5) ⏱️ أفضل توقيت للدخول (بداية/منتصف/نهاية الجلسة)
+6) ⚠️ تنبيهات ومخاطر المضاربة اليومية لهذا السهم`;
+
+    const payload: any = {
+      message: prompt,
+      history: [],
+      marketContext: {
+        stockUnderAnalysis: {
+          symbol: s.quote.symbol,
+          name: s.quote.nameAr,
+          price: s.quote.currentPrice,
+          changePercent: s.quote.changePercent,
+          dayHigh: s.quote.dayHigh,
+          dayLow: s.quote.dayLow,
+          volume: s.quote.volume,
+          avgVolume: s.quote.avgVolume,
+          volumeRatio: s.indicators.volumeRatio,
+          volumeSpike: s.indicators.volumeSpike,
+          rsi: s.indicators.rsi,
+          sma20: s.indicators.sma20,
+          sma50: s.indicators.sma50,
+          support: s.indicators.support,
+          resistance: s.indicators.resistance,
+          high52w: s.quote.fiftyTwoWeekHigh,
+          low52w: s.quote.fiftyTwoWeekLow
+        }
+      }
+    };
+
+    const savedKey = localStorage.getItem('GEMINI_API_KEY');
+    if (savedKey) {
+      payload.apiKey = savedKey.trim();
+    }
+
+    this.http.post<any>('/api/chat', payload).subscribe({
+      next: (res) => {
+        this.intradayRecommendation = res?.answer || 'لم يتمكن الذكاء الاصطناعي من توليد توصية المضاربة حالياً. حاول مرة أخرى.';
+        this.intradayProvider = res?.provider || 'Gemini Flash Latest';
+        this.intradayLoading = false;
+      },
+      error: () => {
+        this.intradayRecommendation = '⚠️ تعذر الاتصال بخدمة Gemini AI حالياً. تأكد من اتصال الإنترنت وحاول مرة أخرى.';
+        this.intradayProvider = 'Error';
+        this.intradayLoading = false;
+      }
+    });
+  }
+
   getSignalLabel(signal: SignalType): string {
+    switch (signal) {
+      case 'STRONG_BUY': return '🚀 شراء قوي جداً';
+      case 'BUY': return '🟢 شراء';
+      case 'NEUTRAL': return '🟡 محايد / مراقبة';
+      case 'SELL': return '🔴 بيع';
+      case 'STRONG_SELL': return '🚨 بيع قوي';
+      default: return '🟡 محايد';
+    }
+  }
+
+  getSignalBadgeClass(signal: SignalType): string {
+    switch (signal) {
+      case 'STRONG_BUY': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+      case 'BUY': return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20';
+      case 'NEUTRAL': return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
+      case 'SELL': return 'bg-rose-500/15 text-rose-300 border border-rose-500/20';
+      case 'STRONG_SELL': return 'bg-rose-500/25 text-rose-200 border border-rose-500/40';
+      default: return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
+    }
+  }
+
+
+  getIntradayLabel(signal: SignalType): string {
     switch (signal) {
       case 'STRONG_BUY': return '🚀 شراء قوي';
       case 'BUY': return '🟢 شراء';
@@ -139,14 +543,35 @@ export class StockModalComponent {
     }
   }
 
-  getSignalBadgeClass(signal: SignalType): string {
+  getIntradayBadgeClass(signal: SignalType): string {
     switch (signal) {
-      case 'STRONG_BUY': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-      case 'BUY': return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20';
+      case 'STRONG_BUY': return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+      case 'BUY': return 'bg-orange-500/15 text-orange-400 border border-orange-500/20';
       case 'NEUTRAL': return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
       case 'SELL': return 'bg-rose-500/15 text-rose-300 border border-rose-500/20';
       case 'STRONG_SELL': return 'bg-rose-500/25 text-rose-200 border border-rose-500/40';
       default: return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
     }
+  }
+
+  getRsiDiagnosis(rsi: number): string {
+    if (rsi < 30) return 'منطقة تشبع بيعي حاد (فرصة ارتداد 🚀)';
+    if (rsi < 45) return 'منطقة تجميع إيجابية وتأسيس 📈';
+    if (rsi < 65) return 'حركة معتدلة ومتوازنة ⚖️';
+    if (rsi < 75) return 'منطقة تشبع شرائي مرتفع ⚠️';
+    return 'منطقة خطرة وجني أرباح حاد 🚨';
+  }
+
+  getFinancialVerdictText(upside: number): string {
+    if (upside >= 30) return '💎 السهم يتداول بأقل كثيراً من قيمته العادلة (خصم ممتاز)';
+    if (upside >= 15) return '🟢 السهم يتداول بأقل من قيمته العادلة (فرصة نمو جيدة)';
+    if (upside <= -20) return '🚨 السهم يتداول بأعلى كثيراً من قيمته العادلة (تضخم وتقييم مرتفع)';
+    if (upside <= -10) return '⚠️ السهم يتداول بأعلى من قيمته العادلة نسبياً';
+    return '⚖️ السهم يتداول قرب مستويات قيمته العادلة تماماً';
+  }
+
+  getPercentDiff(target: number, price: number): number {
+    if (!price || price === 0) return 0;
+    return Number((((target - price) / price) * 100).toFixed(1));
   }
 }

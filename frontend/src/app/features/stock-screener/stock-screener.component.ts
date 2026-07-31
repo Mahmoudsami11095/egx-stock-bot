@@ -60,6 +60,16 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
                   class="px-3.5 py-2 rounded-xl text-xs transition-all border border-darkBorder">
             💎 ألمع فرص النمو (+15% فأكثر)
           </button>
+          <button (click)="activeFilter.set('INTRADAY_BUY')"
+                  [class]="activeFilter() === 'INTRADAY_BUY' ? 'bg-orange-500 text-white font-bold' : 'bg-darkCard text-gray-300 hover:bg-darkBorder'"
+                  class="px-3.5 py-2 rounded-xl text-xs transition-all border border-darkBorder">
+            ⚡ مضاربة شراء ({{ intradayBuyCount() }})
+          </button>
+          <button (click)="activeFilter.set('INTRADAY_SELL')"
+                  [class]="activeFilter() === 'INTRADAY_SELL' ? 'bg-rose-500 text-white font-bold' : 'bg-darkCard text-gray-300 hover:bg-darkBorder'"
+                  class="px-3.5 py-2 rounded-xl text-xs transition-all border border-darkBorder">
+            🔴 مضاربة بيع ({{ intradaySellCount() }})
+          </button>
         </div>
       </div>
 
@@ -79,6 +89,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
               <th pSortableColumn="fairValue">القيمة العادلة <p-sortIcon field="fairValue"></p-sortIcon></th>
               <th pSortableColumn="fairValueUpsidePercent">فارق النمو المتوقع <p-sortIcon field="fairValueUpsidePercent"></p-sortIcon></th>
               <th pSortableColumn="signalType">التوصية والإشارة <p-sortIcon field="signalType"></p-sortIcon></th>
+              <th pSortableColumn="intradaySignal">مضاربة الجلسة <p-sortIcon field="intradaySignal"></p-sortIcon></th>
               <th pSortableColumn="indicators.rsi">RSI(14) <p-sortIcon field="indicators.rsi"></p-sortIcon></th>
               <th>التوافق الشرعي</th>
               <th>التفاصيل</th>
@@ -122,6 +133,14 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
                 </span>
               </td>
 
+              <!-- Intraday Signal Badge -->
+              <td>
+                <span *ngIf="stock.intradaySignal" [class]="getIntradayBadgeClass(stock.intradaySignal)" class="px-2.5 py-1 rounded-full text-xs font-bold shadow-sm">
+                  {{ getIntradayLabel(stock.intradaySignal) }}
+                </span>
+                <span *ngIf="!stock.intradaySignal" class="text-xs text-gray-500">—</span>
+              </td>
+
               <!-- RSI -->
               <td>
                 <span [class]="stock.indicators.rsi < 35 ? 'text-emeraldAccent font-bold' : stock.indicators.rsi > 70 ? 'text-roseAccent font-bold' : 'text-gray-300'" class="text-xs">
@@ -148,7 +167,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
 
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="8" class="text-center py-8 text-gray-400 text-sm">
+              <td colspan="9" class="text-center py-8 text-gray-400 text-sm">
                 لم يتم العثور على أسهم تطابق نتائج البحث.
               </td>
             </tr>
@@ -165,12 +184,20 @@ export class StockScreenerComponent {
   public apiService = inject(StockApiService);
 
   public searchQuery = signal('');
-  public activeFilter = signal<'ALL' | 'BUY' | 'UNDERVALUED'>('ALL');
+  public activeFilter = signal<'ALL' | 'BUY' | 'UNDERVALUED' | 'INTRADAY_BUY' | 'INTRADAY_SELL'>('ALL');
   public modalVisible = false;
   public selectedStock: StockAnalysisResult | null = null;
 
   public buyCount = computed(() =>
     this.apiService.stocks().filter(s => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY').length
+  );
+
+  public intradayBuyCount = computed(() =>
+    this.apiService.stocks().filter(s => s.intradaySignal === 'BUY' || s.intradaySignal === 'STRONG_BUY').length
+  );
+
+  public intradaySellCount = computed(() =>
+    this.apiService.stocks().filter(s => s.intradaySignal === 'SELL' || s.intradaySignal === 'STRONG_SELL').length
   );
 
   public filteredStocks = computed(() => {
@@ -190,6 +217,10 @@ export class StockScreenerComponent {
       list = list.filter(s => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY');
     } else if (filter === 'UNDERVALUED') {
       list = list.filter(s => s.fairValueUpsidePercent >= 15);
+    } else if (filter === 'INTRADAY_BUY') {
+      list = list.filter(s => s.intradaySignal === 'BUY' || s.intradaySignal === 'STRONG_BUY');
+    } else if (filter === 'INTRADAY_SELL') {
+      list = list.filter(s => s.intradaySignal === 'SELL' || s.intradaySignal === 'STRONG_SELL');
     }
 
     return list;
@@ -217,6 +248,28 @@ export class StockScreenerComponent {
       case 'NEUTRAL': return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
       case 'SELL': return 'bg-rose-500/15 text-rose-300 border border-rose-500/20';
       case 'STRONG_SELL': return 'bg-rose-500/25 text-rose-200 border border-rose-500/40';
+    }
+  }
+
+  getIntradayLabel(signal: SignalType): string {
+    switch (signal) {
+      case 'STRONG_BUY': return '🚀 شراء قوي';
+      case 'BUY': return '🟢 شراء';
+      case 'NEUTRAL': return '🟡 محايد';
+      case 'SELL': return '🔴 بيع';
+      case 'STRONG_SELL': return '🚨 بيع قوي';
+      default: return '🟡 محايد';
+    }
+  }
+
+  getIntradayBadgeClass(signal: SignalType): string {
+    switch (signal) {
+      case 'STRONG_BUY': return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+      case 'BUY': return 'bg-orange-500/15 text-orange-400 border border-orange-500/20';
+      case 'NEUTRAL': return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
+      case 'SELL': return 'bg-rose-500/15 text-rose-300 border border-rose-500/20';
+      case 'STRONG_SELL': return 'bg-rose-500/25 text-rose-200 border border-rose-500/40';
+      default: return 'bg-amber-500/15 text-amber-300 border border-amber-500/20';
     }
   }
 }

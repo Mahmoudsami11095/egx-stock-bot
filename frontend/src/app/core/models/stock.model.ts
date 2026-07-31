@@ -50,15 +50,52 @@ export interface StockAnalysisResult {
   suggestedStopLoss: number;
   positionSizePercent: number;
   riskRewardRatio: number;
+  // Intraday (scalping/session) trading fields
+  intradaySignal?: SignalType;
+  intradayScore?: number;
+  intradayReasons?: string[];
+  intradayEntry?: number;
+  intradayTarget?: number;
+  intradayStopLoss?: number;
 }
 
 export interface GoldPrices {
   goldUsdPerOz: number;
   usdEgpRate: number;
+  fairGold24kEgp?: number;
+  fairGold21kEgp?: number;
+  fairGold18kEgp?: number;
+  fairGoldCoinEgp?: number;
   gold24kEgp: number;
   gold21kEgp: number;
   gold18kEgp: number;
   goldCoinEgp: number;
+  saghaPremiumEgp?: number;
+  saghaPremiumPercent?: number;
+  provider?: string;
+  isCached?: boolean;
+  charts?: {
+    dates: string[];
+    ounceSeries: number[];
+    usdEgpSeries: number[];
+    gold24kSeries: number[];
+  };
   signalType: SignalType;
   rsi: number;
+  shortTermRec?: {
+    action: string;
+    badge: string;
+    reason: string;
+    targetPrice24k: number;
+    stopLoss24k: number;
+    targetOunceUsd?: number;
+    stopLossOunceUsd?: number;
+  };
+  longTermRec?: {
+    action: string;
+    badge: string;
+    reason: string;
+    targetPrice24k: number;
+    targetOunceUsd?: number;
+  };
 }
