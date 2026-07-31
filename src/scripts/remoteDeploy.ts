@@ -2,18 +2,18 @@ import { Client } from 'ssh2';
 
 const conn = new Client();
 
-console.log('📡 Connecting via Custom Port 2222 to Azure VM (20.91.240.54)...');
+console.log('📡 Connecting via Port 22 to Azure VM (20.91.240.54)...');
 
 conn.on('keyboard-interactive', (name, instructions, instructionsLang, prompts, finish) => {
   finish(['azureuserSami@11095']);
 });
 
 conn.on('ready', () => {
-  console.log('✅ SSH Connection established successfully on Port 2222!');
+  console.log('✅ SSH Connection established successfully on Port 22!');
   
   const commands = [
     'echo azureuserSami@11095 | sudo -S ufw allow 3000/tcp',
-    'echo azureuserSami@11095 | sudo -S bash -c "cd /root/egx-stock-bot && git checkout -- package-lock.json && git pull && cd frontend && npm install --legacy-peer-deps && npm run build && cd .. && npm run build && pm2 restart egx-stock-bot && pm2 status"'
+    'echo azureuserSami@11095 | sudo -S bash -c "cd /root/egx-stock-bot && git clean -fd && git reset --hard HEAD && git pull && npm install --legacy-peer-deps && npm run build:backend && pm2 restart egx-stock-bot && pm2 status"'
   ].join(' && ');
 
   console.log('🚀 Executing remote deployment commands on Azure VM...');
@@ -38,7 +38,7 @@ conn.on('ready', () => {
   console.error('❌ SSH Connection Error:', err.message);
 }).connect({
   host: '20.91.240.54',
-  port: 2222,
+  port: 22,
   username: 'azureuser',
   password: 'azureuserSami@11095',
   tryKeyboard: true,
