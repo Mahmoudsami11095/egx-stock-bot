@@ -15,6 +15,7 @@ export class SignalDetectorService {
   }
 
   private logSignalHistory(analysis: StockAnalysisResult): void {
+    if (process.env.VERCEL) return;
     try {
       let history: any[] = [];
       if (fs.existsSync(this.historyFilePath)) {
@@ -38,8 +39,8 @@ export class SignalDetectorService {
       // Keep last 500 signals
       if (history.length > 500) history = history.slice(-500);
       fs.writeFileSync(this.historyFilePath, JSON.stringify(history, null, 2), 'utf8');
-    } catch (e) {
-      logger.error(`Error writing signal history log: ${e}`);
+    } catch (_) {
+      // Gracefully ignore filesystem write errors on read-only serverless hosts
     }
   }
 

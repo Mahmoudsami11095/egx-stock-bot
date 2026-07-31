@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { StockAnalysisResult, GoldPrices } from '../models/stock.model';
 import { DEFAULT_STOCKS, DEFAULT_GOLD_PRICES } from '../constants/default-stocks';
 
-const STORAGE_KEY = 'egx_stocks_cache_v1';
+const STORAGE_KEY = 'egx_stocks_cache_v2';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp';
 
 @Injectable({
