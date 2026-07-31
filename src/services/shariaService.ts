@@ -62,6 +62,10 @@ export class ShariaService {
       const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
+        res.on('error', (e) => {
+          logger.error(`Response error in fetchLiveShariaDatabase: ${e}`);
+          resolve({ halalCount: this.liveHalalMap.size, nonHalalCount: this.liveNonHalalMap.size });
+        });
         res.on('end', () => {
           try {
             const rawList: TemplatesnippetStockItem[] = JSON.parse(body);

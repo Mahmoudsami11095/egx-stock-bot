@@ -8,9 +8,14 @@ export class SignalDetectorService {
   private historyFilePath = path.join(process.cwd(), 'data', 'signal_history.json');
 
   constructor() {
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+    if (process.env.VERCEL) return;
+    try {
+      const dataDir = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+    } catch (_) {
+      // Ignore
     }
   }
 

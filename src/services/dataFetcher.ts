@@ -49,6 +49,10 @@ export class DataFetcherService {
       const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
+        res.on('error', (e) => {
+          logger.error(`Response error detecting market regime: ${e}`);
+          resolve({ regime: cachedMarketRegime, usdEgp: cachedUsdEgp });
+        });
         res.on('end', () => {
           try {
             const json = JSON.parse(body);
@@ -98,6 +102,10 @@ export class DataFetcherService {
       const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
+        res.on('error', (e) => {
+          logger.error(`Response error fetching USD/EGP: ${e}`);
+          resolve(cachedUsdEgp);
+        });
         res.on('end', () => {
           try {
             const json = JSON.parse(body);
@@ -188,6 +196,11 @@ export class DataFetcherService {
       const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
+        res.on('error', (e) => {
+          logger.error(`Response error in batch fetch: ${e}`);
+          if (lastSuccessfulResponse) resolve(lastSuccessfulResponse);
+          else reject(e);
+        });
         res.on('end', () => {
           try {
             const json = JSON.parse(body);
@@ -425,6 +438,10 @@ export class DataFetcherService {
       const req = https.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
+        res.on('error', (e) => {
+          logger.error(`Response error in fetchFullEgxScan: ${e}`);
+          resolve([]);
+        });
         res.on('end', () => {
           try {
             const json = JSON.parse(body);
