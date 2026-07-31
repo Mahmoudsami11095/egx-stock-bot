@@ -1,6 +1,4 @@
 {
-  "framework": null,
-  "installCommand": "cd frontend && npm install --legacy-peer-deps",
-  "buildCommand": "cd frontend && npm run build && echo '=== BUILD OUTPUT ===' && ls -la dist/frontend/browser/ && echo '=== DONE ==='",
+  "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist/frontend/browser"
 }
