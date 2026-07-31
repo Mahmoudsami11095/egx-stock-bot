@@ -756,5 +756,26 @@
     "nameEn": "SPIN",
     "nameAr": "الإسكندرية للغزل والنسيج (سبينالكس)",
     "sector": "Halal EGX"
+  },
+  {
+    "symbol": "TALM",
+    "yahooSymbol": "TALM.CA",
+    "nameEn": "TALM",
+    "nameAr": "تعليم لخدمات الإدارة",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MIPH",
+    "yahooSymbol": "MIPH.CA",
+    "nameEn": "MIPH",
+    "nameAr": "مينا فارم للأدوية والصناعات الكيماوية",
+    "sector": "Halal EGX"
+  },
+  {
+    "symbol": "MCRO",
+    "yahooSymbol": "MCRO.CA",
+    "nameEn": "MCRO",
+    "nameAr": "ماكرو جروب للمستحضرات الطبية - ماكرو كابيتال",
+    "sector": "Halal EGX"
   }
 ]
