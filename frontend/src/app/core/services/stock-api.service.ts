@@ -42,10 +42,10 @@ export class StockApiService {
         suggestedEntry: { min: 700.00, max: 715.00 }, suggestedTarget: { target1: 820.00, target2: 980.00 }, suggestedStopLoss: 670.00, positionSizePercent: 8, riskRewardRatio: 3.0
       },
       {
-        quote: { symbol: 'COMI', nameEn: 'Commercial International Bank', nameAr: 'البنك التجاري الدولي', currentPrice: 141.00, previousClose: 140.30, change: 0.70, changePercent: 0.50, dayHigh: 141.00, dayLow: 138.40, fiftyTwoWeekHigh: 145.00, fiftyTwoWeekLow: 84.30, volume: 2002578, avgVolume: 3264457, peRatio: 6.78 },
-        indicators: { rsi: 61.2, sma20: 136.2, sma50: 134.1, support: 136.0, resistance: 145.0, volumeSpike: false, volumeRatio: 0.8 },
-        signalType: 'BUY', signalScore: 4.0, reasons: ['قيادي السوق ومحرك المؤشر الرئيسي', 'نمو صافي عائد الدخل من الفوائد'], fairValue: 195.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 38.30, marketRegime: 'BULLISH', shariaTier: 'NON_COMPLIANT', shariaStatusText: '🔴 نشاط مصرفي تجاري (غير متوافق ماليًا)',
-        suggestedEntry: { min: 137.00, max: 141.00 }, suggestedTarget: { target1: 165.00, target2: 195.00 }, suggestedStopLoss: 132.00, positionSizePercent: 10, riskRewardRatio: 2.9
+        quote: { symbol: 'ADIB', nameEn: 'Abu Dhabi Islamic Bank', nameAr: 'مصرف أبوظبي الإسلامي - مصر', currentPrice: 52.50, previousClose: 52.00, change: 0.50, changePercent: 0.96, dayHigh: 53.00, dayLow: 51.80, fiftyTwoWeekHigh: 58.50, fiftyTwoWeekLow: 32.00, volume: 1850420, avgVolume: 2100500, peRatio: 5.20 },
+        indicators: { rsi: 65.2, sma20: 50.1, sma50: 48.3, support: 50.0, resistance: 56.0, volumeSpike: true, volumeRatio: 1.5 },
+        signalType: 'STRONG_BUY', signalScore: 4.7, reasons: ['نمو إيرادات مصرفية إسلامية قياسي', 'عائد على الملكية يتجاوز 35% ومضاعف رخيص (5.2)'], fairValue: 85.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 61.90, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 مصرف إسلامي متوافق تام 100%',
+        suggestedEntry: { min: 51.00, max: 53.00 }, suggestedTarget: { target1: 68.00, target2: 85.00 }, suggestedStopLoss: 48.50, positionSizePercent: 12, riskRewardRatio: 3.4
       },
       {
         quote: { symbol: 'SWDY', nameEn: 'Elsewedy Electric', nameAr: 'السويدى إليكتريك', currentPrice: 93.00, previousClose: 94.95, change: -1.95, changePercent: -2.05, dayHigh: 94.95, dayLow: 91.80, fiftyTwoWeekHigh: 97.50, fiftyTwoWeekLow: 62.00, volume: 270010, avgVolume: 210912, peRatio: 9.80 },
@@ -84,16 +84,19 @@ export class StockApiService {
         suggestedEntry: { min: 7.90, max: 8.30 }, suggestedTarget: { target1: 10.50, target2: 13.50 }, suggestedStopLoss: 7.40, positionSizePercent: 8, riskRewardRatio: 3.0
       },
       {
-        quote: { symbol: 'HRHO', nameEn: 'EFG Hermes Holding', nameAr: 'مجموعة إي إف جي القابضة', currentPrice: 26.20, previousClose: 26.45, change: -0.25, changePercent: -0.95, dayHigh: 26.50, dayLow: 25.95, fiftyTwoWeekHigh: 31.50, fiftyTwoWeekLow: 23.15, volume: 2523436, avgVolume: 3977056, peRatio: 9.32 },
-        indicators: { rsi: 39.7, sma20: 26.7, sma50: 26.9, support: 25.5, resistance: 29.0, volumeSpike: false, volumeRatio: 0.6 },
-        signalType: 'BUY', signalScore: 3.5, reasons: ['نمو إيرادات بنك الاستثمار غير المصرفي', 'توسع إقليمي في الأسواق الواعدة'], fairValue: 38.00, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 45.04, marketRegime: 'BULLISH', shariaTier: 'NON_COMPLIANT', shariaStatusText: '🔴 خدمات مالية غير مصرفية وبنك استثماري',
-        suggestedEntry: { min: 25.50, max: 26.50 }, suggestedTarget: { target1: 31.00, target2: 38.00 }, suggestedStopLoss: 24.50, positionSizePercent: 8, riskRewardRatio: 2.6
+        quote: { symbol: 'ISPH', nameEn: 'Ibn Sina Pharma', nameAr: 'ابن سينا فارما', currentPrice: 3.85, previousClose: 3.80, change: 0.05, changePercent: 1.32, dayHigh: 3.90, dayLow: 3.75, fiftyTwoWeekHigh: 4.20, fiftyTwoWeekLow: 2.10, volume: 5420100, avgVolume: 4800000, peRatio: 11.20 },
+        indicators: { rsi: 60.1, sma20: 3.70, sma50: 3.55, support: 3.65, resistance: 4.10, volumeSpike: true, volumeRatio: 1.3 },
+        signalType: 'BUY', signalScore: 3.9, reasons: ['نمو مبيعات توزيع الدواء بمعدل قوي', 'توسع في المراكز اللوجستية الرقمية'], fairValue: 5.80, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 50.65, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
+        suggestedEntry: { min: 3.70, max: 3.85 }, suggestedTarget: { target1: 4.60, target2: 5.80 }, suggestedStopLoss: 3.50, positionSizePercent: 8, riskRewardRatio: 2.9
       }
     ];
 
+    const isHalalOnly = (s: StockAnalysisResult) => s.shariaTier !== 'NON_COMPLIANT';
+    const isBuySignal = (s: StockAnalysisResult) => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY';
+
     // Set updated real-time baseline data
     this.stocks.set(defaultStocks);
-    this.topBuys.set(defaultStocks.filter(s => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY').slice(0, 4));
+    this.topBuys.set(defaultStocks.filter(s => isHalalOnly(s) && isBuySignal(s)).slice(0, 4));
 
     this.goldPrices.set({
       goldUsdPerOz: 4111.10,
@@ -114,7 +117,7 @@ export class StockApiService {
       if (results && results.length > 0) {
         results.sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
         this.stocks.set(results);
-        this.topBuys.set(results.filter(s => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY').slice(0, 4));
+        this.topBuys.set(results.filter(s => isHalalOnly(s) && isBuySignal(s)).slice(0, 4));
       }
     } catch (backendErr) {
       console.warn('/api/stocks backend fetch not available on static host, using accurate live dataset.');
