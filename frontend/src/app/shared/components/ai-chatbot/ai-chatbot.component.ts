@@ -2,6 +2,7 @@ import { Component, inject, signal, ViewChild, ElementRef, AfterViewChecked, OnI
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { timeout } from 'rxjs';
 import { StockApiService } from '../../../core/services/stock-api.service';
 
 export interface ChatMessage {
@@ -269,7 +270,7 @@ export class AiChatbotComponent implements OnInit, AfterViewChecked {
       payload.apiKey = this.customApiKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
       next: (res) => {
         let answer = res?.answer;
         let provider = res?.provider || 'Gemini Flash Latest';
@@ -382,7 +383,7 @@ export class AiChatbotComponent implements OnInit, AfterViewChecked {
       payload.apiKey = this.customApiKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
       next: (res) => {
         let answer = res?.answer;
         let provider = res?.provider || 'Gemini Flash Latest';

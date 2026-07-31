@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
 import { HttpClient } from '@angular/common/http';
+import { timeout } from 'rxjs';
 import { StockAnalysisResult, SignalType } from '../../../core/models/stock.model';
 
 @Component({
@@ -426,7 +427,7 @@ export class StockModalComponent {
       payload.apiKey = savedKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
       next: (res) => {
         this.aiRecommendation = res?.answer || 'لم يتمكن الذكاء الاصطناعي من توليد تحليل حالياً. حاول مرة أخرى.';
         this.aiProvider = res?.provider || 'Gemini Flash Latest';
@@ -495,7 +496,7 @@ export class StockModalComponent {
       payload.apiKey = savedKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
       next: (res) => {
         this.intradayRecommendation = res?.answer || 'لم يتمكن الذكاء الاصطناعي من توليد توصية المضاربة حالياً. حاول مرة أخرى.';
         this.intradayProvider = res?.provider || 'Gemini Flash Latest';

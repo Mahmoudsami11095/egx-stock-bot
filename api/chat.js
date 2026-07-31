@@ -8,7 +8,7 @@ const GEMINI_MODELS = [
   'gemini-2.0-flash-lite'
 ];
 
-function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName) {
+function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 6000) {
   const cleanKey = String(apiKey || '').trim();
 
   const contents = [];
@@ -48,7 +48,7 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
       'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(postData)
     },
-    timeout: 8000
+    timeout: requestTimeout
   };
 
   return new Promise((resolve) => {
@@ -79,9 +79,19 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
 
 async function callGeminiWithFailover(systemInstruction, userMessage, historyMessages, apiKey) {
   let lastError = null;
+  // Overall deadline to stay within serverless function execution limits
+  // (e.g. Vercel Hobby = 10s). Keeps total failover time bounded so the
+  // client always receives a timely response instead of a hung/killed function.
+  const overallDeadline = Date.now() + 9000;
 
   for (const model of GEMINI_MODELS) {
-    const res = await callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, model);
+    const remaining = overallDeadline - Date.now();
+    if (remaining <= 500) break; // Not enough time left for another attempt
+
+    // Clamp each request's timeout to the remaining budget so the loop
+    // can never overshoot the overall deadline.
+    const requestTimeout = Math.min(6000, remaining);
+    const res = await callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, model, requestTimeout);
     if (res.answer) {
       return { answer: res.answer, model };
     }
