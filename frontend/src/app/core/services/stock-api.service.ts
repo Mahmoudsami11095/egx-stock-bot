@@ -1,10 +1,20 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { StockAnalysisResult, GoldPrices } from '../models/stock.model';
-import { DEFAULT_STOCKS, DEFAULT_GOLD_PRICES } from '../constants/default-stocks';
 
-const STORAGE_KEY = 'egx_stocks_cache_v2';
+const STORAGE_KEY = 'egx_stocks_live_cache_v3';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp';
+
+const DEFAULT_GOLD_PRICES: GoldPrices = {
+  goldUsdPerOz: 4111.10,
+  usdEgpRate: 51.07,
+  gold24kEgp: 6828,
+  gold21kEgp: 5975,
+  gold18kEgp: 5121,
+  goldCoinEgp: 47800,
+  signalType: 'BUY',
+  rsi: 58.4
+};
 
 @Injectable({
   providedIn: 'root'
@@ -41,9 +51,6 @@ export class StockApiService {
     } catch (e) {
       console.warn('Could not read stocks from localStorage cache', e);
     }
-
-    // Baseline fallback if no cache is present on first launch
-    this.applyStockData(DEFAULT_STOCKS, false);
   }
 
   private applyStockData(data: StockAnalysisResult[], fromCache: boolean): void {
@@ -66,7 +73,7 @@ export class StockApiService {
         const now = new Date();
         this.lastUpdated.set(now);
 
-        // Save fresh live data to client localStorage for instant load next visit & offline resiliency
+        // Save fresh live data to client localStorage for instant load next visit
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
           localStorage.setItem(STORAGE_TIME_KEY, now.getTime().toString());
@@ -75,10 +82,7 @@ export class StockApiService {
         }
       }
     } catch (backendErr) {
-      console.warn('/api/stocks fetch unavailable, serving cached dataset.', backendErr);
-      if (this.stocks().length === 0) {
-        this.applyStockData(DEFAULT_STOCKS, true);
-      }
+      console.warn('/api/stocks fetch error:', backendErr);
     } finally {
       this.loading.set(false);
     }

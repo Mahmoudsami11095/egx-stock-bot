@@ -3,7 +3,6 @@ import { DataFetcherService } from '../src/services/dataFetcher';
 import { SignalDetectorService } from '../src/services/signalDetector';
 import { ShariaService } from '../src/services/shariaService';
 import { INITIAL_STOCKS } from '../src/constants/stocks';
-import { DEFAULT_STOCKS } from '../src/constants/defaultStocks';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,7 +17,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const signalDetector = new SignalDetectorService();
     const shariaService = new ShariaService();
 
-    const batchResults = await dataFetcher.getBatchQuoteAndIndicators(INITIAL_STOCKS);
+    // Fetch live Sharia database to get all current Halal stocks
+    try {
+      await shariaService.fetchLiveShariaDatabase();
+    } catch (e) {
+      console.warn('Live Sharia DB fetch warn:', e);
+    }
+
+    const halalStocks = shariaService.getHalalStocksList();
+    const stocksToScan = halalStocks.length > 0 ? halalStocks : INITIAL_STOCKS;
+
+    const batchResults = await dataFetcher.getBatchQuoteAndIndicators(stocksToScan);
     const results = [];
 
     for (const item of batchResults) {
@@ -46,9 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(results);
     }
   } catch (err: any) {
-    console.error('Error fetching dynamic stock quotes:', err);
+    console.error('Error fetching dynamic live stock quotes:', err);
   }
 
-  // Baseline real-time fallback data
-  return res.status(200).json(DEFAULT_STOCKS);
+  return res.status(200).json([]);
 }

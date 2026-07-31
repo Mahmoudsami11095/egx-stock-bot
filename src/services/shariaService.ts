@@ -188,6 +188,10 @@ export class ShariaService {
     return { added: addedCount, removed: removedSymbols };
   }
 
+  public getHalalStocksList(): StockMeta[] {
+    return Array.from(this.liveHalalMap.values());
+  }
+
   public isStockHalal(symbol: string): boolean {
     const sym = symbol.toUpperCase();
     if (sym === 'SUGR') return false; // Explicit override
