@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
 import { HttpClient } from '@angular/common/http';
@@ -352,13 +352,36 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
     </p-dialog>
   `
 })
-export class StockModalComponent {
+export class StockModalComponent implements OnChanges {
   @Input() stock: StockAnalysisResult | null = null;
   @Input() visible: boolean = false;
   @Output() visibleChange = new EventEmitter<boolean>();
 
   private http = inject(HttpClient);
   private sanitizer = inject(DomSanitizer);
+
+  aiRecommendation: string = '';
+  aiProvider: string = '';
+  aiLoading: boolean = false;
+
+  intradayRecommendation: string = '';
+  intradayProvider: string = '';
+  intradayLoading: boolean = false;
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['stock'] || changes['visible']) {
+      this.resetAiState();
+    }
+  }
+
+  resetAiState() {
+    this.aiRecommendation = '';
+    this.aiProvider = '';
+    this.aiLoading = false;
+    this.intradayRecommendation = '';
+    this.intradayProvider = '';
+    this.intradayLoading = false;
+  }
 
   getFormattedMessage(text: string): SafeHtml {
     if (!text) return '';
@@ -394,16 +417,8 @@ export class StockModalComponent {
     return html;
   }
 
-  aiRecommendation: string = '';
-  aiProvider: string = '';
-  aiLoading: boolean = false;
-
-  intradayRecommendation: string = '';
-  intradayProvider: string = '';
-  intradayLoading: boolean = false;
-
   fetchAiRecommendation(): void {
-    if (!this.stock || this.aiLoading) return;
+    if (!this.stock) return;
     this.aiLoading = true;
     this.aiRecommendation = '';
     this.aiProvider = '';
@@ -461,22 +476,27 @@ export class StockModalComponent {
       payload.apiKey = savedKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(12000)).subscribe({
       next: (res) => {
-        this.aiRecommendation = res?.answer || 'لم يتمكن الذكاء الاصطناعي من توليد تحليل حالياً. حاول مرة أخرى.';
-        this.aiProvider = res?.provider || 'Gemini Flash Latest';
+        if (res?.answer && !res?.useFallback) {
+          this.aiRecommendation = res.answer;
+          this.aiProvider = res.provider || 'Gemini Flash Latest';
+        } else {
+          this.aiRecommendation = this.generateLocalAiAnalysis(s);
+          this.aiProvider = res?.reason === 'NO_API_KEY' ? 'Market Engine (No API Key)' : 'Market Engine (Smart Fallback)';
+        }
         this.aiLoading = false;
       },
       error: () => {
-        this.aiRecommendation = '⚠️ تعذر الاتصال بخدمة Gemini AI حالياً. تأكد من اتصال الإنترنت وحاول مرة أخرى.';
-        this.aiProvider = 'Error';
+        this.aiRecommendation = this.generateLocalAiAnalysis(s);
+        this.aiProvider = 'Market Engine (Offline Fallback)';
         this.aiLoading = false;
       }
     });
   }
 
   fetchIntradayRecommendation(): void {
-    if (!this.stock || this.intradayLoading) return;
+    if (!this.stock) return;
     this.intradayLoading = true;
     this.intradayRecommendation = '';
     this.intradayProvider = '';
@@ -530,18 +550,67 @@ export class StockModalComponent {
       payload.apiKey = savedKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(12000)).subscribe({
       next: (res) => {
-        this.intradayRecommendation = res?.answer || 'لم يتمكن الذكاء الاصطناعي من توليد توصية المضاربة حالياً. حاول مرة أخرى.';
-        this.intradayProvider = res?.provider || 'Gemini Flash Latest';
+        if (res?.answer && !res?.useFallback) {
+          this.intradayRecommendation = res.answer;
+          this.intradayProvider = res.provider || 'Gemini Flash Latest';
+        } else {
+          this.intradayRecommendation = this.generateLocalIntradayAnalysis(s);
+          this.intradayProvider = res?.reason === 'NO_API_KEY' ? 'Market Engine (No API Key)' : 'Market Engine (Smart Fallback)';
+        }
         this.intradayLoading = false;
       },
       error: () => {
-        this.intradayRecommendation = '⚠️ تعذر الاتصال بخدمة Gemini AI حالياً. تأكد من اتصال الإنترنت وحاول مرة أخرى.';
-        this.intradayProvider = 'Error';
+        this.intradayRecommendation = this.generateLocalIntradayAnalysis(s);
+        this.intradayProvider = 'Market Engine (Offline Fallback)';
         this.intradayLoading = false;
       }
     });
+  }
+
+  private generateLocalAiAnalysis(s: StockAnalysisResult): string {
+    const signalText = s.signalType === 'BUY' || s.signalType === 'STRONG_BUY' ? '🚀 شراء واستثمار إيجابي' : s.signalType === 'SELL' || s.signalType === 'STRONG_SELL' ? '🔴 بيع / تخفيف أوزان' : '🟡 محايد ومراقبة الدعم';
+    const upside = s.fairValueUpsidePercent;
+    const valuationDesc = upside >= 25 ? `السهم يتداول بخصم كبير عادل بنسبة **+${upside}%** أسفل قيمته العادلة (${s.fairValue} ج.م)، مما يمثل فرصة استثمارية ممتازة.` : upside >= 10 ? `السهم في نطاق خصم إيجابي بنسبة **+${upside}%** عادلاً (${s.fairValue} ج.م).` : `السهم قريب من قيمته العادلة الحالية (${s.fairValue} ج.م).`;
+
+    return `### 📊 التحليل المالي والفني لسهم ${s.quote.symbol} (${s.quote.nameAr || s.quote.nameEn})
+
+**1. الموقف المالي والتقييم العادل:**
+• **السعر الحالي:** ${s.quote.currentPrice} ج.م (${s.quote.changePercent >= 0 ? '+' : ''}${s.quote.changePercent}%)
+• **القيمة العادلة المحسوبة:** ${s.fairValue} ج.م (نسبة نمو عادلة: **+${upside}%**)
+• ${valuationDesc}
+• **مضاعف الربحية P/E:** ${s.quote.peRatio || 'غير متاح'}
+
+**2. المؤشرات الفنية والاتجاه:**
+• **RSI (14):** ${s.indicators.rsi} (${s.indicators.rsi < 35 ? 'تشبع بيعي إيجابي 🚀' : s.indicators.rsi > 70 ? 'تشبع شرائي مرتفع ⚠️' : 'نطاق تجميع متوازن'})
+• **المتوسطات:** SMA20 (${s.indicators.sma20}) | SMA50 (${s.indicators.sma50})
+• **المستويات الفنية:** الدعم عند **${s.indicators.support} ج.م** | المقاومة عند **${s.indicators.resistance} ج.م**
+
+**3. التوصية الاستراتيجية وخطة التداول:**
+• **القرار:** ${signalText}
+• **نطاق الشراء المناسب:** ${s.suggestedEntry.min} - ${s.suggestedEntry.max} ج.م
+• **الأهداف المستهدفة:** الهدف الأول **${s.suggestedTarget?.target1} ج.م** | الهدف الثاني **${s.fairValue} ج.م**
+• **وقف الخسارة الأقصى:** **${s.suggestedStopLoss} ج.م**`;
+  }
+
+  private generateLocalIntradayAnalysis(s: StockAnalysisResult): string {
+    const signalLabel = s.intradaySignal === 'BUY' || s.intradaySignal === 'STRONG_BUY' ? '🚀 شراء سريع داخل الجلسة (Scalping)' : s.intradaySignal === 'SELL' || s.intradaySignal === 'STRONG_SELL' ? '🔴 بيع سريع / جني أرباح' : '🟡 انتظر تكون الزخم';
+
+    return `### ⚡ توصية المضاربة اللحظية داخل الجلسة (Intraday Scalping)
+
+**1. قرار المضاربة:**
+• **القرار:** ${signalLabel}
+• **حجم التداول اليوم:** ${s.quote.volume} سهم (${s.indicators.volumeRatio}x متوسط التداول 30 يوم)
+• **حركة اليوم:** أدنى سعر اليوم **${s.quote.dayLow} ج.م** | أعلى سعر اليوم **${s.quote.dayHigh} ج.م**
+
+**2. خريطة تداول الجلسة (Execution Plan):**
+• 📥 **نقطة الدخول اللحظية:** **${s.intradayEntry || s.quote.currentPrice} ج.م**
+• 🎯 **هدف جني الأرباح السريع:** **${s.intradayTarget} ج.م** (هدف مضاربي خاطف)
+• 🛑 **وقف الخسارة الصارم:** **${s.intradayStopLoss} ج.م** (إيقاف خسارة لحظي)
+
+**3. نصيحة المحلل اللحظي:**
+يُنصح بعدم المبيت بالمركز وتفعيل أمر وقف الخسارة الصارم عند كسر الدعم اللحظي.`;
   }
 
   getSignalLabel(signal: SignalType): string {
