@@ -17,9 +17,10 @@ import { StockAnalysisResult } from '../../core/models/stock.model';
         <div class="absolute -bottom-24 -right-24 w-72 h-72 bg-cyanAccent/15 rounded-full blur-3xl"></div>
 
         <div class="relative z-10 max-w-3xl space-y-4">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emeraldAccent/10 border border-emeraldAccent/30 text-emeraldAccent text-xs font-bold">
-            <span class="w-2 h-2 rounded-full bg-emeraldAccent animate-pulse"></span>
-            تحديث تلقائي مباشر للمشروبات والأسهم وقيمها العادلة
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all"
+               [ngClass]="apiService.isUsingCache() ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300' : 'bg-emeraldAccent/10 border border-emeraldAccent/30 text-emeraldAccent'">
+            <span class="w-2 h-2 rounded-full" [ngClass]="apiService.isUsingCache() ? 'bg-amber-400' : 'bg-emeraldAccent animate-pulse'"></span>
+            {{ apiService.isUsingCache() ? '⚡ بيانات محفوظة مؤقتاً (Stale-While-Revalidate)' : '🟢 تحديث تلقائي مباشر للأسعار والقيم العادلة' }}
           </div>
 
           <h2 class="text-2xl sm:text-4xl font-black text-white leading-tight">
