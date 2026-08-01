@@ -199,20 +199,63 @@ export class AiChatbotComponent implements OnInit, AfterViewChecked {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
+    // 1. Markdown Table Parser
+    const tableRegex = /((?:\|[^\n]+\|\r?\n?)+)/g;
+    html = html.replace(tableRegex, (match) => {
+      const lines = match.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 2) return match;
+
+      let tableHtml = '<div class="overflow-x-auto my-2 rounded-xl border border-darkBorder/80"><table class="w-full text-[11px] sm:text-xs border-collapse text-right"><thead class="bg-darkBg text-amber-400 font-bold border-b border-darkBorder"><tr>';
+      let hasHeader = false;
+      let bodyHtml = '<tbody>';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^\|[\s\-:]+(\|[\s\-:]+)+\|\s*$/.test(line)) {
+          continue;
+        }
+
+        const cells = line.split('|').slice(1, -1).map(c => c.trim());
+        if (cells.length === 0) continue;
+
+        if (!hasHeader) {
+          cells.forEach(cell => {
+            tableHtml += `<th class="p-2 border-b border-darkBorder font-black bg-darkBg/90">${cell}</th>`;
+          });
+          tableHtml += '</tr></thead>';
+          hasHeader = true;
+        } else {
+          bodyHtml += '<tr class="border-b border-darkBorder/40 hover:bg-darkCard/60 transition-colors">';
+          cells.forEach(cell => {
+            bodyHtml += `<td class="p-2 border-l border-darkBorder/30 text-gray-200">${cell}</td>`;
+          });
+          bodyHtml += '</tr>';
+        }
+      }
+
+      bodyHtml += '</tbody>';
+      return tableHtml + bodyHtml + '</table></div>';
+    });
+
+    // 2. Headings
     html = html.replace(/^### (.*$)/gim, '<h4 class="text-xs sm:text-sm font-black text-emeraldAccent mt-2.5 mb-1.5">$1</h4>');
     html = html.replace(/^## (.*$)/gim, '<h3 class="text-sm sm:text-base font-black text-amber-400 mt-2.5 mb-1.5">$1</h3>');
     html = html.replace(/^# (.*$)/gim, '<h2 class="text-base sm:text-lg font-black text-white mt-2.5 mb-1.5">$1</h2>');
 
+    // 3. Bold & Italic
     html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-black text-amber-300">$1</strong>');
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-amber-300">$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em class="text-gray-300">$1</em>');
 
+    // 4. Bullet & Numbered lists
     html = html.replace(/^\s*[\*\-]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1"><span class="text-emeraldAccent font-extrabold select-none">•</span><span>$1</span></div>');
     html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1"><span class="text-amber-400 font-extrabold select-none">$1.</span><span>$2</span></div>');
 
+    // 5. Code & clean up
     html = html.replace(/`([^`]+)`/g, '<code class="bg-darkBg border border-darkBorder px-1.5 py-0.5 rounded text-cyanAccent font-mono text-[11px]">$1</code>');
     html = html.replace(/\*\*/g, '');
 
+    // 6. Line breaks
     html = html.replace(/\n\n/g, '<div class="h-2"></div>');
     html = html.replace(/\n/g, '<br/>');
 
