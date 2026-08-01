@@ -1,6 +1,6 @@
-# 📐 EGX Stock & Gold Bot: Data Sources, Valuation Model & Signal Engine
+# 📐 EGX Stock & Gold Bot: Data Sources, Valuation Model & System Architecture
 
-This document provides a comprehensive technical breakdown of where the bot retrieves live market data, how the **Automated Fair Value (القيمة العادلة)** is computed, how **Sharia Compliance** is audited, and how **Trading Recommendations (Buy/Sell Signals)** are derived.
+This document provides a comprehensive technical breakdown of where the bot retrieves live market data, how the **Automated Fair Value (القيمة العادلة)** is computed, how **Sharia Compliance** is audited, how **Trading Recommendations (Buy/Sell Signals)** are derived, and how the **Google Gemini AI Engine & Hybrid Infrastructure** are orchestrated.
 
 ---
 
@@ -11,8 +11,8 @@ The bot relies on three high-frequency, authoritative data streams:
 | Data Type | Primary Source | Endpoint / Protocol | Data Parameters Retrieved |
 | :--- | :--- | :--- | :--- |
 | **EGX Stocks (البورصة المصرية)** | TradingView Scanner API | `POST https://scanner.tradingview.com/egypt/scan` | Live Price, Change %, Volume, 30D Avg Volume, Day High/Low, 52W High/Low, RSI(14), SMA20, SMA50, P/E Ratio, EPS (TTM), Analyst Score |
-| **Gold & Forex (الذهب والدولار)** | TradingView Scanner API | `POST https://scanner.tradingview.com/global/scan` | International Gold (`XAU/USD`), USD to EGP Exchange Rate (`FX_IDC:USDEGP`) |
-| **Sharia Compliance (التوافق الشرعي)** | Sharia Aggregator Database | `GET https://stocks.templatesnippet.com/data/stocks.json` | Core activity compliance, Interest-bearing debt ratio (<33%), Haram revenue ratio (<5%), Zakat |
+| **Gold & Forex (الذهب والدولار)** | TradingView Scanner API | `POST https://scanner.tradingview.com/global/scan` | International Gold (`XAU/USD`), USD to EGP Exchange Rate (`FX_IDC:USDEGP`), Local Sagha 24K Gold Rates |
+| **Sharia Compliance (التوافق الشرعي)** | Sharia Aggregator Database | `GET https://stocks.templatesnippet.com/data/stocks.json` | Core activity compliance, Interest-bearing debt ratio (<33%), Haram revenue ratio (<5%), Zakat calculation |
 
 ---
 
@@ -91,3 +91,44 @@ The bot automatically audits all EGX stocks against AAOIFI Sharia standards:
 3. **Haram Revenue Ratio:** Non-halal revenue must not exceed **$5\%$** of total income.
 
 *Stocks failing any of these three criteria (e.g. `SUGR` with a 57.59% loan ratio) are automatically purged from watchlists, CSV exports, and Google Sheets.*
+
+---
+
+## 🤖 6. Google Gemini AI Engine & Failover Architecture
+
+The AI Chatbot and Deep Stock Analysis Modal utilize a robust, multi-tier failover mechanism:
+
+```
+[User Request] ──► [Vercel Serverless /api/chat]
+                           │
+                           ├──► Attempt 1: Gemini 3.6 Flash (Priority: 18s budget)
+                           ├──► Attempt 2: Gemini 2.0 Flash
+                           ├──► Attempt 3: Gemini 1.5 Flash
+                           ├──► Attempt 4: Gemini 3.1 Flash Lite
+                           └──► Attempt 5: Gemini Flash Latest (Alias)
+                                   │
+                                   └── (If Offline / Rate-Limited) ──► Smart Local Market Engine
+```
+
+### Key Technical Specs:
+* **Primary Model (`gemini-3.6-flash`):** Allocated an **18-second priority budget** for complex financial synthesis and Markdown table formatting.
+* **Failover Hierarchy:** Includes `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-2.0-flash`, and `gemini-1.5-flash`.
+* **Authentication Header:** Passes API keys via `x-goog-api-key` in HTTP headers to support both standard keys (`AIzaSy...`) and Google Cloud OAuth2 keys (`AQ...`).
+* **Smart Local Fallback (`generateLocalAiAnalysis`):** Guarantees zero downtime by instant fallback calculation if network endpoints time out.
+* **Markdown & Table Renderer:** Client-side parser converts pipe tables (`|...|`) into HTML tables with dark glassmorphism styling and RTL alignment.
+
+---
+
+## 🏗️ 7. Infrastructure & Deployment Architecture
+
+The application uses a **hybrid deployment** model:
+
+1. **Vercel Cloud Platform (Frontend SPA & Serverless Functions)**
+   * **URL:** [https://egx-stock-bot.vercel.app/](https://egx-stock-bot.vercel.app/)
+   * **Framework:** Angular 22 Single-Page Application.
+   * **Functions:** `/api/stocks`, `/api/gold`, `/api/chat` with `maxDuration: 30s`.
+
+2. **Azure Linux VM (Background Worker & Cron Node)**
+   * **IP:** `20.91.240.54` (Port 3000 & SSH 22)
+   * **Runtime:** Node.js 22 (`v22.23.2`) + PM2 Process Manager.
+   * **Services:** Long-running scraping processes, background cron tasks, and Telegram bot notification service.
