@@ -106,9 +106,8 @@ async function callGeminiWithFailover(systemInstruction, userMessage, historyMes
     const remaining = overallDeadline - Date.now();
     if (remaining <= 500) break;
 
-    // Give primary model (gemini-3.6-flash) 18 seconds maximum time budget; failover models 5s
-    const modelBudget = model.includes('3.6') ? 18000 : 5000;
-    const requestTimeout = Math.min(modelBudget, remaining);
+    // gemini-3.6-flash gets up to 18s for deep financial reasoning
+    const requestTimeout = Math.min(18000, remaining);
 
     const res = await callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, model, requestTimeout);
     if (res.answer) {
