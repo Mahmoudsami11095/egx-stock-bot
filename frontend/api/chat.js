@@ -84,13 +84,16 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
 
 async function callGeminiWithFailover(systemInstruction, userMessage, historyMessages, apiKey) {
   let lastError = null;
-  const overallDeadline = Date.now() + 22000;
+  const overallDeadline = Date.now() + 25000;
 
   for (const model of GEMINI_MODELS) {
     const remaining = overallDeadline - Date.now();
     if (remaining <= 500) break;
 
-    const requestTimeout = Math.min(5000, remaining);
+    // Give primary model (gemini-3.6-flash) 18 seconds time budget; failover models 5s
+    const modelBudget = model.includes('3.6') ? 18000 : 5000;
+    const requestTimeout = Math.min(modelBudget, remaining);
+
     const res = await callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, model, requestTimeout);
     if (res.answer) {
       return { answer: res.answer, model };
