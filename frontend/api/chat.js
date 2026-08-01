@@ -4,22 +4,13 @@ const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 const GEMINI_MODELS = [
   'gemini-3.6-flash',
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3.1-pro-preview',
-  'gemini-3.1-flash-lite',
-  'gemini-2.5-pro',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-flash-latest',
-  'gemini-flash-lite-latest'
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest'
 ];
 
-function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 12000) {
+function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 5000) {
   const cleanKey = String(apiKey || '').trim();
 
   const contents = [];
@@ -46,7 +37,7 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
     contents,
     generationConfig: {
       temperature: 0.4,
-      maxOutputTokens: 4000
+      maxOutputTokens: 3500
     }
   });
 
@@ -93,18 +84,13 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
 
 async function callGeminiWithFailover(systemInstruction, userMessage, historyMessages, apiKey) {
   let lastError = null;
-  // Overall deadline to stay within serverless function execution limits
-  // (e.g. Vercel Hobby = 10s). Keeps total failover time bounded so the
-  // client always receives a timely response instead of a hung/killed function.
-  const overallDeadline = Date.now() + 25000;
+  const overallDeadline = Date.now() + 22000;
 
   for (const model of GEMINI_MODELS) {
     const remaining = overallDeadline - Date.now();
-    if (remaining <= 500) break; // Not enough time left for another attempt
+    if (remaining <= 500) break;
 
-    // Clamp each request's timeout to the remaining budget so the loop
-    // can never overshoot the overall deadline.
-    const requestTimeout = Math.min(12000, remaining);
+    const requestTimeout = Math.min(5000, remaining);
     const res = await callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, model, requestTimeout);
     if (res.answer) {
       return { answer: res.answer, model };
@@ -112,7 +98,6 @@ async function callGeminiWithFailover(systemInstruction, userMessage, historyMes
     if (res.error) {
       console.warn(`[Gemini Model Failover] ${model} failed:`, res.error);
       lastError = `${model}: ${res.error}`;
-      // Only abort loop if explicit key quota/permission denied
       if (res.error.includes('PERMISSION_DENIED') || res.error.includes('API_KEY_INVALID')) {
         break;
       }
