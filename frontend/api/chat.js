@@ -3,11 +3,13 @@ const https = require('https');
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 const GEMINI_MODELS = [
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
   'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
-  'gemini-flash-latest',
-  'gemini-flash-lite-latest'
+  'gemini-flash-latest'
 ];
 
 function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 12000) {
@@ -41,15 +43,22 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
     }
   });
 
+  const headers = {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(postData)
+  };
+
+  if (cleanKey.startsWith('AQ.')) {
+    headers['Authorization'] = `Bearer ${cleanKey}`;
+    headers['x-goog-api-key'] = cleanKey;
+  }
+
   const options = {
     hostname: 'generativelanguage.googleapis.com',
     port: 443,
     path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`,
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(postData)
-    },
+    headers,
     timeout: requestTimeout
   };
 
