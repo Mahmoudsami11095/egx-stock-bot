@@ -8,6 +8,20 @@ export interface StockMeta {
   defaultResistance?: number;
 }
 
+// Current CBE (Central Bank of Egypt) Corridor Interest Rate (~27.25%)
+export const CBE_CORRIDOR_INTEREST_RATE = 0.2725;
+
+/**
+ * Calculates macro equity discount factor based on interest rate environment.
+ * Base baseline: 12% interest rate -> factor 1.0.
+ * Above 12%: discounts valuation multiples by ~1.2% per interest percentage point.
+ */
+export function getCbeMacroDiscountFactor(cbeRate: number = CBE_CORRIDOR_INTEREST_RATE): number {
+  const excessInterest = Math.max(0, cbeRate - 0.12);
+  const discountFactor = Math.max(0.75, 1 - (excessInterest * 0.80)); // ~0.878 at 27.25%
+  return Number(discountFactor.toFixed(3));
+}
+
 export const SECTOR_PE_MULTIPLIERS: Record<string, number> = {
   'Pharmaceuticals': 18.0,
   'Food & Beverage': 16.0,

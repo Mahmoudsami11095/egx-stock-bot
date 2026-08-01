@@ -1,6 +1,6 @@
 import https from 'https';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime } from '../types/stock';
-import { StockMeta, getSectorPE } from '../constants/stocks';
+import { StockMeta, getSectorPE, getCbeMacroDiscountFactor } from '../constants/stocks';
 import { logger } from './logger';
 
 export interface BatchStockResult {
@@ -296,28 +296,30 @@ export class DataFetcherService {
                 volumeRatio: volRatio,
               };
 
-              // Sector-Specific Fair Value Calculation with Macro Adjustment
+              // Dynamic Sector PE with Macro Interest Rate Discounting & Consensus Growth Modifier
               let automatedFairValue = currentPrice;
               let fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-              const sectorPE = getSectorPE(stock.sector);
+              const baseSectorPE = getSectorPE(stock.sector);
+              const macroDiscount = getCbeMacroDiscountFactor(); // Adjusts for CBE interest rate environment (~0.878)
 
               if (eps && eps > 0) {
-                const peValuation = eps * sectorPE;
-                const momentumMultiplier = 1 + ((recommendScore || 0) * 0.08);
-                automatedFairValue = peValuation * momentumMultiplier;
+                // PEG & Consensus Growth Adjustment: Premium for positive analyst consensus
+                const consensusGrowthModifier = 1 + ((recommendScore || 0) * 0.05);
+                const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount;
+                automatedFairValue = eps * dynamicSectorPE;
                 fairValueConfidence = 'HIGH';
               } else {
-                // Volume-weighted Fibonacci structural fair value
+                // Volume-weighted Fibonacci structural fair value range
                 const rangeMidpoint = low52 + 0.618 * (high52 - low52);
                 const volWeight = Math.min(volRatio, 2.0);
                 const scoreFactor = 1 + (recommendScore || 0) * 0.1;
-                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor;
+                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount;
                 automatedFairValue = Math.max(automatedFairValue, currentPrice * scoreFactor);
                 fairValueConfidence = 'LOW';
               }
 
-              // Safety Clamp: [0.85x price, 1.50x price]
-              automatedFairValue = Math.max(currentPrice * 0.85, Math.min(currentPrice * 1.5, automatedFairValue));
+              // Expanded Safety Guardrails: [0.75x price, 2.00x price] to capture deep value opportunities
+              automatedFairValue = Math.max(currentPrice * 0.75, Math.min(currentPrice * 2.00, automatedFairValue));
               automatedFairValue = Number(automatedFairValue.toFixed(2));
 
               results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
@@ -533,23 +535,24 @@ export class DataFetcherService {
 
               let automatedFairValue = currentPrice;
               let fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-              const sectorPE = getSectorPE(stock.sector);
+              const baseSectorPE = getSectorPE(stock.sector);
+              const macroDiscount = getCbeMacroDiscountFactor();
 
               if (eps && eps > 0) {
-                const peValuation = eps * sectorPE;
-                const momentumMultiplier = 1 + ((recommendScore || 0) * 0.08);
-                automatedFairValue = peValuation * momentumMultiplier;
+                const consensusGrowthModifier = 1 + ((recommendScore || 0) * 0.05);
+                const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount;
+                automatedFairValue = eps * dynamicSectorPE;
                 fairValueConfidence = 'HIGH';
               } else {
                 const rangeMidpoint = low52 + 0.618 * (high52 - low52);
                 const volWeight = Math.min(volRatio, 2.0);
                 const scoreFactor = 1 + (recommendScore || 0) * 0.1;
-                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor;
+                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount;
                 automatedFairValue = Math.max(automatedFairValue, currentPrice * scoreFactor);
                 fairValueConfidence = 'LOW';
               }
 
-              automatedFairValue = Math.max(currentPrice * 0.85, Math.min(currentPrice * 1.5, automatedFairValue));
+              automatedFairValue = Math.max(currentPrice * 0.75, Math.min(currentPrice * 2.00, automatedFairValue));
               automatedFairValue = Number(automatedFairValue.toFixed(2));
 
               results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });

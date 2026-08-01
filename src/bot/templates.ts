@@ -26,7 +26,7 @@ export function formatSignalCard(analysis: StockAnalysisResult, shariaInfo?: Sha
   const upsideSign = fairValueUpsidePercent >= 0 ? '+' : '';
   const signalBadge = getSignalEmoji(signalType);
   const shariaBadge = shariaInfo ? shariaInfo.statusText : '🟢 متوافق شرعياً';
-  const confidenceBadge = fairValueConfidence === 'HIGH' ? '🟢 ثقة عالية (أرباح موثقة)' : '🟡 نموذج الفيبوناتشي (تقديري)';
+  const confidenceBadge = fairValueConfidence === 'HIGH' ? '🟢 تقييم أرباح موثق (Fundamental PEG)' : '🟡 نطاق فني هيكلي (Fibonacci Range)';
   const regimeBadge = marketRegime === 'BULLISH' ? '🟢 سوق صاعد (Bullish)' : marketRegime === 'BEARISH' ? '🔴 سوق هابط (Bearish)' : '🟡 مستقر';
 
   const macdStr = indicators.macd?.macd !== undefined ? `${indicators.macd.macd} (Signal: ${indicators.macd.signal})` : 'N/A';
