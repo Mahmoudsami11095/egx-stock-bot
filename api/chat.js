@@ -57,6 +57,15 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
   };
 
   return new Promise((resolve) => {
+    let resolved = false;
+    const done = (result) => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(hardTimeout);
+        resolve(result);
+      }
+    };
+
     const req = https.request(options, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
@@ -64,19 +73,26 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
         try {
           const json = JSON.parse(body);
           if (json.error) {
-            resolve({ error: json.error.message || json.error.status });
+            done({ error: json.error.message || json.error.status });
           } else {
             const answer = json.candidates?.[0]?.content?.parts?.[0]?.text;
-            resolve({ answer });
+            done({ answer });
           }
         } catch (e) {
-          resolve({ error: 'Failed to parse Gemini response' });
+          done({ error: 'Failed to parse Gemini response' });
         }
       });
     });
 
-    req.on('error', (e) => resolve({ error: e.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ error: 'Request timeout' }); });
+    req.on('error', (e) => done({ error: e.message }));
+    req.on('timeout', () => { req.destroy(); done({ error: 'Request timeout' }); });
+
+    // Hard timeout: destroy request if it hasn't completed within the budget
+    const hardTimeout = setTimeout(() => {
+      req.destroy();
+      done({ error: 'Hard timeout - model not responding' });
+    }, requestTimeout);
+
     req.write(postData);
     req.end();
   });
