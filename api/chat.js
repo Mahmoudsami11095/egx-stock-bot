@@ -110,9 +110,10 @@ async function callGeminiWithFailover(systemInstruction, userMessage, historyMes
       return { answer: res.answer, model };
     }
     if (res.error) {
+      console.warn(`[Gemini Model Failover] ${model} failed:`, res.error);
       lastError = `${model}: ${res.error}`;
-      // If it's a key error, don't try more models
-      if (res.error.includes('API_KEY') || res.error.includes('PERMISSION')) {
+      // Only abort loop if explicit key quota/permission denied
+      if (res.error.includes('PERMISSION_DENIED') || res.error.includes('API_KEY_INVALID')) {
         break;
       }
     }
