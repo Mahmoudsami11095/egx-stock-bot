@@ -5,11 +5,18 @@ const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODELS = [
   'gemini-3.6-flash',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-pro-preview',
   'gemini-3.1-flash-lite',
+  'gemini-2.5-pro',
   'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
-  'gemini-flash-latest'
+  'gemini-1.5-pro',
+  'gemini-flash-latest',
+  'gemini-flash-lite-latest'
 ];
 
 function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 12000) {
