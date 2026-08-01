@@ -519,7 +519,7 @@ export class StockModalComponent implements OnChanges {
       payload.apiKey = savedKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).pipe(timeout(12000)).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(28000)).subscribe({
       next: (res) => {
         if (res?.answer && !res?.useFallback) {
           this.aiRecommendation = res.answer;
@@ -593,7 +593,7 @@ export class StockModalComponent implements OnChanges {
       payload.apiKey = savedKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).pipe(timeout(12000)).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(28000)).subscribe({
       next: (res) => {
         if (res?.answer && !res?.useFallback) {
           this.intradayRecommendation = res.answer;
