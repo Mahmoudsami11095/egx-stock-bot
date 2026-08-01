@@ -3,7 +3,11 @@ const https = require('https');
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 const GEMINI_MODELS = [
-  'gemini-3.6-flash'
+  'gemini-3.6-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest'
 ];
 
 function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 5000) {
@@ -33,7 +37,7 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
     contents,
     generationConfig: {
       temperature: 0.4,
-      maxOutputTokens: 3500
+      maxOutputTokens: 8192
     }
   });
 
@@ -96,14 +100,15 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
 
 async function callGeminiWithFailover(systemInstruction, userMessage, historyMessages, apiKey) {
   let lastError = null;
-  const overallDeadline = Date.now() + 22000;
+  const overallDeadline = Date.now() + 25000;
 
   for (const model of GEMINI_MODELS) {
     const remaining = overallDeadline - Date.now();
     if (remaining <= 500) break;
 
-    // gemini-3.6-flash gets up to 18s for deep financial reasoning
-    const requestTimeout = Math.min(18000, remaining);
+    // Give primary model (gemini-3.6-flash) 18 seconds maximum time budget; failover models 5s
+    const modelBudget = model.includes('3.6') ? 18000 : 5000;
+    const requestTimeout = Math.min(modelBudget, remaining);
 
     const res = await callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, model, requestTimeout);
     if (res.answer) {
