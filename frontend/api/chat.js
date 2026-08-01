@@ -45,18 +45,14 @@ function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, 
 
   const headers = {
     'Content-Type': 'application/json',
+    'x-goog-api-key': cleanKey,
     'Content-Length': Buffer.byteLength(postData)
   };
-
-  if (cleanKey.startsWith('AQ.')) {
-    headers['Authorization'] = `Bearer ${cleanKey}`;
-    headers['x-goog-api-key'] = cleanKey;
-  }
 
   const options = {
     hostname: 'generativelanguage.googleapis.com',
     port: 443,
-    path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`,
+    path: `/v1beta/models/${modelName}:generateContent`,
     method: 'POST',
     headers,
     timeout: requestTimeout

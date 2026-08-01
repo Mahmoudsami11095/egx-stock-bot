@@ -13,12 +13,18 @@ const cleanKey = apiKey.trim();
 // ── Step 1: List ALL available models from the API ──
 function listModels() {
   return new Promise((resolve) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (cleanKey.startsWith('AQ.')) {
+      headers['x-goog-api-key'] = cleanKey;
+      headers['Authorization'] = `Bearer ${cleanKey}`;
+    }
+
     const options = {
       hostname: 'generativelanguage.googleapis.com',
       port: 443,
       path: `/v1beta/models?key=${encodeURIComponent(cleanKey)}&pageSize=100`,
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       timeout: 10000
     };
 
@@ -58,15 +64,22 @@ function testModel(modelName) {
       generationConfig: { maxOutputTokens: 150 }
     });
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    };
+
+    if (cleanKey.startsWith('AQ.')) {
+      headers['x-goog-api-key'] = cleanKey;
+      headers['Authorization'] = `Bearer ${cleanKey}`;
+    }
+
     const options = {
       hostname: 'generativelanguage.googleapis.com',
       port: 443,
       path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`,
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      },
+      headers,
       timeout: 12000
     };
 
