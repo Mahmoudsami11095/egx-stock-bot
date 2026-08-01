@@ -3,9 +3,11 @@ const https = require('https');
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 const GEMINI_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
   'gemini-flash-latest',
-  'gemini-flash-lite-latest',
-  'gemini-2.0-flash-lite'
+  'gemini-flash-lite-latest'
 ];
 
 function callGeminiSingleModel(systemInstruction, userMessage, historyMessages, apiKey, modelName, requestTimeout = 12000) {

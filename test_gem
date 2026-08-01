@@ -1,0 +1,156 @@
+const https = require('https');
+
+const apiKey = process.argv[2] || process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.log('⚠️ Please provide a Gemini API Key as an argument or set GEMINI_API_KEY.');
+  console.log('Usage: node test_gemini_models.js YOUR_API_KEY');
+  process.exit(0);
+}
+
+const cleanKey = apiKey.trim();
+
+// ── Step 1: List ALL available models from the API ──
+function listModels() {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'generativelanguage.googleapis.com',
+      port: 443,
+      path: `/v1beta/models?key=${encodeURIComponent(cleanKey)}&pageSize=100`,
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          if (json.error) {
+            resolve({ error: json.error.message || json.error.status });
+          } else if (json.models) {
+            resolve({ models: json.models });
+          } else {
+            resolve({ error: 'No models field in response' });
+          }
+        } catch (e) {
+          resolve({ error: 'Parse Error: ' + e.message });
+        }
+      });
+    });
+
+    req.on('error', err => resolve({ error: err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ error: 'Request timeout' }); });
+    req.end();
+  });
+}
+
+// ── Step 2: Test specific models by sending a prompt ──
+function testModel(modelName) {
+  return new Promise((resolve) => {
+    const postData = JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: 'What is your exact model name and version? Reply in one short sentence.' }]
+      }],
+      generationConfig: { maxOutputTokens: 150 }
+    });
+
+    const options = {
+      hostname: 'generativelanguage.googleapis.com',
+      port: 443,
+      path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 12000
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          if (json.error) {
+            resolve({ model: modelName, status: 'ERROR', error: json.error.message || json.error.status });
+          } else {
+            const reply = json.candidates?.[0]?.content?.parts?.[0]?.text || 'No text';
+            resolve({ model: modelName, status: 'SUCCESS', reply: reply.trim() });
+          }
+        } catch (e) {
+          resolve({ model: modelName, status: 'ERROR', error: 'Parse Error' });
+        }
+      });
+    });
+
+    req.on('error', err => resolve({ model: modelName, status: 'ERROR', error: err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ model: modelName, status: 'TIMEOUT' }); });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// Models to test (including the ones the user asked about)
+const modelsToTest = [
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash-lite-latest',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-3.6-flash',
+  'gemini-3.1-pro'
+];
+
+async function runTests() {
+  // ── Step 1: List all available models ──
+  console.log('📋 Step 1: Listing all available Gemini models from API...\n');
+  const listResult = await listModels();
+  
+  if (listResult.error) {
+    console.log(`❌ Error listing models: ${listResult.error}\n`);
+  } else if (listResult.models) {
+    console.log(`✅ Found ${listResult.models.length} models:\n`);
+    listResult.models.forEach(m => {
+      const name = m.name?.replace('models/', '') || 'unknown';
+      const methods = m.supportedGenerationMethods?.join(', ') || 'N/A';
+      console.log(`  • ${name}  [${methods}]`);
+    });
+    console.log('');
+  }
+
+  // ── Step 2: Test specific models ──
+  console.log(`🔍 Step 2: Testing ${modelsToTest.length} specific models...\n`);
+  const workingModels = [];
+  
+  for (const m of modelsToTest) {
+    process.stdout.write(`Testing [${m}]... `);
+    const result = await testModel(m);
+    if (result.status === 'SUCCESS') {
+      console.log(`✅ SUCCESS`);
+      console.log(`   Reply: "${result.reply}"\n`);
+      workingModels.push(m);
+    } else {
+      console.log(`❌ ${result.status} (${result.error || 'Timeout'})\n`);
+    }
+  }
+
+  // ── Summary ──
+  console.log('═══════════════════════════════════════════════════');
+  console.log('📊 SUMMARY: Working Models');
+  console.log('═══════════════════════════════════════════════════');
+  if (workingModels.length > 0) {
+    workingModels.forEach(m => console.log(`  ✅ ${m}`));
+  } else {
+    console.log('  ❌ No models worked. Check your API key.');
+  }
+  console.log('');
+}
+
+runTests();
