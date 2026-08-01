@@ -166,7 +166,7 @@ export interface ChatMessage {
         </form>
 
         <div class="flex items-center justify-between text-[10px] text-gray-500 px-1">
-          <span>النموذج النشط: Gemini Flash Latest (Max 2500 Tokens)</span>
+          <span>النموذج النشط: Gemini Flash Latest (Max 4000 Tokens)</span>
           <button (click)="toggleShowApiKeyInput()" class="text-amber-400 hover:underline">
             {{ customApiKey ? '⚙️ المفتاح مسجل' : '🔑 إضافة API Key' }}
           </button>
@@ -306,7 +306,7 @@ export class AiChatbotComponent implements OnInit, AfterViewChecked {
       payload.apiKey = this.customApiKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(30000)).subscribe({
       next: (res) => {
         let answer = res?.answer;
         let provider = res?.provider || 'Gemini Flash Latest';
@@ -419,7 +419,7 @@ export class AiChatbotComponent implements OnInit, AfterViewChecked {
       payload.apiKey = this.customApiKey.trim();
     }
 
-    this.http.post<any>('/api/chat', payload).pipe(timeout(15000)).subscribe({
+    this.http.post<any>('/api/chat', payload).pipe(timeout(30000)).subscribe({
       next: (res) => {
         let answer = res?.answer;
         let provider = res?.provider || 'Gemini Flash Latest';
