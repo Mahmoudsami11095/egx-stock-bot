@@ -63,6 +63,18 @@ export interface StockAnalysisResult {
   positionSizePercent: number;
   riskRewardRatio: number;
   timestamp: Date;
+  shariaInfo?: {
+    isHalal: boolean;
+    tier: string;
+    statusText: string;
+    haramRevenuePercent: number;
+    debtRatioPercent: number;
+    purificationPercent?: number;
+    reason?: string;
+  };
+  fxSensitivity?: number;
+  devaluationAdjustment?: number;
+  liquidityCapWarning?: string;
 }
 
 export interface AlertState {

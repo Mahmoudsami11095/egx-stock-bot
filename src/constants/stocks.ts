@@ -6,10 +6,38 @@ export interface StockMeta {
   sector: string;
   defaultSupport?: number;
   defaultResistance?: number;
+  fxSensitivity?: number;
 }
 
 // Current CBE (Central Bank of Egypt) Corridor Interest Rate (~27.25%)
 export const CBE_CORRIDOR_INTEREST_RATE = 0.2725;
+
+// Baseline USD/EGP rate prior to major floatations/adjustments
+export const BASE_USD_EGP_RATE = 48.0;
+
+export const SECTOR_FX_SENSITIVITY: Record<string, number> = {
+  'Pharmaceuticals': -0.10, // import-dependent APIs
+  'Food & Beverage': -0.05,  // import-dependent commodities
+  'Telecommunications': 0.05, // dollar-linked infrastructure but local pricing power
+  'Construction': -0.05,      // steel/cement import costs
+  'Textiles & Consumer Goods': 0.10, // export-heavy (e.g. Oriental Weavers exports globally)
+  'Industrial Cables & Energy': 0.20, // heavy exporter (Elsewedy SWDY)
+  'Oil & Gas': 0.25,          // heavily dollarized parity (AMOC)
+  'Petrochemicals': 0.20,     // dollar-denominated prices (SKPC)
+  'Metals & Mining': 0.15,    // global metal pricing (EGAL)
+  'Banking': -0.05,           // localized assets
+  'General': 0.0
+};
+
+export function getStockFxSensitivity(sector?: string): number {
+  if (!sector) return 0.0;
+  for (const [key, val] of Object.entries(SECTOR_FX_SENSITIVITY)) {
+    if (sector.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(sector.toLowerCase())) {
+      return val;
+    }
+  }
+  return 0.0;
+}
 
 /**
  * Calculates macro equity discount factor based on interest rate environment.

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { StockQuote, StockAnalysisResult, SignalType, TechnicalIndicators, FairValueConfidence, MarketRegime } from '../types/stock';
-import { StockMeta } from '../constants/stocks';
+import { StockMeta, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
 
 export class SignalDetectorService {
@@ -215,7 +215,17 @@ export class SignalDetectorService {
 
     // Liquidity cap: max 20% of average daily volume
     const adv = (quote.avgVolume || 1) * price;
-    // (informational only — we don't have portfolio value)
+    let liquidityCapWarning: string | undefined = undefined;
+    if (adv < 250_000) {
+      liquidityCapWarning = `⚠️ سيولة منخفضة جداً: معدل التداول اليومي (${(adv/1000).toFixed(0)} ألف ج.م) قد يؤدي إلى انزلاق سعري (Slippage) عند الشراء أو البيع ببعض المحافظ الكبيرة.`;
+    } else if (adv < 1_000_000) {
+      liquidityCapWarning = `⚠️ سيولة متوسطة-منخفضة: معدل التداول اليومي (${(adv/1000).toFixed(0)} ألف ج.م). تجنب الدخول بأحجام كبيرة دفعة واحدة لعدم التأثير على السعر.`;
+    }
+
+    const fxSensitivity = getStockFxSensitivity(stock.sector);
+    const usdEgpRate = 49.5; // current realistic rate
+    const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
+    const devaluationAdjustment = Number((1 + fxSensitivity * devaluationPct).toFixed(3));
 
     const rewardPerShare = suggestedTarget.target1 - price;
     const riskRewardRatio = Number(Math.max(0, rewardPerShare / riskPerShare).toFixed(2));
@@ -236,6 +246,9 @@ export class SignalDetectorService {
       positionSizePercent,
       riskRewardRatio,
       timestamp: new Date(),
+      fxSensitivity,
+      devaluationAdjustment,
+      liquidityCapWarning,
     };
 
     // Log signal to history for backtesting

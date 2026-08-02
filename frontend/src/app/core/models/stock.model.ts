@@ -45,6 +45,18 @@ export interface StockAnalysisResult {
   shariaTier: ShariaTier;
   shariaStatusText: string;
   purificationPercent?: number;
+  shariaInfo?: {
+    isHalal: boolean;
+    tier: string;
+    statusText: string;
+    haramRevenuePercent: number;
+    debtRatioPercent: number;
+    purificationPercent?: number;
+    reason?: string;
+  };
+  fxSensitivity?: number;
+  devaluationAdjustment?: number;
+  liquidityCapWarning?: string;
   suggestedEntry: { min: number; max: number };
   suggestedTarget: { target1: number; target2: number };
   suggestedStopLoss: number;

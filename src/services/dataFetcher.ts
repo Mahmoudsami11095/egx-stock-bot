@@ -1,6 +1,6 @@
 import https from 'https';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime } from '../types/stock';
-import { StockMeta, getSectorPE, getCbeMacroDiscountFactor } from '../constants/stocks';
+import { StockMeta, getSectorPE, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
 
 export interface BatchStockResult {
@@ -302,10 +302,16 @@ export class DataFetcherService {
               const baseSectorPE = getSectorPE(stock.sector);
               const macroDiscount = getCbeMacroDiscountFactor(); // Adjusts for CBE interest rate environment (~0.878)
 
+              // Dynamic FX devaluation adjustment for exporters vs importers
+              const fxSensitivity = getStockFxSensitivity(stock.sector);
+              const usdEgpRate = cachedUsdEgp || 49.5;
+              const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
+              const fxDevaluationAdjustment = 1 + (fxSensitivity * devaluationPct);
+
               if (eps && eps > 0) {
                 // PEG & Consensus Growth Adjustment: Premium for positive analyst consensus
                 const consensusGrowthModifier = 1 + ((recommendScore || 0) * 0.05);
-                const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount;
+                const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
                 automatedFairValue = eps * dynamicSectorPE;
                 fairValueConfidence = 'HIGH';
               } else {
@@ -313,7 +319,7 @@ export class DataFetcherService {
                 const rangeMidpoint = low52 + 0.618 * (high52 - low52);
                 const volWeight = Math.min(volRatio, 2.0);
                 const scoreFactor = 1 + (recommendScore || 0) * 0.1;
-                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount;
+                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount * fxDevaluationAdjustment;
                 automatedFairValue = Math.max(automatedFairValue, currentPrice * scoreFactor);
                 fairValueConfidence = 'LOW';
               }

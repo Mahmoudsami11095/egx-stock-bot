@@ -8,6 +8,7 @@ import { CronSchedulerService } from './scheduler/cronScheduler';
 import { logger } from './services/logger';
 
 import { GoldService } from './services/goldService';
+import { ShariaService } from './services/shariaService';
 
 async function bootstrap() {
   logger.info('=====================================================');
@@ -18,6 +19,7 @@ async function bootstrap() {
   const dataFetcher = new DataFetcherService();
   const signalDetector = new SignalDetectorService();
   const goldService = new GoldService();
+  const shariaService = new ShariaService();
   const telegramBot = new TelegramBotService(stateManager, dataFetcher, signalDetector);
   const cronScheduler = new CronSchedulerService(stateManager, dataFetcher, signalDetector, telegramBot);
 
@@ -37,8 +39,28 @@ async function bootstrap() {
           item.stock,
           item.quote,
           item.indicators,
-          item.automatedFairValue
+          item.automatedFairValue,
+          item.fairValueConfidence,
+          dataFetcher.getMarketRegime()
         );
+
+        // Enrich with real-time Sharia Compliance metrics (Zakat & Purification)
+        const shariaInfo = shariaService.getShariaInfo(item.stock.symbol);
+        analysis.shariaInfo = {
+          isHalal: shariaInfo.isHalal,
+          tier: shariaInfo.tier,
+          statusText: shariaInfo.statusText,
+          haramRevenuePercent: shariaInfo.haramRevenuePercent,
+          debtRatioPercent: shariaInfo.debtRatioPercent,
+          purificationPercent: shariaInfo.purificationPercent,
+          reason: shariaInfo.reason
+        };
+
+        // Flat compatibility fields for legacy frontend bindings
+        (analysis as any).shariaTier = shariaInfo.tier;
+        (analysis as any).shariaStatusText = shariaInfo.statusText;
+        (analysis as any).purificationPercent = shariaInfo.purificationPercent;
+
         results.push(analysis);
       }
       res.json(results);
