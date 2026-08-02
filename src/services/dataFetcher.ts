@@ -75,26 +75,19 @@ export class DataFetcherService {
   }
 
   /**
-   * Fetches USD/EGP exchange rate for macro devaluation detection.
+   * Fetches official USD/EGP exchange rate (CBE Interbank) for macro devaluation detection.
    */
   async fetchUsdEgp(): Promise<number> {
     // Cache for 1 hour
     if (cachedUsdEgp > 0 && Date.now() - lastUsdEgpFetch < 3600000) return cachedUsdEgp;
 
     return new Promise((resolve) => {
-      const postData = JSON.stringify({
-        symbols: { tickers: ['FX_IDC:USDEGP'] },
-        columns: ['close', 'change']
-      });
-
       const options = {
-        hostname: 'scanner.tradingview.com',
+        hostname: 'open.er-api.com',
         port: 443,
-        path: '/global/scan',
-        method: 'POST',
+        path: '/v6/latest/USD',
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
           'User-Agent': 'Mozilla/5.0'
         }
       };
@@ -103,26 +96,25 @@ export class DataFetcherService {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
         res.on('error', (e) => {
-          logger.error(`Response error fetching USD/EGP: ${e}`);
-          resolve(cachedUsdEgp);
+          logger.error(`Response error fetching official USD/EGP from open.er-api.com: ${e}`);
+          resolve(cachedUsdEgp || 49.5);
         });
         res.on('end', () => {
           try {
             const json = JSON.parse(body);
-            const row = json.data?.[0];
-            if (row?.d?.[0]) {
-              cachedUsdEgp = row.d[0];
+            const rate = json.rates?.EGP;
+            if (rate) {
+              cachedUsdEgp = rate;
               lastUsdEgpFetch = Date.now();
-              logger.info(`💱 USD/EGP: ${cachedUsdEgp}`);
+              logger.info(`🏛️ Official CBE Interbank USD/EGP Rate: ${cachedUsdEgp}`);
             }
           } catch (e) {
-            logger.error(`Error fetching USD/EGP: ${e}`);
+            logger.error(`Error parsing official USD/EGP: ${e}`);
           }
-          resolve(cachedUsdEgp);
+          resolve(cachedUsdEgp || 49.5);
         });
       });
-      req.on('error', () => resolve(cachedUsdEgp));
-      req.write(postData);
+      req.on('error', () => resolve(cachedUsdEgp || 49.5));
       req.end();
     });
   }

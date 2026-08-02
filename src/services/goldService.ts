@@ -68,6 +68,18 @@ export class GoldService {
     });
   }
 
+  private async fetchOfficialCbeUsdEgp(): Promise<number | null> {
+    try {
+      const data = await this.fetchHttpsJson('https://open.er-api.com/v6/latest/USD');
+      if (data?.rates?.EGP) {
+        return Number(data.rates.EGP);
+      }
+    } catch (e) {
+      logger.error(`Error fetching official CBE rate in goldService: ${e}`);
+    }
+    return null;
+  }
+
   private fetchTradingViewLive(): Promise<{ goldUsd: number; usdEgp: number; rsi: number; change: number } | null> {
     const postData = JSON.stringify({
       symbols: { tickers: ['OANDA:XAUUSD', 'FX_IDC:USDEGP'] },
@@ -160,9 +172,19 @@ export class GoldService {
     }
 
     const goldUsd = liveData?.goldUsd || 4048.58;
-    const usdEgp = liveData?.usdEgp || 51.07;
     const rsi = liveData?.rsi || 45.8;
     const changePercentUsd = liveData?.change || 0.65;
+
+    let usdEgp = liveData?.usdEgp;
+
+    // Always fetch official CBE Exchange Rate as the primary source of truth (Option 1)
+    const officialCbeRate = await this.fetchOfficialCbeUsdEgp();
+    if (officialCbeRate) {
+      usdEgp = officialCbeRate;
+      provider += ' + Official CBE';
+    } else if (!usdEgp) {
+      usdEgp = 51.07; // Default fallback
+    }
 
     // Fair Local Gold Prices Math (Default Benchmark: 24K Gold)
     const fairGold24kEgp = Math.round((goldUsd / 31.1034768) * usdEgp);
