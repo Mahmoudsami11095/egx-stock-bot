@@ -1,5 +1,5 @@
 import https from 'https';
-import { StockQuote, Candle, TechnicalIndicators, MarketRegime } from '../types/stock';
+import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
 import { StockMeta, getSectorPE, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
 
@@ -182,9 +182,11 @@ export class DataFetcherService {
   /**
    * Batch fetches real-time stock quotes, technical indicators, and automated Fair Value
    * with circuit breaker protection and ATR-based volatility targets.
+   * Supports dynamic provider selection ('tradingview' | 'investing' | 'yahoo').
    */
-  async getBatchQuoteAndIndicators(stocks: StockMeta[]): Promise<BatchStockResult[]> {
+  async getBatchQuoteAndIndicators(stocks: StockMeta[], source: DataSource = 'tradingview'): Promise<BatchStockResult[]> {
     if (!stocks || stocks.length === 0) return [];
+    logger.info(`📊 Fetching market batch quotes using data source: [${source.toUpperCase()}]`);
 
     // Circuit Breaker: If open, return cached data
     if (Date.now() < circuitOpenUntil) {

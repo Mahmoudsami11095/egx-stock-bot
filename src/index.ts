@@ -31,8 +31,9 @@ async function bootstrap() {
   // REST API Endpoints for Angular SPA
   app.get('/api/stocks', async (req, res) => {
     try {
+      const source = (req.query.source as any) || 'tradingview';
       const watchlist = stateManager.getWatchlist();
-      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist);
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source);
       const results = [];
       for (const item of batchResults) {
         const analysis = signalDetector.analyzeStockWithIndicators(

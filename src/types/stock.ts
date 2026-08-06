@@ -31,6 +31,7 @@ export interface StockQuote {
 export type SignalType = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
 export type FairValueConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 export type MarketRegime = 'BULLISH' | 'BEARISH' | 'UNKNOWN';
+export type DataSource = 'tradingview' | 'investing' | 'yahoo';
 
 export interface TechnicalIndicators {
   rsi: number;

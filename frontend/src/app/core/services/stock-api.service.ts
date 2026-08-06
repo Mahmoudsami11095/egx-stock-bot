@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { StockAnalysisResult, GoldPrices } from '../models/stock.model';
+import { StockAnalysisResult, GoldPrices, DataSource } from '../models/stock.model';
 
 const STORAGE_KEY = 'egx_stocks_live_cache_v3';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp';
@@ -76,13 +76,26 @@ export class StockApiService {
   public goldPrices = signal<GoldPrices | null>(DEFAULT_GOLD_PRICES);
   public marketRegime = signal<'BULLISH' | 'BEARISH' | 'UNKNOWN'>('BULLISH');
   public usdEgp = signal<number>(51.07);
+  public selectedSource = signal<DataSource>('tradingview');
   public loading = signal<boolean>(false);
   public lastUpdated = signal<Date | null>(null);
   public isUsingCache = signal<boolean>(false);
 
   constructor(private http: HttpClient) {
+    const savedSource = localStorage.getItem('egx_selected_datasource') as DataSource;
+    if (savedSource && ['tradingview', 'investing', 'yahoo'].includes(savedSource)) {
+      this.selectedSource.set(savedSource);
+    }
     this.initFromCache();
     this.loadMarketData();
+  }
+
+  public setDataSource(source: DataSource): void {
+    if (this.selectedSource() !== source) {
+      this.selectedSource.set(source);
+      localStorage.setItem('egx_selected_datasource', source);
+      this.loadMarketData();
+    }
   }
 
   private initFromCache(): void {
@@ -126,7 +139,8 @@ export class StockApiService {
     this.loading.set(true);
 
     try {
-      const results: StockAnalysisResult[] = await this.http.get<StockAnalysisResult[]>('/api/stocks').toPromise() || [];
+      const source = this.selectedSource();
+      const results: StockAnalysisResult[] = await this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise() || [];
       if (results && results.length > 0) {
         this.applyStockData(results, false);
         const now = new Date();

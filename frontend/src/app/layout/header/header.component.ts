@@ -1,12 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { StockApiService } from '../../core/services/stock-api.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <header class="sticky top-0 z-50 glass-nav">
       <!-- Top Market Ticker Bar -->
@@ -26,7 +27,19 @@ import { StockApiService } from '../../core/services/stock-api.service';
           </div>
 
           <div class="flex items-center gap-3 text-gray-400">
-            <span>تحديث مباشر: <strong class="text-gray-200">{{ apiService.lastUpdated() | date:'shortTime' }}</strong></span>
+            <!-- Data Source Switcher -->
+            <div class="flex items-center gap-1.5 bg-darkBg/90 px-2 py-1 rounded-lg border border-darkBorder text-[11px]">
+              <span class="text-gray-400 font-medium">مصدر البيانات:</span>
+              <select [ngModel]="apiService.selectedSource()" 
+                      (ngModelChange)="apiService.setDataSource($event)"
+                      class="bg-transparent text-emeraldAccent font-bold focus:outline-none cursor-pointer">
+                <option value="tradingview" class="bg-darkCard text-white">🌐 TradingView</option>
+                <option value="investing" class="bg-darkCard text-white">📈 Investing.com</option>
+                <option value="yahoo" class="bg-darkCard text-white">💹 Yahoo Finance</option>
+              </select>
+            </div>
+
+            <span>تحديث: <strong class="text-gray-200">{{ apiService.lastUpdated() | date:'shortTime' }}</strong></span>
             <button (click)="apiService.loadMarketData()" class="hover:text-emeraldAccent transition-colors">
               <i class="pi pi-refresh" [class.animate-spin]="apiService.loading()"></i>
             </button>
