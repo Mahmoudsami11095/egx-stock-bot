@@ -112,14 +112,27 @@ async function fetchYahooFinance() {
   return null;
 }
 
+async function fetchLiveUsdEgpRate() {
+  const erData = await fetchHttpsJson('https://open.er-api.com/v6/latest/USD');
+  if (erData?.rates?.EGP && erData.rates.EGP > 10) return Number(erData.rates.EGP.toFixed(2));
+
+  const exData = await fetchHttpsJson('https://api.exchangerate-api.com/v4/latest/USD');
+  if (exData?.rates?.EGP && exData.rates.EGP > 10) return Number(exData.rates.EGP.toFixed(2));
+
+  const frankData = await fetchHttpsJson('https://api.frankfurter.app/latest?from=USD&to=EGP');
+  if (frankData?.rates?.EGP && frankData.rates.EGP > 10) return Number(frankData.rates.EGP.toFixed(2));
+
+  return null;
+}
+
 async function fetchBackupProvider() {
-  const [goldData, erData] = await Promise.all([
+  const [goldData, liveRate] = await Promise.all([
     fetchHttpsJson('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X'),
-    fetchHttpsJson('https://open.er-api.com/v6/latest/USD')
+    fetchLiveUsdEgpRate()
   ]);
 
   const goldUsdPerOz = goldData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-  const usdEgpRate = erData?.rates?.EGP;
+  const usdEgpRate = liveRate;
 
   if (goldUsdPerOz && goldUsdPerOz > 1000 && usdEgpRate && usdEgpRate > 10) {
     return {
@@ -127,7 +140,7 @@ async function fetchBackupProvider() {
       usdEgpRate: Number(usdEgpRate.toFixed(2)),
       rsi: 45.8,
       recommend: 0.2,
-      provider: 'OpenER + Yahoo Live'
+      provider: 'Multi-Source (OpenER/ExchangeRate + Yahoo Live)'
     };
   }
   return null;

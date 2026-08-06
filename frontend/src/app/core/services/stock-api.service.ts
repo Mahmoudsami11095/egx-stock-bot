@@ -4,6 +4,7 @@ import { StockAnalysisResult, GoldPrices, DataSource } from '../models/stock.mod
 
 const STORAGE_KEY = 'egx_stocks_live_cache_v4';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp';
+const GOLD_STORAGE_KEY = 'egx_gold_live_cache_v4';
 
 const generate1YearFallbackCharts = () => {
   const dates: string[] = [];
@@ -19,7 +20,7 @@ const generate1YearFallbackCharts = () => {
     const trendFactor = (250 - i) / 250;
     const wave = Math.sin(i / 12) * 45 + Math.cos(i / 25) * 60;
     const gUsd = Number((4048.58 * (0.85 + trendFactor * 0.15) + wave * 0.3).toFixed(2));
-    const eEgp = Number((51.07 * (0.92 + trendFactor * 0.08)).toFixed(2));
+    const eEgp = Number((49.80 * (0.92 + trendFactor * 0.08)).toFixed(2));
     const g24k = Math.round(((gUsd / 31.1034768) * eEgp) * 1.027);
 
     ounceSeries.push(gUsd);
@@ -32,16 +33,16 @@ const generate1YearFallbackCharts = () => {
 
 const DEFAULT_GOLD_PRICES: GoldPrices = {
   goldUsdPerOz: 4048.58,
-  usdEgpRate: 51.07,
-  fairGold24kEgp: 6648,
-  fairGold21kEgp: 5817,
-  fairGold18kEgp: 4986,
-  fairGoldCoinEgp: 46533,
-  gold24kEgp: 6828,
-  gold21kEgp: 5975,
-  gold18kEgp: 5121,
-  goldCoinEgp: 47800,
-  saghaPremiumEgp: 180,
+  usdEgpRate: 49.80,
+  fairGold24kEgp: 6483,
+  fairGold21kEgp: 5673,
+  fairGold18kEgp: 4862,
+  fairGoldCoinEgp: 45384,
+  gold24kEgp: 6658,
+  gold21kEgp: 5826,
+  gold18kEgp: 4993,
+  goldCoinEgp: 46608,
+  saghaPremiumEgp: 175,
   saghaPremiumPercent: 2.7,
   signalType: 'BUY',
   rsi: 45.8,
@@ -50,9 +51,9 @@ const DEFAULT_GOLD_PRICES: GoldPrices = {
   shortTermRec: {
     action: 'شراء تحوطي على دفعات',
     badge: 'فرصة تجميع',
-    reason: 'مؤشر RSI عند (45.8) في منطقة تجميع إيجابية لعيار 24 مع علاوة صاغة معتدلة (+180 ج.م / +2.7%).',
-    targetPrice24k: 7305,
-    stopLoss24k: 6555,
+    reason: 'مؤشر RSI عند (45.8) في منطقة تجميع إيجابية لعيار 24 مع علاوة صاغة معتدلة (+175 ج.م / +2.7%).',
+    targetPrice24k: 7124,
+    stopLoss24k: 6392,
     targetOunceUsd: 4330,
     stopLossOunceUsd: 3885
   },
@@ -60,7 +61,7 @@ const DEFAULT_GOLD_PRICES: GoldPrices = {
     action: 'شراء واحتفاظ قوي (ملاذ آمن ممتاز)',
     badge: 'استثمار آمن',
     reason: 'الذهب عيار 24 هو الأداة الأكثر أماناً للادخار وحفظ الثروة على المدى الطويل ضد مخاطر التضخم وتذبذب العملات.',
-    targetPrice24k: 8535,
+    targetPrice24k: 8322,
     targetOunceUsd: 5060
   }
 };
@@ -75,7 +76,7 @@ export class StockApiService {
   public topIntradaySells = signal<StockAnalysisResult[]>([]);
   public goldPrices = signal<GoldPrices | null>(DEFAULT_GOLD_PRICES);
   public marketRegime = signal<'BULLISH' | 'BEARISH' | 'UNKNOWN'>('BULLISH');
-  public usdEgp = signal<number>(51.07);
+  public usdEgp = signal<number>(49.80);
   public selectedSource = signal<DataSource>('tradingview');
   public loading = signal<boolean>(false);
   public lastUpdated = signal<Date | null>(null);
@@ -109,11 +110,18 @@ export class StockApiService {
           if (cachedTs) {
             this.lastUpdated.set(new Date(parseInt(cachedTs, 10)));
           }
-          return;
+        }
+      }
+      const cachedGold = localStorage.getItem(GOLD_STORAGE_KEY);
+      if (cachedGold) {
+        const parsedGold: GoldPrices = JSON.parse(cachedGold);
+        if (parsedGold && parsedGold.usdEgpRate) {
+          this.goldPrices.set(parsedGold);
+          this.usdEgp.set(parsedGold.usdEgpRate);
         }
       }
     } catch (e) {
-      console.warn('Could not read stocks from localStorage cache', e);
+      console.warn('Could not read stocks/gold from localStorage cache', e);
     }
   }
 
@@ -137,16 +145,19 @@ export class StockApiService {
 
   public async loadMarketData(): Promise<void> {
     this.loading.set(true);
+    const source = this.selectedSource();
 
     try {
-      const source = this.selectedSource();
-      const results: StockAnalysisResult[] = await this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise() || [];
+      const [results, goldData] = await Promise.all([
+        this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise().catch(() => []),
+        this.http.get<GoldPrices>('/api/gold').toPromise().catch(() => null)
+      ]);
+
       if (results && results.length > 0) {
         this.applyStockData(results, false);
         const now = new Date();
         this.lastUpdated.set(now);
 
-        // Save fresh live data to client localStorage for instant load next visit
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
           localStorage.setItem(STORAGE_TIME_KEY, now.getTime().toString());
@@ -154,8 +165,18 @@ export class StockApiService {
           console.warn('Could not persist stocks into localStorage cache', storageErr);
         }
       }
+
+      if (goldData && goldData.usdEgpRate) {
+        this.goldPrices.set(goldData);
+        this.usdEgp.set(goldData.usdEgpRate);
+        try {
+          localStorage.setItem(GOLD_STORAGE_KEY, JSON.stringify(goldData));
+        } catch (goldErr) {
+          console.warn('Could not persist gold into localStorage cache', goldErr);
+        }
+      }
     } catch (backendErr) {
-      console.warn('/api/stocks fetch error:', backendErr);
+      console.warn('Market data fetch error:', backendErr);
     } finally {
       this.loading.set(false);
     }

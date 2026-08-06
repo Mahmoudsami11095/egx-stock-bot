@@ -183,7 +183,8 @@ export class GoldService {
       usdEgp = officialCbeRate;
       provider += ' + Official CBE';
     } else if (!usdEgp) {
-      usdEgp = 51.07; // Default fallback
+      const exData = await this.fetchHttpsJson('https://api.exchangerate-api.com/v4/latest/USD');
+      usdEgp = exData?.rates?.EGP ? Number(exData.rates.EGP) : 49.80; // Multi-source fallback
     }
 
     // Fair Local Gold Prices Math (Default Benchmark: 24K Gold)

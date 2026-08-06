@@ -1,33 +1,5 @@
 [
   {
-    "symbol": "EMFD",
-    "timestamp": "2026-07-31T05:40:10.294Z",
-    "signalType": "NEUTRAL",
-    "signalScore": -0.13,
-    "currentPrice": 11.25,
-    "fairValue": 11.03,
-    "fairValueConfidence": "LOW",
-    "marketRegime": "UNKNOWN",
-    "suggestedTarget1": 11.85,
-    "suggestedStopLoss": 10.8,
-    "positionSizePercent": 15,
-    "riskRewardRatio": 1.33
-  },
-  {
-    "symbol": "PRMH",
-    "timestamp": "2026-07-31T05:40:10.296Z",
-    "signalType": "NEUTRAL",
-    "signalScore": 0,
-    "currentPrice": 2.6,
-    "fairValue": 2.54,
-    "fairValueConfidence": "LOW",
-    "marketRegime": "UNKNOWN",
-    "suggestedTarget1": 2.8,
-    "suggestedStopLoss": 2.45,
-    "positionSizePercent": 15,
-    "riskRewardRatio": 1.33
-  },
-  {
     "symbol": "TMGH",
     "timestamp": "2026-07-31T05:40:10.299Z",
     "signalType": "NEUTRAL",
@@ -6996,6 +6968,34 @@
     "marketRegime": "UNKNOWN",
     "suggestedTarget1": 8.77,
     "suggestedStopLoss": 7.79,
+    "positionSizePercent": 15,
+    "riskRewardRatio": 1.33
+  },
+  {
+    "symbol": "ORWE",
+    "timestamp": "2026-08-06T13:46:00.029Z",
+    "signalType": "BUY",
+    "signalScore": 0.57,
+    "currentPrice": 26,
+    "fairValue": 38.28,
+    "fairValueConfidence": "LOW",
+    "marketRegime": "UNKNOWN",
+    "suggestedTarget1": 27.2,
+    "suggestedStopLoss": 25.1,
+    "positionSizePercent": 15,
+    "riskRewardRatio": 1.33
+  },
+  {
+    "symbol": "ORWE",
+    "timestamp": "2026-08-06T13:46:19.612Z",
+    "signalType": "BUY",
+    "signalScore": 0.57,
+    "currentPrice": 26,
+    "fairValue": 38.4,
+    "fairValueConfidence": "LOW",
+    "marketRegime": "UNKNOWN",
+    "suggestedTarget1": 27.2,
+    "suggestedStopLoss": 25.1,
     "positionSizePercent": 15,
     "riskRewardRatio": 1.33
   }
