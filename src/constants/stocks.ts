@@ -10,7 +10,8 @@ export interface StockMeta {
 }
 
 // Current CBE (Central Bank of Egypt) Corridor Interest Rate (~27.25%)
-export const CBE_CORRIDOR_INTEREST_RATE = 0.2725;
+// Configurable via environment variable to avoid redeployment on rate changes
+export const CBE_CORRIDOR_INTEREST_RATE = Number(process.env.CBE_RATE || 0.2725);
 
 // Baseline USD/EGP rate prior to major floatations/adjustments
 export const BASE_USD_EGP_RATE = 48.0;

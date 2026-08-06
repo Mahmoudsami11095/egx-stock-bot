@@ -104,6 +104,9 @@ export class SignalDetectorService {
     } else if (indicators.rsi > 65) {
       rsiScore = -1;
       reasons.push(`⚠️ RSI (${indicators.rsi}) in Overbought zone (>65).`);
+    } else if (indicators.rsi > 60) {
+      rsiScore = -0.5;
+      reasons.push(`📊 RSI (${indicators.rsi}) elevated — early overbought signal.`);
     }
 
     // Factor 3: MACD Crossover (weight: 0.10)
@@ -160,13 +163,15 @@ export class SignalDetectorService {
     }
 
     // Weighted Composite Score
+    // Subtract volume's weighted contribution from breakout bonus to avoid double-counting
+    const volumeOverlap = (breakoutBonus > 0 && volumeScore > 0) ? volumeScore * weights.volume : 0;
     let signalScore = (
       valuationScore * weights.valuation +
       rsiScore * weights.rsi +
       macdScore * weights.macd +
       trendScore * weights.trend +
       volumeScore * weights.volume +
-      breakoutBonus * 0.30  // Breakout carries 30% weight when triggered
+      breakoutBonus * 0.30 - volumeOverlap  // Breakout carries 30% weight, deduplicate volume
     );
 
     // Market Regime Override (Fix #2 from Kimi)
@@ -209,7 +214,8 @@ export class SignalDetectorService {
     const suggestedStopLoss = Number((price - 1.5 * atr).toFixed(2));
 
     // Risk-Adjusted Position Sizing (1% portfolio risk per trade, capped at 15%)
-    const riskPerShare = Math.max(0.01, price - suggestedStopLoss);
+    // Floor at 0.5% of price to prevent near-zero ATR from producing absurd sizes
+    const riskPerShare = Math.max(price * 0.005, price - suggestedStopLoss);
     const riskPercent = riskPerShare / price;
     const positionSizePercent = Number(Math.min(15, Math.max(1, Number((1 / riskPercent).toFixed(1)))).toFixed(1));
 

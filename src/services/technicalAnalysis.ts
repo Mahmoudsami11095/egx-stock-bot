@@ -23,9 +23,13 @@ export class TechnicalAnalysisService {
     const closes = candles.map((c) => c.close);
     const volumes = candles.map((c) => c.volume);
 
-    // Add current price/volume if not already at the end
-    closes.push(currentPrice);
-    volumes.push(currentVolume);
+    // Only append current price/volume if it differs from the last candle
+    // to avoid duplicate data points that skew RSI toward 50 and bias SMAs
+    const lastClose = closes[closes.length - 1];
+    if (lastClose === undefined || Math.abs(lastClose - currentPrice) > 0.005) {
+      closes.push(currentPrice);
+      volumes.push(currentVolume);
+    }
 
     // Calculate RSI (14)
     const rsiValues = RSI.calculate({ values: closes, period: 14 });

@@ -11,6 +11,62 @@ export interface BatchStockResult {
   fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
+/**
+ * Shared fair value computation — single source of truth.
+ * Uses EPS × dynamic sector PE when available, otherwise a volume-weighted
+ * Fibonacci structural estimate. Includes FX devaluation adjustment for
+ * export/import-sensitive sectors. Clamped to [0.80×, 1.50×] current price
+ * for intraday safety.
+ */
+function computeFairValue(
+  eps: number | null | undefined,
+  currentPrice: number,
+  low52: number,
+  high52: number,
+  volRatio: number,
+  recommendScore: number | null | undefined,
+  sector: string,
+  usdEgpRate: number = 49.5
+): { fairValue: number; confidence: 'HIGH' | 'MEDIUM' | 'LOW' } {
+  const baseSectorPE = getSectorPE(sector);
+  const macroDiscount = getCbeMacroDiscountFactor();
+  // Clamp TradingView Recommend.All to its valid [-1, +1] range
+  const clampedScore = Math.max(-1, Math.min(1, recommendScore || 0));
+
+  // Dynamic FX devaluation adjustment for exporters vs importers
+  const fxSensitivity = getStockFxSensitivity(sector);
+  const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
+  const fxDevaluationAdjustment = 1 + (fxSensitivity * devaluationPct);
+
+  let fairValue = currentPrice;
+  let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+
+  if (eps && eps > 0) {
+    // EPS-based: PEG & Consensus Growth Adjustment
+    const consensusGrowthModifier = 1 + (clampedScore * 0.05);
+    const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
+    fairValue = eps * dynamicSectorPE;
+    confidence = 'HIGH';
+  } else {
+    // Fibonacci structural estimate for stocks without positive EPS
+    const rangeMidpoint = low52 + 0.618 * (high52 - low52);
+    const volWeight = Math.min(volRatio, 2.0);
+    const scoreFactor = 1 + clampedScore * 0.1;
+    fairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount * fxDevaluationAdjustment;
+    // Only floor at current price when consensus is positive (remove inherent bullish bias)
+    if (scoreFactor >= 1) {
+      fairValue = Math.max(fairValue, currentPrice * scoreFactor);
+    }
+    confidence = 'LOW';
+  }
+
+  // Intraday-appropriate safety guardrails: [0.80×, 1.50×]
+  fairValue = Math.max(currentPrice * 0.80, Math.min(currentPrice * 1.50, fairValue));
+  fairValue = Number(fairValue.toFixed(2));
+
+  return { fairValue, confidence };
+}
+
 // Circuit Breaker State
 let consecutiveFailures = 0;
 let circuitOpenUntil = 0;
@@ -258,18 +314,25 @@ export class DataFetcherService {
                 peRatio: peRatio ? Number(peRatio.toFixed(2)) : undefined,
               };
 
-              // Classic Pivot-Point Calculation using 52-week High/Low + Current Close
-              const low52 = fiftyTwoWeekLow || currentPrice * 0.7;
-              const high52 = fiftyTwoWeekHigh || currentPrice * 1.3;
-              const pivotPoint = (high52 + low52 + currentPrice) / 3;
-              
-              const calculatedSupport = Number((2 * pivotPoint - high52).toFixed(2));
-              const calculatedResistance = Number((2 * pivotPoint - low52).toFixed(2));
+              // Daily Pivot-Point Calculation using day's High/Low/Close for intraday relevance
+              const safeDayHigh = dayHigh || currentPrice;
+              const safeDayLow = dayLow || currentPrice;
+              const pivotPoint = (safeDayHigh + safeDayLow + currentPrice) / 3;
 
-              const support = stock.defaultSupport || Math.max(0.01, Math.min(calculatedSupport, currentPrice * 0.98));
-              const resistance = stock.defaultResistance || Math.max(currentPrice * 1.02, calculatedResistance);
+              const calculatedSupport = Number((2 * pivotPoint - safeDayHigh).toFixed(2));
+              const calculatedResistance = Number((2 * pivotPoint - safeDayLow).toFixed(2));
+
+              // ATR-proportional support/resistance clamp instead of fixed 2%
+              const effectiveAtr = atrVal || currentPrice * 0.02;
+              const supportFloor = currentPrice - 2.0 * effectiveAtr;
+              const resistanceCeiling = currentPrice + 2.0 * effectiveAtr;
+              const support = stock.defaultSupport || Math.max(0.01, Math.min(calculatedSupport, supportFloor));
+              const resistance = stock.defaultResistance || Math.max(resistanceCeiling, calculatedResistance);
 
               const volRatio = avgVolume && avgVolume > 0 ? Number((volume / avgVolume).toFixed(2)) : 1;
+
+              const low52 = fiftyTwoWeekLow || currentPrice * 0.7;
+              const high52 = fiftyTwoWeekHigh || currentPrice * 1.3;
 
               const indicators: TechnicalIndicators = {
                 rsi: rsi ? Number(rsi.toFixed(2)) : 50,
@@ -281,44 +344,17 @@ export class DataFetcherService {
                   histogram: (macdVal && macdSignalVal) ? Number((macdVal - macdSignalVal).toFixed(4)) : 0,
                 },
                 adx: adxVal ? Number(adxVal.toFixed(2)) : 20,
-                atr: atrVal ? Number(atrVal.toFixed(2)) : currentPrice * 0.02,
+                atr: Number(effectiveAtr.toFixed(2)),
                 support,
                 resistance,
                 volumeSpike: volRatio >= 1.5,
                 volumeRatio: volRatio,
               };
 
-              // Dynamic Sector PE with Macro Interest Rate Discounting & Consensus Growth Modifier
-              let automatedFairValue = currentPrice;
-              let fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-              const baseSectorPE = getSectorPE(stock.sector);
-              const macroDiscount = getCbeMacroDiscountFactor(); // Adjusts for CBE interest rate environment (~0.878)
-
-              // Dynamic FX devaluation adjustment for exporters vs importers
-              const fxSensitivity = getStockFxSensitivity(stock.sector);
+              // Fair value via shared function (single source of truth)
               const usdEgpRate = cachedUsdEgp || 49.5;
-              const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
-              const fxDevaluationAdjustment = 1 + (fxSensitivity * devaluationPct);
-
-              if (eps && eps > 0) {
-                // PEG & Consensus Growth Adjustment: Premium for positive analyst consensus
-                const consensusGrowthModifier = 1 + ((recommendScore || 0) * 0.05);
-                const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
-                automatedFairValue = eps * dynamicSectorPE;
-                fairValueConfidence = 'HIGH';
-              } else {
-                // Volume-weighted Fibonacci structural fair value range
-                const rangeMidpoint = low52 + 0.618 * (high52 - low52);
-                const volWeight = Math.min(volRatio, 2.0);
-                const scoreFactor = 1 + (recommendScore || 0) * 0.1;
-                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount * fxDevaluationAdjustment;
-                automatedFairValue = Math.max(automatedFairValue, currentPrice * scoreFactor);
-                fairValueConfidence = 'LOW';
-              }
-
-              // Expanded Safety Guardrails: [0.75x price, 2.00x price] to capture deep value opportunities
-              automatedFairValue = Math.max(currentPrice * 0.75, Math.min(currentPrice * 2.00, automatedFairValue));
-              automatedFairValue = Number(automatedFairValue.toFixed(2));
+              const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
+                computeFairValue(eps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate);
 
               results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
             }
@@ -504,15 +540,23 @@ export class DataFetcherService {
                 peRatio: peRatio ? Number(peRatio.toFixed(2)) : undefined,
               };
 
+              // Daily Pivot-Point Calculation for intraday relevance
+              const safeDayHigh = dayHigh || currentPrice;
+              const safeDayLow = dayLow || currentPrice;
+              const pivotPoint = (safeDayHigh + safeDayLow + currentPrice) / 3;
+              const calculatedSupport = Number((2 * pivotPoint - safeDayHigh).toFixed(2));
+              const calculatedResistance = Number((2 * pivotPoint - safeDayLow).toFixed(2));
+
+              // ATR-proportional support/resistance clamp
+              const effectiveAtr = atrVal || currentPrice * 0.02;
+              const supportFloor = currentPrice - 2.0 * effectiveAtr;
+              const resistanceCeiling = currentPrice + 2.0 * effectiveAtr;
+              const support = Math.max(0.01, Math.min(calculatedSupport, supportFloor));
+              const resistance = Math.max(resistanceCeiling, calculatedResistance);
+              const volRatio = avgVolume && avgVolume > 0 ? Number((volume / avgVolume).toFixed(2)) : 1;
+
               const low52 = fiftyTwoWeekLow || currentPrice * 0.7;
               const high52 = fiftyTwoWeekHigh || currentPrice * 1.3;
-              const pivotPoint = (high52 + low52 + currentPrice) / 3;
-              const calculatedSupport = Number((2 * pivotPoint - high52).toFixed(2));
-              const calculatedResistance = Number((2 * pivotPoint - low52).toFixed(2));
-
-              const support = Math.max(0.01, Math.min(calculatedSupport, currentPrice * 0.98));
-              const resistance = Math.max(currentPrice * 1.02, calculatedResistance);
-              const volRatio = avgVolume && avgVolume > 0 ? Number((volume / avgVolume).toFixed(2)) : 1;
 
               const indicators: TechnicalIndicators = {
                 rsi: rsi ? Number(rsi.toFixed(2)) : 50,
@@ -524,34 +568,16 @@ export class DataFetcherService {
                   histogram: (macdVal && macdSignalVal) ? Number((macdVal - macdSignalVal).toFixed(4)) : 0,
                 },
                 adx: adxVal ? Number(adxVal.toFixed(2)) : 20,
-                atr: atrVal ? Number(atrVal.toFixed(2)) : currentPrice * 0.02,
+                atr: Number(effectiveAtr.toFixed(2)),
                 support,
                 resistance,
                 volumeSpike: volRatio >= 1.5,
                 volumeRatio: volRatio,
               };
 
-              let automatedFairValue = currentPrice;
-              let fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-              const baseSectorPE = getSectorPE(stock.sector);
-              const macroDiscount = getCbeMacroDiscountFactor();
-
-              if (eps && eps > 0) {
-                const consensusGrowthModifier = 1 + ((recommendScore || 0) * 0.05);
-                const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount;
-                automatedFairValue = eps * dynamicSectorPE;
-                fairValueConfidence = 'HIGH';
-              } else {
-                const rangeMidpoint = low52 + 0.618 * (high52 - low52);
-                const volWeight = Math.min(volRatio, 2.0);
-                const scoreFactor = 1 + (recommendScore || 0) * 0.1;
-                automatedFairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount;
-                automatedFairValue = Math.max(automatedFairValue, currentPrice * scoreFactor);
-                fairValueConfidence = 'LOW';
-              }
-
-              automatedFairValue = Math.max(currentPrice * 0.75, Math.min(currentPrice * 2.00, automatedFairValue));
-              automatedFairValue = Number(automatedFairValue.toFixed(2));
+              // Fair value via shared function (single source of truth)
+              const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
+                computeFairValue(eps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector);
 
               results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
             }
