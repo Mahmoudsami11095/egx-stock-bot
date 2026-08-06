@@ -724,7 +724,11 @@ export class DataFetcherService {
    * Fetches real-time stock quotes using EODHD.com API (.EGX tickers).
    */
   private async fetchEodhdBatch(stocks: StockMeta[]): Promise<BatchStockResult[]> {
-    const apiKey = process.env.EODHD_API_KEY || '6a744a896c8ea7.15141389';
+    const apiKey = process.env.EODHD_API_KEY;
+    if (!apiKey) {
+      logger.warn(`⚠️ EODHD_API_KEY environment variable is not set. Falling back to TradingView scanner.`);
+      return this.getBatchQuoteAndIndicators(stocks, 'tradingview');
+    }
     logger.info(`🌐 Fetching live market quotes via EODHD API...`);
     const results: BatchStockResult[] = [];
 
