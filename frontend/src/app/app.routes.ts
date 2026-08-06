@@ -10,6 +10,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/stock-screener/stock-screener.component').then(m => m.StockScreenerComponent)
   },
   {
+    path: 'intraday',
+    loadComponent: () => import('./features/intraday-trading/intraday-trading.component').then(m => m.IntradayTradingComponent)
+  },
+  {
     path: 'gold',
     loadComponent: () => import('./features/gold-tracker/gold-tracker.component').then(m => m.GoldTrackerComponent)
   },

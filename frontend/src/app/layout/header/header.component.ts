@@ -61,6 +61,10 @@ import { StockApiService } from '../../core/services/stock-api.service';
              class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             📈 أسهم البورصة الحلال
           </a>
+          <a routerLink="/intraday" routerLinkActive="bg-orange-500 text-black font-bold"
+             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+            ⚡ المضاربة اليومية
+          </a>
           <a routerLink="/gold" routerLinkActive="bg-emeraldAccent text-black font-bold"
              class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             ⚜️ أسعار الذهب

@@ -132,7 +132,10 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
             <span class="w-3 h-3 rounded-full bg-orange-400"></span>
             ⚡ توصيات المضاربة داخل الجلسة (Intraday Session Trading)
           </h3>
-          <span class="text-xs text-gray-400">تحليل لحظي للزخم وحجم التداول داخل الجلسة</span>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-400">تحليل لحظي للزخم وحجم التداول داخل الجلسة</span>
+            <a routerLink="/intraday" class="text-xs font-bold text-orange-400 hover:underline">عرض الكل ←</a>
+          </div>
         </div>
 
         <!-- Intraday Buy Opportunities -->
