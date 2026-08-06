@@ -296,12 +296,22 @@ export class StrategiesComponent {
   }
 
   filteredShortTerm = computed(() => {
-    const activeStocks = this.apiService.stocks().filter(s => this.isHalalOnly(s) && s.shortTermRec && (s.shortTermRec.action === 'تجميع فني (Buy/Accumulate)' || s.shortTermRec.action === 'جني أرباح جزئي (Take Profit)'));
+    const activeStocks = this.apiService.stocks().filter(s => 
+      this.isHalalOnly(s) && 
+      s.shortTermRec && 
+      (s.shortTermRec.action === 'تجميع فني (Buy/Accumulate)' || 
+       s.shortTermRec.action === 'جني أرباح جزئي (Take Profit)' || 
+       s.shortTermRec.action === 'ترقب ارتداد (Watch)')
+    );
     return activeStocks.filter(s => this.matchesSearch(s));
   });
 
   filteredLongTerm = computed(() => {
-    const activeStocks = this.apiService.stocks().filter(s => this.isHalalOnly(s) && s.longTermRec && (s.longTermRec.action === 'استثمار طويل الأجل (Strong Buy)' || s.longTermRec.action === 'تجميع استثماري (Accumulate)' || s.longTermRec.action === 'تخفيف مراكز (Reduce)'));
+    const activeStocks = this.apiService.stocks().filter(s => 
+      this.isHalalOnly(s) && 
+      s.longTermRec && 
+      s.longTermRec.action !== 'احتفاظ استثماري (Hold)'
+    );
     // Sort by highest upside
     const sorted = [...activeStocks].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
     return sorted.filter(s => this.matchesSearch(s));
