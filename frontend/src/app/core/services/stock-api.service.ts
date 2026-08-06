@@ -84,7 +84,7 @@ export class StockApiService {
 
   constructor(private http: HttpClient) {
     const savedSource = localStorage.getItem('egx_selected_datasource') as DataSource;
-    if (savedSource && ['tradingview', 'investing', 'yahoo'].includes(savedSource)) {
+    if (savedSource && ['tradingview', 'investing', 'yahoo', 'eodhd'].includes(savedSource)) {
       this.selectedSource.set(savedSource);
     }
     this.initFromCache();

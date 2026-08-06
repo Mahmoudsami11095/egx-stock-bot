@@ -1,6 +1,6 @@
 export type SignalType = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
 export type ShariaTier = 'COMPLIANT' | 'MARGINAL' | 'NON_COMPLIANT' | 'UNDER_REVIEW';
-export type DataSource = 'tradingview' | 'investing' | 'yahoo';
+export type DataSource = 'tradingview' | 'investing' | 'yahoo' | 'eodhd';
 
 export interface StockQuote {
   symbol: string;

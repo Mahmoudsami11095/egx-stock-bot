@@ -34,6 +34,7 @@ import { StockApiService } from '../../core/services/stock-api.service';
                       (ngModelChange)="apiService.setDataSource($event)"
                       class="bg-transparent text-emeraldAccent font-bold focus:outline-none cursor-pointer">
                 <option value="tradingview" class="bg-darkCard text-white">🌐 TradingView</option>
+                <option value="eodhd" class="bg-darkCard text-white">📡 EODHD API (Live)</option>
                 <option value="investing" class="bg-darkCard text-white">📈 Investing.com</option>
                 <option value="yahoo" class="bg-darkCard text-white">💹 Yahoo Finance</option>
               </select>
