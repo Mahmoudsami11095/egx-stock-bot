@@ -87,9 +87,10 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
               <th pSortableColumn="quote.symbol">السهم <p-sortIcon field="quote.symbol"></p-sortIcon></th>
               <th pSortableColumn="quote.currentPrice">السعر اللحظي <p-sortIcon field="quote.currentPrice"></p-sortIcon></th>
               <th pSortableColumn="fairValue">القيمة العادلة <p-sortIcon field="fairValue"></p-sortIcon></th>
-              <th pSortableColumn="fairValueUpsidePercent">فارق النمو المتوقع <p-sortIcon field="fairValueUpsidePercent"></p-sortIcon></th>
-              <th pSortableColumn="signalType">التوصية والإشارة <p-sortIcon field="signalType"></p-sortIcon></th>
+              <th pSortableColumn="fairValueUpsidePercent">فارق النمو <p-sortIcon field="fairValueUpsidePercent"></p-sortIcon></th>
+              <th pSortableColumn="signalType">التوصية <p-sortIcon field="signalType"></p-sortIcon></th>
               <th pSortableColumn="intradaySignal">مضاربة الجلسة <p-sortIcon field="intradaySignal"></p-sortIcon></th>
+              <th pSortableColumn="indicators.rsi">RSI(14) <p-sortIcon field="indicators.rsi"></p-sortIcon></th>
               <th pSortableColumn="quote.dividendYield">التوزيعات (Dividend) <p-sortIcon field="quote.dividendYield"></p-sortIcon></th>
               <th>التفاصيل</th>
             </tr>
