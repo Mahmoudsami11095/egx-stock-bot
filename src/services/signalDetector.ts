@@ -313,6 +313,56 @@ export class SignalDetectorService {
       intradayReasons.push(`حركة عرضية وضعف في الزخم اللحظي`);
     }
 
+    // --- PROFESSIONAL STRATEGIES ---
+    // Short-Term (1-3 months)
+    let stAction = 'احتفاظ (Hold)';
+    let stBadge = 'ترقب';
+    let stReason = 'السهم يتداول في مسار عرضي، يُنصح بالاحتفاظ مع الالتزام بوقف الخسارة.';
+    if (indicators.sma20 > indicators.sma50 && indicators.macd && indicators.macd.macd !== undefined && indicators.macd.signal !== undefined && indicators.macd.macd > indicators.macd.signal) {
+      stAction = 'تجميع فني (Buy/Accumulate)';
+      stBadge = 'إيجابي';
+      stReason = 'اتجاه صاعد على المدى القصير مع زخم إيجابي للماكد. ينصح بالتجميع بالقرب من مناطق الدعم.';
+    } else if (indicators.sma20 < indicators.sma50 && indicators.rsi < 40) {
+      stAction = 'ترقب ارتداد (Watch)';
+      stBadge = 'مراقبة';
+      stReason = 'السهم في مسار هابط ولكن يقترب من مناطق تشبع بيعي. ننتظر إشارة انعكاس.';
+    } else if (indicators.rsi > 70) {
+      stAction = 'جني أرباح جزئي (Take Profit)';
+      stBadge = 'مخاطرة';
+      stReason = 'السهم في مناطق تشبع شرائي قوية، يُنصح بتخفيف المراكز وجني الأرباح.';
+    }
+    const shortTermRec = {
+      action: stAction,
+      badge: stBadge,
+      reason: stReason,
+      targetPrice: suggestedTarget.target1,
+      stopLoss: suggestedStopLoss
+    };
+
+    // Long-Term (1-3 years)
+    let ltAction = 'احتفاظ استثماري (Hold)';
+    let ltBadge = 'عادل';
+    let ltReason = 'السهم يتداول بالقرب من قيمته العادلة الأساسية.';
+    if (fairValueUpsidePercent >= 20) {
+      ltAction = 'استثمار طويل الأجل (Strong Buy)';
+      ltBadge = 'فرصة قيمة';
+      ltReason = 'السهم يتداول بخصم كبير عن قيمته العادلة، يمثل فرصة استثمارية ممتازة بناءً على الأساسيات.';
+    } else if (fairValueUpsidePercent >= 5) {
+      ltAction = 'تجميع استثماري (Accumulate)';
+      ltBadge = 'أقل من القيمة';
+      ltReason = 'السهم يتداول دون قيمته العادلة، يُنصح ببناء مراكز استثمارية تدريجياً.';
+    } else if (fairValueUpsidePercent <= -15) {
+      ltAction = 'تخفيف مراكز (Reduce)';
+      ltBadge = 'مبالغة سعرية';
+      ltReason = 'السهم يتداول بعلاوة سعرية عالية فوق قيمته العادلة، يُنصح بجني الأرباح لتجنب التصحيح.';
+    }
+    const longTermRec = {
+      action: ltAction,
+      badge: ltBadge,
+      reason: ltReason,
+      targetPrice: fairValue
+    };
+
     const result: StockAnalysisResult = {
       quote: {
         ...quote,
@@ -342,6 +392,8 @@ export class SignalDetectorService {
       intradayEntry,
       intradayTarget,
       intradayStopLoss,
+      shortTermRec,
+      longTermRec,
     };
 
     // Log signal to history for backtesting

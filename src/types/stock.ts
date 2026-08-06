@@ -98,6 +98,21 @@ export interface StockAnalysisResult {
   intradayEntry?: number;
   intradayTarget?: number;
   intradayStopLoss?: number;
+
+  // Professional Strategic Recommendations
+  shortTermRec?: {
+    action: string;
+    badge: string;
+    reason: string;
+    targetPrice: number;
+    stopLoss: number;
+  };
+  longTermRec?: {
+    action: string;
+    badge: string;
+    reason: string;
+    targetPrice: number;
+  };
 }
 
 export interface AlertState {

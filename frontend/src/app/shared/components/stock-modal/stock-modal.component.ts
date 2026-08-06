@@ -219,11 +219,78 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
           </div>
         </div>
 
-        <!-- 🤖 SECTION 4: توصية الذكاء الاصطناعي (AI Gemini Recommendation) -->
+        <!-- 🎯 SECTION 4: التوصيات الاستراتيجية للمحترفين (Professional Strategic Recommendations) -->
+        <div class="glass-card p-5 rounded-3xl border border-blue-500/30 bg-gradient-to-br from-blue-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-blue-400 flex items-center gap-2">
+              <i class="pi pi-briefcase text-blue-400 text-lg"></i> 4. التوصيات الاستراتيجية (Professional Strategies)
+            </h3>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Short-Term (1-3 months) -->
+            <div *ngIf="stock.shortTermRec" class="bg-darkBg/80 p-4 rounded-2xl border border-darkBorder border-t-4 border-t-emerald-500 space-y-3 relative overflow-hidden">
+              <div class="absolute -right-6 -top-6 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl"></div>
+              
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <span class="text-[10px] text-gray-400 font-bold tracking-wide uppercase">المدى القصير (1 - 3 أشهر)</span>
+                  <h4 class="text-lg font-black text-white mt-0.5">{{ stock.shortTermRec.action }}</h4>
+                </div>
+                <span class="px-2.5 py-1 text-[10px] font-bold rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap ml-2">
+                  {{ stock.shortTermRec.badge }}
+                </span>
+              </div>
+              
+              <p class="text-[11px] text-gray-300 leading-relaxed">{{ stock.shortTermRec.reason }}</p>
+              
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-darkBorder mt-auto">
+                <div>
+                  <span class="block text-[10px] text-gray-500 font-bold">الهدف المتوقع</span>
+                  <strong class="text-cyanAccent text-sm">{{ stock.shortTermRec.targetPrice }} <small class="text-[9px]">ج.م</small></strong>
+                </div>
+                <div>
+                  <span class="block text-[10px] text-gray-500 font-bold">وقف الخسارة</span>
+                  <strong class="text-roseAccent text-sm">{{ stock.shortTermRec.stopLoss }} <small class="text-[9px]">ج.م</small></strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Long-Term (1-3 years) -->
+            <div *ngIf="stock.longTermRec" class="bg-darkBg/80 p-4 rounded-2xl border border-darkBorder border-t-4 border-t-purple-500 space-y-3 relative overflow-hidden flex flex-col">
+              <div class="absolute -right-6 -top-6 w-16 h-16 bg-purple-500/10 rounded-full blur-xl"></div>
+              
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <span class="text-[10px] text-gray-400 font-bold tracking-wide uppercase">المدى الطويل (1 - 3 سنوات)</span>
+                  <h4 class="text-lg font-black text-white mt-0.5">{{ stock.longTermRec.action }}</h4>
+                </div>
+                <span class="px-2.5 py-1 text-[10px] font-bold rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap ml-2">
+                  {{ stock.longTermRec.badge }}
+                </span>
+              </div>
+              
+              <p class="text-[11px] text-gray-300 leading-relaxed flex-1">{{ stock.longTermRec.reason }}</p>
+              
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-darkBorder mt-auto">
+                <div>
+                  <span class="block text-[10px] text-gray-500 font-bold">القيمة العادلة المستهدفة</span>
+                  <strong class="text-emeraldAccent text-sm">{{ stock.longTermRec.targetPrice }} <small class="text-[9px]">ج.م</small></strong>
+                </div>
+                <div>
+                  <span class="block text-[10px] text-gray-500 font-bold">نمو رأس المال</span>
+                  <strong class="text-amberAccent text-sm">+{{ stock.fairValueUpsidePercent }}%</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🤖 SECTION 5: توصية الذكاء الاصطناعي (AI Gemini Recommendation) -->
         <div class="glass-card p-5 rounded-3xl border border-purple-500/30 bg-gradient-to-br from-purple-500/5 via-darkCard to-darkBg space-y-4">
           <div class="flex items-center justify-between border-b border-darkBorder pb-3">
             <h3 class="text-base font-black text-purple-400 flex items-center gap-2">
-              <i class="pi pi-sparkles text-purple-400 text-lg"></i> 4. توصية الذكاء الاصطناعي (Gemini AI Deep Analysis)
+              <i class="pi pi-sparkles text-purple-400 text-lg"></i> 5. توصية الذكاء الاصطناعي (Gemini AI Deep Analysis)
             </h3>
             <button
               *ngIf="!aiLoading && !aiRecommendation"
