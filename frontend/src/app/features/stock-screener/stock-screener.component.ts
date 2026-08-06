@@ -90,8 +90,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
               <th pSortableColumn="fairValueUpsidePercent">فارق النمو المتوقع <p-sortIcon field="fairValueUpsidePercent"></p-sortIcon></th>
               <th pSortableColumn="signalType">التوصية والإشارة <p-sortIcon field="signalType"></p-sortIcon></th>
               <th pSortableColumn="intradaySignal">مضاربة الجلسة <p-sortIcon field="intradaySignal"></p-sortIcon></th>
-              <th pSortableColumn="indicators.rsi">RSI(14) <p-sortIcon field="indicators.rsi"></p-sortIcon></th>
-              <th>التوافق الشرعي</th>
+              <th pSortableColumn="quote.dividendYield">التوزيعات (Dividend) <p-sortIcon field="quote.dividendYield"></p-sortIcon></th>
               <th>التفاصيل</th>
             </tr>
           </ng-template>
@@ -151,11 +150,17 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
                 </span>
               </td>
 
-              <!-- Sharia Status -->
+              <!-- Dividend Yield & DPS -->
               <td>
-                <span class="text-xs text-emeraldAccent bg-emeraldAccent/10 px-2.5 py-0.5 rounded-full border border-emeraldAccent/20 font-bold">
-                  🟢 متوافق
-                </span>
+                <div *ngIf="stock.quote.dividendYield" class="flex flex-col">
+                  <span class="text-xs font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 inline-block w-fit">
+                    🎁 {{ stock.quote.dividendYield }}%
+                  </span>
+                  <span *ngIf="stock.quote.dividendPerShare" class="text-[10px] text-gray-400 mt-0.5">
+                    ~{{ stock.quote.dividendPerShare }} ج.م/سهم
+                  </span>
+                </div>
+                <span *ngIf="!stock.quote.dividendYield" class="text-xs text-gray-500">—</span>
               </td>
 
               <!-- Action button -->
