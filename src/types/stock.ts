@@ -24,6 +24,8 @@ export interface StockQuote {
   avgVolume: number;
   peRatio?: number;
   marketCap?: number;
+  dividendYield?: number;
+  dividendPerShare?: number;
 }
 
 export type SignalType = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';

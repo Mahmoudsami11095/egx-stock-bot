@@ -224,7 +224,8 @@ export class DataFetcherService {
         'MACD.macd',
         'MACD.signal',
         'ADX',
-        'ATR'
+        'ATR',
+        'dividend_yield_recent'
       ]
     });
 
@@ -285,7 +286,8 @@ export class DataFetcherService {
                 macdVal,
                 macdSignalVal,
                 adxVal,
-                atrVal
+                atrVal,
+                divYieldVal
               ] = row.d;
 
               const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -295,6 +297,9 @@ export class DataFetcherService {
 
               const change = (currentPrice * (changePercent || 0)) / 100;
               const previousClose = currentPrice - change;
+
+              const divYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : undefined;
+              const divPerShare = (divYield && currentPrice > 0) ? Number(((currentPrice * divYield) / 100).toFixed(2)) : undefined;
 
               const quote: StockQuote = {
                 symbol: stock.symbol,
@@ -312,6 +317,8 @@ export class DataFetcherService {
                 volume: volume || 0,
                 avgVolume: Math.round(avgVolume || 0),
                 peRatio: peRatio ? Number(peRatio.toFixed(2)) : undefined,
+                dividendYield: divYield,
+                dividendPerShare: divPerShare
               };
 
               // Daily Pivot-Point Calculation using day's High/Low/Close for intraday relevance
@@ -452,7 +459,8 @@ export class DataFetcherService {
         'MACD.macd',
         'MACD.signal',
         'ADX',
-        'ATR'
+        'ATR',
+        'dividend_yield_recent'
       ],
       sort: { sortBy: 'volume', sortOrder: 'desc' },
       range: [0, limit]
@@ -505,7 +513,8 @@ export class DataFetcherService {
                 macdVal,
                 macdSignalVal,
                 adxVal,
-                atrVal
+                atrVal,
+                divYieldVal
               ] = row.d;
 
               const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -513,6 +522,9 @@ export class DataFetcherService {
 
               const change = (currentPrice * (changePercent || 0)) / 100;
               const previousClose = currentPrice - change;
+
+              const divYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : undefined;
+              const divPerShare = (divYield && currentPrice > 0) ? Number(((currentPrice * divYield) / 100).toFixed(2)) : undefined;
 
               const stock: StockMeta = {
                 symbol: rawSym,
@@ -538,6 +550,8 @@ export class DataFetcherService {
                 volume: volume || 0,
                 avgVolume: Math.round(avgVolume || 0),
                 peRatio: peRatio ? Number(peRatio.toFixed(2)) : undefined,
+                dividendYield: divYield,
+                dividendPerShare: divPerShare
               };
 
               // Daily Pivot-Point Calculation for intraday relevance

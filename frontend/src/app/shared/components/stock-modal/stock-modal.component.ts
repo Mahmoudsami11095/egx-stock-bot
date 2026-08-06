@@ -73,6 +73,17 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
               <strong class="text-xl text-amberAccent font-black block">{{ stock.quote.peRatio ? (stock.quote.currentPrice / stock.quote.peRatio).toFixed(2) : 'N/A' }} <small class="text-xs font-normal text-gray-400">ج.م</small></strong>
               <span class="text-[11px] text-gray-400 block">العائد للسهم السنوي</span>
             </div>
+
+            <!-- Dividend Yield & DPS -->
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-[11px] text-purple-400 font-bold block">عائد التوزيعات (Dividend Yield)</span>
+              <strong class="text-xl text-purple-400 font-black block">
+                {{ stock.quote.dividendYield ? stock.quote.dividendYield + '%' : 'غير متاح' }}
+              </strong>
+              <span class="text-[11px] text-gray-400 block">
+                {{ stock.quote.dividendPerShare ? '~' + stock.quote.dividendPerShare + ' ج.م / سهم' : 'بيانات TradingView' }}
+              </span>
+            </div>
           </div>
 
           <!-- Financial Summary Verdict -->

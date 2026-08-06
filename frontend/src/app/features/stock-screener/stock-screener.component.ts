@@ -112,10 +112,13 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
                 </span>
               </td>
 
-              <!-- Fair Value -->
+              <!-- Fair Value & Valuation -->
               <td>
                 <div class="font-bold text-emeraldAccent text-sm">{{ stock.fairValue }} ج.م</div>
-                <span class="text-[10px] text-gray-400 font-medium">P/E: {{ stock.quote.peRatio || 'N/A' }}</span>
+                <div class="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+                  <span>P/E: {{ stock.quote.peRatio || 'N/A' }}</span>
+                  <span *ngIf="stock.quote.dividendYield" class="text-purple-400 font-semibold">• Div: {{ stock.quote.dividendYield }}%</span>
+                </div>
               </td>
 
               <!-- Upside Gap % -->

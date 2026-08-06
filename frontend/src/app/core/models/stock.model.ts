@@ -17,6 +17,8 @@ export interface StockQuote {
   avgVolume: number;
   peRatio?: number;
   sector?: string;
+  dividendYield?: number;
+  dividendPerShare?: number;
 }
 
 export interface TechnicalIndicators {
