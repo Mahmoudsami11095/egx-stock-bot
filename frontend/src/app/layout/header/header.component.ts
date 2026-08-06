@@ -79,6 +79,10 @@ import { StockApiService } from '../../core/services/stock-api.service';
              class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             ⚡ المضاربة اليومية
           </a>
+          <a routerLink="/strategies" routerLinkActive="bg-blue-500 text-white font-bold"
+             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+            💼 خطط واستراتيجيات
+          </a>
           <a routerLink="/gold" routerLinkActive="bg-emeraldAccent text-black font-bold"
              class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             ⚜️ أسعار الذهب
