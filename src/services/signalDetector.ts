@@ -236,6 +236,83 @@ export class SignalDetectorService {
     const rewardPerShare = suggestedTarget.target1 - price;
     const riskRewardRatio = Number(Math.max(0, rewardPerShare / riskPerShare).toFixed(2));
 
+    // --- INTRADAY SCALPING ALGORITHM (المضاربة اليومية) ---
+    // 1. Pivot Points (Standard)
+    const dayHigh = quote.dayHigh || price;
+    const dayLow = quote.dayLow || price;
+    const pivotPoint = (dayHigh + dayLow + price) / 3;
+    const r1 = (2 * pivotPoint) - dayLow;
+    const r2 = pivotPoint + (dayHigh - dayLow);
+    const s1 = (2 * pivotPoint) - dayHigh;
+    const s2 = pivotPoint - (dayHigh - dayLow);
+
+    let intradayScore = 0;
+    const intradayReasons: string[] = [];
+
+    // 2. Score Calculation
+    // Price Action vs Pivot
+    if (price > pivotPoint) {
+      intradayScore += 1;
+      intradayReasons.push(`السعر يتداول أعلى نقطة الارتكاز (${pivotPoint.toFixed(2)}) - إيجابي لحظياً`);
+    } else if (price < pivotPoint) {
+      intradayScore -= 1;
+      intradayReasons.push(`السعر يتداول أسفل نقطة الارتكاز (${pivotPoint.toFixed(2)}) - سلبي لحظياً`);
+    }
+
+    // Volume Velocity
+    if (indicators.volumeSpike) {
+      intradayScore += 1.5;
+      intradayReasons.push(`🔥 سيولة عالية وزخم تداول مرتفع (${indicators.volumeRatio}x المتوسط)`);
+    } else if (indicators.volumeRatio < 0.5) {
+      intradayScore -= 0.5;
+      intradayReasons.push(`ضعف في السيولة اللحظية (${indicators.volumeRatio}x المتوسط)`);
+    }
+
+    // Momentum (RSI)
+    if (indicators.rsi > 55 && indicators.rsi < 70) {
+      intradayScore += 0.5;
+      intradayReasons.push(`عزم إيجابي متصاعد (RSI: ${indicators.rsi.toFixed(1)})`);
+    } else if (indicators.rsi < 30) {
+      intradayScore += 0.5;
+      intradayReasons.push(`تشبع بيعي - فرصة ارتداد لحظي (RSI: ${indicators.rsi.toFixed(1)})`);
+    } else if (indicators.rsi > 75) {
+      intradayScore -= 1;
+      intradayReasons.push(`تشبع شرائي خطر للمضارب (RSI: ${indicators.rsi.toFixed(1)})`);
+    }
+
+    // Trend (MACD)
+    if (indicators.macd?.macd !== undefined && indicators.macd?.signal !== undefined) {
+      if (indicators.macd.macd > indicators.macd.signal) {
+        intradayScore += 0.5;
+      } else {
+        intradayScore -= 0.5;
+      }
+    }
+
+    // Cap score between -3 and +3
+    intradayScore = Math.max(-3, Math.min(3, Number(intradayScore.toFixed(2))));
+
+    // 3. Classify Signal
+    let intradaySignal: SignalType = 'NEUTRAL';
+    if (intradayScore >= 2) intradaySignal = 'STRONG_BUY';
+    else if (intradayScore >= 1) intradaySignal = 'BUY';
+    else if (intradayScore <= -2) intradaySignal = 'STRONG_SELL';
+    else if (intradayScore <= -1) intradaySignal = 'SELL';
+
+    // 4. Targets and Stops
+    const intradayEntry = Number(price.toFixed(2));
+    let intradayTarget = Number(r1.toFixed(2));
+    if (intradaySignal === 'STRONG_BUY') intradayTarget = Number(r2.toFixed(2));
+    
+    // Tight stop loss: below S1 or Pivot, max -2% risk
+    let rawStop = price > pivotPoint ? pivotPoint : s1;
+    const maxRiskPrice = price * 0.98; // max 2% loss
+    const intradayStopLoss = Number(Math.max(rawStop, maxRiskPrice).toFixed(2));
+
+    if (intradayReasons.length === 0) {
+      intradayReasons.push(`حركة عرضية وضعف في الزخم اللحظي`);
+    }
+
     const result: StockAnalysisResult = {
       quote: {
         ...quote,
@@ -259,6 +336,12 @@ export class SignalDetectorService {
       fxSensitivity,
       devaluationAdjustment,
       liquidityCapWarning,
+      intradaySignal,
+      intradayScore,
+      intradayReasons,
+      intradayEntry,
+      intradayTarget,
+      intradayStopLoss,
     };
 
     // Log signal to history for backtesting

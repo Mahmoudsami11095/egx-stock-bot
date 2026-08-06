@@ -90,6 +90,14 @@ export interface StockAnalysisResult {
   fxSensitivity?: number;
   devaluationAdjustment?: number;
   liquidityCapWarning?: string;
+
+  // Intraday (scalping/session) trading fields
+  intradaySignal?: SignalType;
+  intradayScore?: number;
+  intradayReasons?: string[];
+  intradayEntry?: number;
+  intradayTarget?: number;
+  intradayStopLoss?: number;
 }
 
 export interface AlertState {
