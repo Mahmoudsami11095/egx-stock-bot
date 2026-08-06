@@ -153,7 +153,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
 
               <!-- Dividend Yield & DPS -->
               <td>
-                <div *ngIf="stock.quote.dividendYield" class="flex flex-col">
+                <div *ngIf="stock.quote?.dividendYield && stock.quote.dividendYield > 0" class="flex flex-col">
                   <span class="text-xs font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 inline-block w-fit">
                     🎁 {{ stock.quote.dividendYield }}%
                   </span>
@@ -161,7 +161,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
                     ~{{ stock.quote.dividendPerShare }} ج.م/سهم
                   </span>
                 </div>
-                <span *ngIf="!stock.quote.dividendYield" class="text-xs text-gray-500">—</span>
+                <span *ngIf="!stock.quote?.dividendYield || stock.quote.dividendYield === 0" class="text-xs text-gray-500">—</span>
               </td>
 
               <!-- Action button -->

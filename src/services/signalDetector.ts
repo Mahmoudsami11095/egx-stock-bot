@@ -237,7 +237,11 @@ export class SignalDetectorService {
     const riskRewardRatio = Number(Math.max(0, rewardPerShare / riskPerShare).toFixed(2));
 
     const result: StockAnalysisResult = {
-      quote,
+      quote: {
+        ...quote,
+        dividendYield: quote.dividendYield,
+        dividendPerShare: quote.dividendPerShare
+      },
       indicators,
       signalType,
       signalScore,
