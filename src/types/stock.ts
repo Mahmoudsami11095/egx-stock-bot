@@ -31,7 +31,19 @@ export interface StockQuote {
 export type SignalType = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
 export type FairValueConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 export type MarketRegime = 'BULLISH' | 'BEARISH' | 'UNKNOWN';
-export type DataSource = 'tradingview' | 'investing' | 'yahoo';
+export type DataSource = 'tradingview' | 'investing' | 'yahoo' | 'egx_live_ws';
+
+export interface WsPriceUpdate {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  high: number;
+  low: number;
+  timestamp: number;
+  source: DataSource;
+}
 
 export interface TechnicalIndicators {
   rsi: number;

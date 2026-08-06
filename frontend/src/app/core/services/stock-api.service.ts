@@ -89,6 +89,64 @@ export class StockApiService {
     }
     this.initFromCache();
     this.loadMarketData();
+    this.connectWebSocket();
+  }
+
+  private connectWebSocket(): void {
+    if (typeof window === 'undefined') return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/live-stocks`;
+
+    try {
+      const ws = new WebSocket(wsUrl);
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'TICK' && message.data) {
+            this.handleLiveTick(message.data);
+          }
+        } catch (e) {
+          // ignore invalid websocket message
+        }
+      };
+
+      ws.onclose = () => {
+        // Retry connection in 5 seconds
+        setTimeout(() => this.connectWebSocket(), 5000);
+      };
+    } catch (err) {
+      console.warn('WebSocket connection error:', err);
+    }
+  }
+
+  private handleLiveTick(tick: { symbol: string; price: number; change: number; changePercent: number; volume: number; high: number; low: number }): void {
+    const currentStocks = this.stocks();
+    if (!currentStocks || currentStocks.length === 0) return;
+
+    let updated = false;
+    const newStocks = currentStocks.map(stock => {
+      if (stock.quote.symbol.toUpperCase() === tick.symbol.toUpperCase()) {
+        updated = true;
+        return {
+          ...stock,
+          quote: {
+            ...stock.quote,
+            currentPrice: tick.price,
+            change: tick.change,
+            changePercent: tick.changePercent,
+            volume: tick.volume,
+            dayHigh: tick.high,
+            dayLow: tick.low
+          }
+        };
+      }
+      return stock;
+    });
+
+    if (updated) {
+      this.stocks.set(newStocks);
+      this.lastUpdated.set(new Date());
+    }
   }
 
   public setDataSource(source: DataSource): void {

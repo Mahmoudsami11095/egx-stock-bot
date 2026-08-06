@@ -239,15 +239,23 @@ export class DataFetcherService {
     });
 
     return new Promise((resolve, reject) => {
+      const ts = Date.now();
+      const rid = `rid_${Math.random().toString(36).substring(2, 9)}_${ts}`;
+
       const options = {
         hostname: 'scanner.tradingview.com',
         port: 443,
-        path: '/egypt/scan',
+        path: `/egypt/scan?_ts=${ts}&_rid=${rid}`,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Request-ID': rid,
+          'X-Client-Timestamp': ts.toString()
         }
       };
 
@@ -631,13 +639,19 @@ export class DataFetcherService {
     for (const stock of stocks) {
       try {
         const yahooSymbol = `${stock.symbol.toUpperCase()}.CA`;
+        const ts = Date.now();
         const resData = await new Promise<any>((resolve) => {
           const req = https.request({
             hostname: 'query2.finance.yahoo.com',
             port: 443,
-            path: `/v8/finance/chart/${yahooSymbol}?interval=1d&range=5d`,
+            path: `/v8/finance/chart/${yahooSymbol}?interval=1m&range=1d&includePrePost=true&_ts=${ts}`,
             method: 'GET',
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Accept': '*/*'
+            }
           }, (res) => {
             let body = '';
             res.on('data', chunk => body += chunk);

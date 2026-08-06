@@ -10,6 +10,10 @@ import { logger } from './services/logger';
 import { GoldService } from './services/goldService';
 import { ShariaService } from './services/shariaService';
 
+import http from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import { EgxLiveScraperService } from './services/egxLiveScraperService';
+
 async function bootstrap() {
   logger.info('=====================================================');
   logger.info('🚀 Launching EGX Stock Signal Telegram Bot & Web System');
@@ -22,11 +26,41 @@ async function bootstrap() {
   const shariaService = new ShariaService();
   const telegramBot = new TelegramBotService(stateManager, dataFetcher, signalDetector);
   const cronScheduler = new CronSchedulerService(stateManager, dataFetcher, signalDetector, telegramBot);
+  const egxLiveScraper = new EgxLiveScraperService();
 
-  // 1. Start Express Web Server for Angular App
+  // 1. Create HTTP & WebSocket Server for Angular SPA & Live Tick Feed
   const app = express();
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server, path: '/ws/live-stocks' });
   const port = process.env.PORT || 3000;
   const angularDistPath = path.join(process.cwd(), 'frontend', 'dist', 'frontend', 'browser');
+
+  wss.on('connection', (ws: WebSocket) => {
+    logger.info('🔌 New WebSocket client connected for live EGX updates.');
+    // Send cached snapshot immediately on connect
+    const initialQuotes = egxLiveScraper.getAllCachedQuotes();
+    if (initialQuotes.length > 0) {
+      ws.send(JSON.stringify({ type: 'SNAPSHOT', data: initialQuotes }));
+    }
+
+    ws.on('close', () => {
+      logger.info('🔌 WebSocket client disconnected.');
+    });
+  });
+
+  // Broadcast price ticks to all connected clients
+  egxLiveScraper.on('priceTick', (update) => {
+    const payload = JSON.stringify({ type: 'TICK', data: update });
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(payload);
+      }
+    });
+  });
+
+  // Start EGX Live Scraper background engine
+  const watchlist = stateManager.getWatchlist();
+  egxLiveScraper.start(watchlist);
 
   // REST API Endpoints for Angular SPA
   app.get('/api/stocks', async (req, res) => {
@@ -97,8 +131,9 @@ async function bootstrap() {
     res.sendFile(path.join(angularDistPath, 'index.html'));
   });
 
-  app.listen(Number(port), '0.0.0.0', () => {
-    logger.info(`🌐 Angular Web Application live at: http://0.0.0.0:${port} (Public Access)`);
+  server.listen(Number(port), '0.0.0.0', () => {
+    logger.info(`🌐 Angular Web Application & WebSocket Server live at: http://0.0.0.0:${port} (Public Access)`);
+    logger.info(`⚡ Live WebSocket Stream Endpoint: ws://localhost:${port}/ws/live-stocks`);
   });
 
   // 2. Start Telegram bot instance
