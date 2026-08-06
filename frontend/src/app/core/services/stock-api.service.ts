@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { StockAnalysisResult, GoldPrices, DataSource } from '../models/stock.model';
 
-const STORAGE_KEY = 'egx_stocks_live_cache_v3';
+const STORAGE_KEY = 'egx_stocks_live_cache_v4';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp';
 
 const generate1YearFallbackCharts = () => {
