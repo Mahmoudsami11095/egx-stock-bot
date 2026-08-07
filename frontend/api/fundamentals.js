@@ -145,11 +145,31 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
     }
 
+    // Helper to extract Arabic name if English
+    async function getArabicName(companyName, apiKey) {
+      if (/[\u0600-\u06FF]/.test(companyName)) return companyName; // Already contains Arabic
+      
+      const prompt = `What is the commonly known Arabic name of this Egyptian stock market company: "${companyName}"? Just reply with the short Arabic name without any extra text or symbols.`;
+      
+      let translatedName = companyName;
+      for (const model of GEMINI_MODELS) {
+        const resp = await callGeminiSingleModel(prompt, apiKey, model);
+        if (resp.data && resp.data.trim()) {
+          translatedName = resp.data.trim();
+          break;
+        }
+      }
+      return translatedName;
+    }
+
+    const arabicName = await getArabicName(name || symbol || '', apiKey);
+
     // 1. Fetch RSS News
-    // By using the symbol alongside the name, we ensure Arabic news is found even if the name is in English
+    // By using the symbol alongside the name and Arabic translation, we ensure Arabic news is found
     let searchParts = [];
     if (symbol) searchParts.push(`"${symbol}"`);
     if (name) searchParts.push(`"${name}"`);
+    if (arabicName && arabicName !== name) searchParts.push(`"${arabicName}"`);
     
     // Combine them with OR
     const searchQuery = searchParts.join(' OR ');
