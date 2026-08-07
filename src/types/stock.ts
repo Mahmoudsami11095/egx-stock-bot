@@ -113,6 +113,15 @@ export interface StockAnalysisResult {
     reason: string;
     targetPrice: number;
   };
+
+  // AI-Extracted Fundamental Data
+  fundamentals?: {
+    netProfit: number | null;
+    revenue: number | null;
+    fiscalYear: string | null;
+    currency: string | null;
+    lastUpdated: number;
+  };
 }
 
 export interface AlertState {

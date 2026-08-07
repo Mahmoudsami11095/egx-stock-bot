@@ -2,6 +2,8 @@ import https from 'https';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
 import { StockMeta, getSectorPE, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
+import { NewsScraperService } from './newsScraperService';
+import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
 
 export interface BatchStockResult {
   stock: StockMeta;
@@ -9,6 +11,13 @@ export interface BatchStockResult {
   indicators: TechnicalIndicators;
   automatedFairValue: number;
   fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  fundamentals?: {
+    netProfit: number | null;
+    revenue: number | null;
+    fiscalYear: string | null;
+    currency: string | null;
+    lastUpdated: number;
+  };
 }
 
 /**
@@ -76,6 +85,11 @@ let lastSuccessfulResponse: BatchStockResult[] | null = null;
 let cachedMarketRegime: MarketRegime = 'UNKNOWN';
 let cachedUsdEgp: number = 0;
 let lastUsdEgpFetch: number = 0;
+
+// Fundamentals Extraction Cache
+const cachedFundamentals: Map<string, { data: ExtractedFundamentals; timestamp: number }> = new Map();
+const newsScraper = new NewsScraperService();
+const aiExtractor = new AiExtractionService();
 
 export class DataFetcherService {
 
@@ -269,7 +283,7 @@ export class DataFetcherService {
           if (lastSuccessfulResponse) resolve(lastSuccessfulResponse);
           else reject(e);
         });
-        res.on('end', () => {
+        res.on('end', async () => {
           try {
             const json = JSON.parse(body);
             const results: BatchStockResult[] = [];
@@ -382,7 +396,11 @@ export class DataFetcherService {
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
                 computeFairValue(eps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate);
 
-              results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
+              // Fetch Fundamentals via AI Scraper
+              const fundamentalsRaw = await this.fetchFundamentals(stock);
+              const fundamentals = fundamentalsRaw ? { ...fundamentalsRaw, lastUpdated: Date.now() } : undefined;
+
+              results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence, fundamentals });
             }
 
             // Circuit breaker success: reset failures, cache results
@@ -424,6 +442,38 @@ export class DataFetcherService {
       req.write(postData);
       req.end();
     });
+  }
+
+  /**
+   * AI-powered fundamental extraction with caching (12 hours).
+   */
+  private async fetchFundamentals(stock: StockMeta): Promise<ExtractedFundamentals | null> {
+    const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+    const now = Date.now();
+    const cached = cachedFundamentals.get(stock.symbol);
+
+    if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+      return cached.data;
+    }
+
+    try {
+      const snippets = await newsScraper.fetchRecentFinancialNews(stock.nameAr);
+      if (snippets.length > 0) {
+        const fundamentals = await aiExtractor.extractFundamentalsFromNews(snippets);
+        if (fundamentals && (fundamentals.netProfit || fundamentals.revenue)) {
+          cachedFundamentals.set(stock.symbol, { data: fundamentals, timestamp: now });
+          return fundamentals;
+        }
+      }
+      
+      // Cache empty state for a shorter time to avoid spamming the AI on missing news
+      const emptyFundamentals: ExtractedFundamentals = { netProfit: null, revenue: null, fiscalYear: null, currency: null };
+      cachedFundamentals.set(stock.symbol, { data: emptyFundamentals, timestamp: now - (11 * 60 * 60 * 1000) });
+      return null;
+    } catch (error) {
+      logger.error(`Error fetching fundamentals for ${stock.symbol}: ${error}`);
+      return null;
+    }
   }
 
   /**
