@@ -48,9 +48,11 @@ function extractSnippets(xml) {
     const itemData = match[1];
     const titleMatch = itemData.match(/<title>([\s\S]*?)<\/title>/);
     const descMatch = itemData.match(/<description>([\s\S]*?)<\/description>/);
+    const pubDateMatch = itemData.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
     
     if (titleMatch || descMatch) {
-      let text = (titleMatch ? titleMatch[1] : '') + " - " + (descMatch ? descMatch[1] : '');
+      const pubDate = pubDateMatch ? pubDateMatch[1] : '';
+      let text = `[Date: ${pubDate}] ` + (titleMatch ? titleMatch[1] : '') + " - " + (descMatch ? descMatch[1] : '');
       // Strip HTML tags and CDATA
       text = text.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '');
       text = text.replace(/<[^>]+>/g, ' ');
@@ -190,15 +192,16 @@ Reply ONLY with a valid JSON object in this format: {"arabicName": "الاسم �
 استخرج الأرقام المالية للشركة المذكورة من مقتطفات الأخبار التالية بصرامة شديدة.
 اسم الشركة: ${companyName}
 القواعد:
-1. ارجع فقط بصيغة JSON صحيحة. لا تكتب أي نصوص أخرى.
+1. ارجع فقط بصيغة JSON صحيحة. لا تكتب أي نصوص أخرى. ارجع كائن (Object) واحد فقط، ولا ترجع مصفوفة (Array).
 2. netProfit هو صافي الربح السنوي أو الفصلي.
 3. revenue هو المبيعات أو الإيرادات.
 4. fiscalYear هي السنة المالية أو الربع.
 5. currency هي العملة (مثلا EGP).
 6. يجب أن تكون الأرقام من نوع Number وليس String. (مثلا مليار جنيه = 1000000000).
+7. الأهم: لقد تم إضافة تاريخ الخبر في بداية كل مقتطف هكذا [Date: ...]. يجب عليك قراءة التواريخ والسياق لاستخراج الأرقام الخاصة بـ **أحدث فترة مالية فقط** (الأحدث تاريخاً كالنصف الأول من 2026 بدلاً من الربع الأول). تجاهل الأرقام القديمة كلياً وركز على أحدث إعلان أرباح.
 
 الأخبار:
-${snippets.slice(0, 5).join('\n---\n')}
+${snippets.slice(0, 10).join('\n---\n')}
 
 يجب أن يكون الرد مطابقاً لهذا الهيكل فقط:
 {
