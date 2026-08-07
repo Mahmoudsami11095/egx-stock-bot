@@ -756,11 +756,11 @@ export class DataFetcherService {
         });
 
         if (resData && (resData.close || resData.price)) {
-          const currentPrice = Number((resData.close || resData.price || 0).toFixed(2));
+          const currentPrice = Number(Number(resData.close || resData.price || 0).toFixed(2));
           if (currentPrice > 0) {
-            const previousClose = Number((resData.previousClose || currentPrice).toFixed(2));
-            const change = Number((resData.change || (currentPrice - previousClose)).toFixed(2));
-            const changePercent = Number((resData.change_p || (previousClose > 0 ? ((change / previousClose) * 100) : 0)).toFixed(2));
+            const previousClose = Number(Number(resData.previousClose || currentPrice).toFixed(2));
+            const change = Number(Number(resData.change || (currentPrice - previousClose)).toFixed(2));
+            const changePercent = Number(Number(resData.change_p || (previousClose > 0 ? ((change / previousClose) * 100) : 0)).toFixed(2));
 
             const quote: StockQuote = {
               symbol: stock.symbol,
@@ -771,8 +771,8 @@ export class DataFetcherService {
               previousClose,
               change,
               changePercent,
-              dayHigh: Number((resData.high || currentPrice).toFixed(2)),
-              dayLow: Number((resData.low || currentPrice).toFixed(2)),
+              dayHigh: Number(Number(resData.high || currentPrice).toFixed(2)),
+              dayLow: Number(Number(resData.low || currentPrice).toFixed(2)),
               fiftyTwoWeekHigh: Number((currentPrice * 1.25).toFixed(2)),
               fiftyTwoWeekLow: Number((currentPrice * 0.75).toFixed(2)),
               volume: resData.volume || 0,
