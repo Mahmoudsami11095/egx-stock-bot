@@ -550,7 +550,19 @@ export class StockModalComponent implements OnChanges {
 
     this.http.get<any>(url, { headers }).subscribe({
       next: (res) => {
-        this.fundamentalsData = res.fundamentals;
+        // Robust assignment: Gemini sometimes nests it inside an extra 'fundamentals' key
+        let data = res.fundamentals;
+        if (data && data.fundamentals) {
+          data = data.fundamentals;
+        }
+        
+        // Handle cases where numbers might be returned as strings by AI
+        if (data) {
+          if (typeof data.netProfit === 'string') data.netProfit = Number(data.netProfit.replace(/[^0-9.-]+/g, ''));
+          if (typeof data.revenue === 'string') data.revenue = Number(data.revenue.replace(/[^0-9.-]+/g, ''));
+        }
+        
+        this.fundamentalsData = data;
         this.fundamentalsLoading = false;
         this.cdr.detectChanges();
       },
