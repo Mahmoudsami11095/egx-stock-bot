@@ -66,6 +66,12 @@ export const DEFAULT_STOCKS: StockAnalysisResult[] = [
     indicators: { rsi: 60.1, sma20: 3.70, sma50: 3.55, support: 3.65, resistance: 4.10, volumeSpike: true, volumeRatio: 1.3 },
     signalType: 'BUY', signalScore: 3.9, reasons: ['نمو مبيعات توزيع الدواء بمعدل قوي', 'توسع في المراكز اللوجستية الرقمية'], fairValue: 5.80, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 50.65, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
     suggestedEntry: { min: 3.70, max: 3.85 }, suggestedTarget: { target1: 4.60, target2: 5.80 }, suggestedStopLoss: 3.50, positionSizePercent: 8, riskRewardRatio: 2.9
+  },
+  {
+    quote: { symbol: 'ARCC', nameEn: 'Arabian Cement', nameAr: 'العربية للأسمنت', currentPrice: 59.00, previousClose: 57.80, change: 1.20, changePercent: 2.08, dayHigh: 59.50, dayLow: 57.50, fiftyTwoWeekHigh: 65.00, fiftyTwoWeekLow: 32.00, volume: 1335440, avgVolume: 1100000, peRatio: 6.18, dividendYield: 9.05, dividendPerShare: 5.34 },
+    indicators: { rsi: 62.1, sma20: 56.5, sma50: 53.2, support: 56.0, resistance: 64.0, volumeSpike: true, volumeRatio: 1.3 },
+    signalType: 'STRONG_BUY', signalScore: 4.6, reasons: ['نمو أرباح سنوي قياسي لتسجل 3.58 مليار جنيه', 'مضاعف ربحية جاذب جداً (6.18x) وعائد توزيعات مرتفع (9.05%)'], fairValue: 88.50, fairValueConfidence: 'HIGH', fairValueUpsidePercent: 50.00, marketRegime: 'BULLISH', shariaTier: 'COMPLIANT', shariaStatusText: '🟢 متوافق تام مع أحكام الشريعة الإسلامية',
+    suggestedEntry: { min: 57.50, max: 59.50 }, suggestedTarget: { target1: 72.00, target2: 88.50 }, suggestedStopLoss: 54.00, positionSizePercent: 12, riskRewardRatio: 3.3
   }
 ];
 

@@ -1,6 +1,6 @@
 import https from 'https';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
-import { StockMeta, getSectorPE, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
+import { StockMeta, getSectorPE, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE, KNOWN_FUNDAMENTAL_FALLBACKS } from '../constants/stocks';
 import { logger } from './logger';
 import { NewsScraperService } from './newsScraperService';
 import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
@@ -331,8 +331,12 @@ export class DataFetcherService {
               const change = (currentPrice * (changePercent || 0)) / 100;
               const previousClose = currentPrice - change;
 
-              const divYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : undefined;
-              const divPerShare = (divYield && currentPrice > 0) ? Number(((currentPrice * divYield) / 100).toFixed(2)) : undefined;
+              // Check for known fundamental fallbacks if API data is null
+              const fallback = KNOWN_FUNDAMENTAL_FALLBACKS[stock.symbol];
+              const effectiveEps = (eps && eps > 0) ? eps : (fallback?.eps || undefined);
+              const effectiveDivYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : (fallback?.dividendYield || undefined);
+              const effectiveDivPerShare = (effectiveDivYield && currentPrice > 0) ? Number(((currentPrice * effectiveDivYield) / 100).toFixed(2)) : (fallback?.dividendPerShare || undefined);
+              const effectivePe = peRatio ? Number(peRatio.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : (fallback?.peRatio || undefined));
 
               const quote: StockQuote = {
                 symbol: stock.symbol,
@@ -349,9 +353,9 @@ export class DataFetcherService {
                 fiftyTwoWeekLow: Number((fiftyTwoWeekLow || currentPrice).toFixed(2)),
                 volume: volume || 0,
                 avgVolume: Math.round(avgVolume || 0),
-                peRatio: peRatio ? Number(peRatio.toFixed(2)) : undefined,
-                dividendYield: divYield,
-                dividendPerShare: divPerShare
+                peRatio: effectivePe,
+                dividendYield: effectiveDivYield,
+                dividendPerShare: effectiveDivPerShare
               };
 
               // Daily Pivot-Point Calculation using day's High/Low/Close for intraday relevance
@@ -391,10 +395,10 @@ export class DataFetcherService {
                 volumeRatio: volRatio,
               };
 
-              // Fair value via shared function (single source of truth)
+              // Fair value via shared function (single source of truth) using effectiveEps
               const usdEgpRate = cachedUsdEgp || 49.5;
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-                computeFairValue(eps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate);
+                computeFairValue(effectiveEps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate);
 
               // Fetch Fundamentals via AI Scraper
               const fundamentalsRaw = await this.fetchFundamentals(stock);

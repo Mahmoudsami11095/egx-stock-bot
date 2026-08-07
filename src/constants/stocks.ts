@@ -93,5 +93,23 @@ export const INITIAL_STOCKS: StockMeta[] = [
   { symbol: 'EGAL', yahooSymbol: 'EGAL.CA', nameEn: 'Egypt Aluminium', nameAr: 'مصر للألومنيوم', sector: 'Metals & Mining' },
   { symbol: 'SKPC', yahooSymbol: 'SKPC.CA', nameEn: 'Sidi Kerir Petrochemicals', nameAr: 'سيدى كرير للبتروكيماويات', sector: 'Petrochemicals' },
   { symbol: 'EFID', yahooSymbol: 'EFID.CA', nameEn: 'Edita Food Industries', nameAr: 'ايديتا للصناعات الغذائية', sector: 'Food & Beverage' },
-  { symbol: 'RMDA', yahooSymbol: 'RMDA.CA', nameEn: 'Rameda Pharmaceuticals', nameAr: 'العاشر من رمضان - راميدا', sector: 'Pharmaceuticals' }
+  { symbol: 'RMDA', yahooSymbol: 'RMDA.CA', nameEn: 'Rameda Pharmaceuticals', nameAr: 'العاشر من رمضان - راميدا', sector: 'Pharmaceuticals' },
+  { symbol: 'ARCC', yahooSymbol: 'ARCC.CA', nameEn: 'Arabian Cement Company', nameAr: 'العربية للأسمنت', sector: 'Construction' }
 ];
+
+export interface StockFundamentalFallback {
+  eps?: number;
+  peRatio?: number;
+  dividendYield?: number;
+  dividendPerShare?: number;
+}
+
+export const KNOWN_FUNDAMENTAL_FALLBACKS: Record<string, StockFundamentalFallback> = {
+  'ARCC': {
+    eps: 9.55,
+    peRatio: 6.18,
+    dividendYield: 9.05,
+    dividendPerShare: 5.34
+  }
+};
+
