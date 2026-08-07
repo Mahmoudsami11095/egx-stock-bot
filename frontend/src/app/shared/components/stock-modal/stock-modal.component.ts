@@ -555,6 +555,22 @@ export class StockModalComponent implements OnChanges {
         if (data && data.fundamentals) {
           data = data.fundamentals;
         }
+
+        // Handle cases where AI returns an array of objects instead of a single object
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            const merged: any = { netProfit: null, revenue: null, fiscalYear: null, currency: null };
+            for (const item of data) {
+              if (item.netProfit && !merged.netProfit) merged.netProfit = item.netProfit;
+              if (item.revenue && !merged.revenue) merged.revenue = item.revenue;
+              if (item.fiscalYear && !merged.fiscalYear) merged.fiscalYear = item.fiscalYear;
+              if (item.currency && !merged.currency) merged.currency = item.currency;
+            }
+            data = merged;
+          } else {
+            data = null;
+          }
+        }
         
         // Handle cases where numbers might be returned as strings by AI
         if (data) {
