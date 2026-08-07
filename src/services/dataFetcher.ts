@@ -1,6 +1,6 @@
 import https from 'https';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
-import { StockMeta, getSectorPE, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE, KNOWN_FUNDAMENTAL_FALLBACKS } from '../constants/stocks';
+import { StockMeta, getSectorPE, getSectorPB, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
 import { NewsScraperService } from './newsScraperService';
 import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
@@ -35,9 +35,12 @@ function computeFairValue(
   volRatio: number,
   recommendScore: number | null | undefined,
   sector: string,
-  usdEgpRate: number = 49.5
+  usdEgpRate: number = 49.5,
+  bvps?: number | null,
+  dps?: number | null
 ): { fairValue: number; confidence: 'HIGH' | 'MEDIUM' | 'LOW' } {
   const baseSectorPE = getSectorPE(sector);
+  const baseSectorPB = getSectorPB(sector);
   const macroDiscount = getCbeMacroDiscountFactor();
   // Clamp TradingView Recommend.All to its valid [-1, +1] range
   const clampedScore = Math.max(-1, Math.min(1, recommendScore || 0));
@@ -46,23 +49,32 @@ function computeFairValue(
   const fxSensitivity = getStockFxSensitivity(sector);
   const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
   const fxDevaluationAdjustment = 1 + (fxSensitivity * devaluationPct);
+  const consensusGrowthModifier = 1 + (clampedScore * 0.05);
 
   let fairValue = currentPrice;
   let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
 
   if (eps && eps > 0) {
-    // EPS-based: PEG & Consensus Growth Adjustment
-    const consensusGrowthModifier = 1 + (clampedScore * 0.05);
+    // Model A: Dynamic EPS / PEG & Consensus Valuation
     const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
     fairValue = eps * dynamicSectorPE;
     confidence = 'HIGH';
+  } else if (bvps && bvps > 0) {
+    // Model B: Dynamic Book Value (Graham-style) Valuation
+    const dynamicSectorPB = baseSectorPB * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
+    fairValue = bvps * dynamicSectorPB;
+    confidence = 'MEDIUM';
+  } else if (dps && dps > 0) {
+    // Model C: Dynamic Dividend Discount Model (DDM)
+    const requiredReturn = 0.12;
+    fairValue = (dps / requiredReturn) * consensusGrowthModifier * macroDiscount;
+    confidence = 'MEDIUM';
   } else {
-    // Fibonacci structural estimate for stocks without positive EPS
+    // Model D: Fibonacci structural estimate for stocks without positive fundamentals
     const rangeMidpoint = low52 + 0.618 * (high52 - low52);
     const volWeight = Math.min(volRatio, 2.0);
     const scoreFactor = 1 + clampedScore * 0.1;
     fairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount * fxDevaluationAdjustment;
-    // Only floor at current price when consensus is positive (remove inherent bullish bias)
     if (scoreFactor >= 1) {
       fairValue = Math.max(fairValue, currentPrice * scoreFactor);
     }
@@ -250,7 +262,11 @@ export class DataFetcherService {
         'MACD.signal',
         'ADX',
         'ATR',
-        'dividend_yield_recent'
+        'dividend_yield_recent',
+        'dps_common_stock_prim_issue_fy',
+        'book_value_per_share_fq',
+        'net_income_ttm',
+        'total_shares_outstanding'
       ]
     });
 
@@ -313,14 +329,18 @@ export class DataFetcherService {
                 rsi,
                 sma20,
                 sma50,
-                peRatio,
-                eps,
+                peRatioRaw,
+                epsRaw,
                 recommendScore,
                 macdVal,
                 macdSignalVal,
                 adxVal,
                 atrVal,
-                divYieldVal
+                divYieldVal,
+                dpsRaw,
+                bvpsRaw,
+                netIncomeRaw,
+                totalSharesRaw
               ] = row.d;
 
               const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -331,12 +351,22 @@ export class DataFetcherService {
               const change = (currentPrice * (changePercent || 0)) / 100;
               const previousClose = currentPrice - change;
 
-              // Check for known fundamental fallbacks if API data is null
-              const fallback = KNOWN_FUNDAMENTAL_FALLBACKS[stock.symbol];
-              const effectiveEps = (eps && eps > 0) ? eps : (fallback?.eps || undefined);
-              const effectiveDivYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : (fallback?.dividendYield || undefined);
-              const effectiveDivPerShare = (effectiveDivYield && currentPrice > 0) ? Number(((currentPrice * effectiveDivYield) / 100).toFixed(2)) : (fallback?.dividendPerShare || undefined);
-              const effectivePe = peRatio ? Number(peRatio.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : (fallback?.peRatio || undefined));
+              // Dynamic EPS resolution across any stock (TradingView -> Net Income / Shares -> DPS payout ratio)
+              let effectiveEps = (epsRaw && epsRaw > 0) ? epsRaw : undefined;
+              if (!effectiveEps && netIncomeRaw && totalSharesRaw && totalSharesRaw > 0) {
+                effectiveEps = netIncomeRaw / totalSharesRaw;
+              }
+              if (!effectiveEps && dpsRaw && dpsRaw > 0) {
+                effectiveEps = dpsRaw / 0.60;
+              }
+
+              // Dynamic DPS & Dividend Yield resolution
+              const effectiveDps = dpsRaw || (divYieldVal && currentPrice > 0 ? (currentPrice * divYieldVal) / 100 : undefined);
+              const effectiveDivYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : (effectiveDps && currentPrice > 0 ? Number(((effectiveDps / currentPrice) * 100).toFixed(2)) : undefined);
+              const effectiveDivPerShare = effectiveDps ? Number(effectiveDps.toFixed(2)) : undefined;
+
+              // Dynamic P/E Ratio resolution
+              const effectivePe = peRatioRaw ? Number(peRatioRaw.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : undefined);
 
               const quote: StockQuote = {
                 symbol: stock.symbol,
@@ -395,10 +425,10 @@ export class DataFetcherService {
                 volumeRatio: volRatio,
               };
 
-              // Fair value via shared function (single source of truth) using effectiveEps
+              // Fair value via multi-model dynamic function using effectiveEps, bvpsRaw, and effectiveDps
               const usdEgpRate = cachedUsdEgp || 49.5;
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-                computeFairValue(effectiveEps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate);
+                computeFairValue(effectiveEps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate, bvpsRaw, effectiveDps);
 
               // Fetch Fundamentals via AI Scraper
               const fundamentalsRaw = await this.fetchFundamentals(stock);

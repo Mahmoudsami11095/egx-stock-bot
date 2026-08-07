@@ -97,19 +97,29 @@ export const INITIAL_STOCKS: StockMeta[] = [
   { symbol: 'ARCC', yahooSymbol: 'ARCC.CA', nameEn: 'Arabian Cement Company', nameAr: 'العربية للأسمنت', sector: 'Construction' }
 ];
 
-export interface StockFundamentalFallback {
-  eps?: number;
-  peRatio?: number;
-  dividendYield?: number;
-  dividendPerShare?: number;
+export const SECTOR_PB_MULTIPLIERS: Record<string, number> = {
+  'Pharmaceuticals': 3.5,
+  'Food & Beverage': 3.2,
+  'Telecommunications': 3.0,
+  'Construction': 2.8,
+  'Textiles & Consumer Goods': 2.5,
+  'Industrial Cables & Energy': 2.8,
+  'Oil & Gas': 2.2,
+  'Petrochemicals': 2.2,
+  'Metals & Mining': 2.5,
+  'Banking': 1.8,
+  'Halal EGX': 2.5,
+  'General': 2.5
+};
+
+export function getSectorPB(sector?: string): number {
+  if (!sector) return 2.5;
+  for (const [key, val] of Object.entries(SECTOR_PB_MULTIPLIERS)) {
+    if (sector.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(sector.toLowerCase())) {
+      return val;
+    }
+  }
+  return 2.5;
 }
 
-export const KNOWN_FUNDAMENTAL_FALLBACKS: Record<string, StockFundamentalFallback> = {
-  'ARCC': {
-    eps: 9.55,
-    peRatio: 6.18,
-    dividendYield: 9.05,
-    dividendPerShare: 5.34
-  }
-};
 

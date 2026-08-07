@@ -54,16 +54,6 @@ async function fetchHalalSymbolsSet() {
   return halalSet;
 }
 
-const KNOWN_FUNDAMENTAL_FALLBACKS = {
-  'ARCC': {
-    eps: 9.55,
-    peRatio: 6.18,
-    dividendYield: 9.05,
-    dividendPerShare: 5.34,
-    sector: 'Construction'
-  }
-};
-
 function fetchTradingViewScan() {
   return new Promise((resolve) => {
     const postData = JSON.stringify({
@@ -73,7 +63,8 @@ function fetchTradingViewScan() {
         'name', 'description', 'close', 'change', 'volume', 'average_volume_30d_calc',
         'high', 'low', 'price_52_week_high', 'price_52_week_low',
         'RSI', 'SMA20', 'SMA50', 'price_earnings_ttm', 'earnings_per_share_basic_ttm',
-        'Recommend.All', 'MACD.macd', 'MACD.signal', 'ADX', 'ATR'
+        'Recommend.All', 'MACD.macd', 'MACD.signal', 'ADX', 'ATR',
+        'dividend_yield_recent', 'dps_common_stock_prim_issue_fy', 'book_value_per_share_fq', 'net_income_ttm', 'total_shares_outstanding'
       ],
       sort: { sortBy: 'volume', sortOrder: 'desc' },
       range: [0, 350]
@@ -104,8 +95,9 @@ function fetchTradingViewScan() {
             const [
               name, description, closePrice, changePercent, volume, avgVolume,
               dayHigh, dayLow, fiftyTwoWeekHigh, fiftyTwoWeekLow,
-              rsi, sma20, sma50, peRatio, eps,
-              recommendScore, macdVal, macdSignalVal, adxVal, atrVal
+              rsi, sma20, sma50, peRatioRaw, epsRaw,
+              recommendScore, macdVal, macdSignalVal, adxVal, atrVal,
+              divYieldTv, dpsTv, bvpsTv, netIncomeTv, totalSharesTv
             ] = row.d;
 
             const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -122,11 +114,22 @@ function fetchTradingViewScan() {
               finalName = description;
             }
 
-            const fallback = KNOWN_FUNDAMENTAL_FALLBACKS[finalSymbol] || KNOWN_FUNDAMENTAL_FALLBACKS[rawSym];
-            const effectiveEps = (eps && eps > 0) ? eps : (fallback ? fallback.eps : undefined);
-            const effectivePe = peRatio ? Number(peRatio.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : (fallback ? fallback.peRatio : undefined));
-            const effectiveDivYield = (fallback ? fallback.dividendYield : undefined);
-            const effectiveDivPerShare = (fallback ? fallback.dividendPerShare : undefined);
+            // 100% Dynamic EPS resolution for any stock on EGX
+            let effectiveEps = (epsRaw && epsRaw > 0) ? epsRaw : undefined;
+            if (!effectiveEps && netIncomeTv && totalSharesTv && totalSharesTv > 0) {
+              effectiveEps = netIncomeTv / totalSharesTv;
+            }
+            if (!effectiveEps && dpsTv && dpsTv > 0) {
+              effectiveEps = dpsTv / 0.60;
+            }
+
+            // 100% Dynamic Dividend Yield & DPS resolution
+            const effectiveDps = dpsTv || (divYieldTv && currentPrice > 0 ? (currentPrice * divYieldTv) / 100 : undefined);
+            const effectiveDivYield = (divYieldTv && divYieldTv > 0) ? Number(divYieldTv.toFixed(2)) : (effectiveDps && currentPrice > 0 ? Number(((effectiveDps / currentPrice) * 100).toFixed(2)) : undefined);
+            const effectiveDivPerShare = effectiveDps ? Number(effectiveDps.toFixed(2)) : undefined;
+
+            // 100% Dynamic P/E Ratio resolution
+            const effectivePe = peRatioRaw ? Number(peRatioRaw.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : undefined);
 
             results.push({
               rawSym,
@@ -147,6 +150,7 @@ function fetchTradingViewScan() {
               eps: effectiveEps,
               dividendYield: effectiveDivYield,
               dividendPerShare: effectiveDivPerShare,
+              bvps: bvpsTv,
               recommendScore: recommendScore || 0,
               macdVal: macdVal ? Number(macdVal.toFixed(4)) : 0,
               macdSignalVal: macdSignalVal ? Number(macdSignalVal.toFixed(4)) : 0,
@@ -176,23 +180,35 @@ function calculateFairValue(stock) {
   const price = stock.currentPrice;
   const low52 = stock.fiftyTwoWeekLow || price * 0.7;
   const high52 = stock.fiftyTwoWeekHigh || price * 1.3;
+  const macroDiscount = 0.878;
+  const clampedScore = Math.max(-1, Math.min(1, stock.recommendScore || 0));
+  const momentumMultiplier = 1 + (clampedScore * 0.05);
 
-  const fallback = KNOWN_FUNDAMENTAL_FALLBACKS[stock.symbol];
-  const effectiveEps = (stock.eps && stock.eps > 0) ? stock.eps : (fallback ? fallback.eps : null);
-
-  if (effectiveEps && effectiveEps > 0) {
+  if (stock.eps && stock.eps > 0) {
+    // Model A: Dynamic EPS Valuation
     const sectorPE = 12.0;
-    const macroDiscount = 0.878;
-    const momentumMultiplier = 1 + ((stock.recommendScore || 0) * 0.05);
-    const fairValueRaw = effectiveEps * sectorPE * momentumMultiplier * macroDiscount;
+    const fairValueRaw = stock.eps * sectorPE * momentumMultiplier * macroDiscount;
     const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
     return { fairValue: Number(clamped.toFixed(2)), confidence: 'HIGH' };
+  } else if (stock.bvps && stock.bvps > 0) {
+    // Model B: Dynamic Book Value (Graham-style) Valuation
+    const sectorPB = 2.8;
+    const fairValueRaw = stock.bvps * sectorPB * momentumMultiplier * macroDiscount;
+    const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
+    return { fairValue: Number(clamped.toFixed(2)), confidence: 'MEDIUM' };
+  } else if (stock.dividendPerShare && stock.dividendPerShare > 0) {
+    // Model C: Dynamic Dividend Discount Model (DDM)
+    const requiredReturn = 0.12;
+    const fairValueRaw = (stock.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
+    const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
+    return { fairValue: Number(clamped.toFixed(2)), confidence: 'MEDIUM' };
   }
 
+  // Model D: Dynamic Fibonacci Structural Range
   const rangeMidpoint = low52 + 0.618 * (high52 - low52);
   const volRatio = stock.avgVolume > 0 ? Math.min(stock.volume / stock.avgVolume, 2.0) : 1;
-  const scoreFactor = 1 + ((stock.recommendScore || 0) * 0.1);
-  let fairValue = rangeMidpoint * (0.85 + 0.15 * volRatio) * scoreFactor;
+  const scoreFactor = 1 + (clampedScore * 0.1);
+  let fairValue = rangeMidpoint * (0.85 + 0.15 * volRatio) * scoreFactor * macroDiscount;
   if (scoreFactor >= 1) {
     fairValue = Math.max(fairValue, price * scoreFactor);
   }
