@@ -265,33 +265,34 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
       <app-stock-modal [(visible)]="modalVisible" [stock]="selectedStock"></app-stock-modal>
 
       <!-- Hidden PDF Template -->
+      <!-- Hidden PDF Template -->
       <div style="display: none;">
-        <div id="pdf-report-content" class="bg-[#0A0F1E] text-white p-8 font-sans border border-blue-900/30" dir="rtl" style="width: 800px; min-height: 1122px; border-radius: 12px; background: linear-gradient(135deg, #0A0F1E 0%, #111827 100%);">
+        <div id="pdf-report-content" class="text-white p-8 font-sans border" dir="rtl" style="width: 800px; min-height: 1122px; border-radius: 12px; background-color: #0A0F1E; border-color: #1E3A8A;">
           <!-- Header -->
-          <div class="text-center mb-8 pb-6 border-b border-gray-800">
-            <div class="inline-flex items-center justify-center gap-2 px-4 py-1 rounded-full text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400 mb-4">
+          <div class="text-center mb-8 pb-6 border-b" style="border-color: #1F2937;">
+            <div class="inline-flex items-center justify-center gap-2 px-4 py-1 rounded-full text-xs font-bold mb-4" style="background-color: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #60A5FA;">
               تقرير التوصيات الاستراتيجية
             </div>
-            <h1 class="text-3xl font-black mb-2">أفضل 10 أسهم في السوق المصري</h1>
-            <p class="text-gray-400 text-sm">تقرير استراتيجي مفصل بناءً على التحليل الفني والقيم العادلة</p>
-            <p class="text-gray-500 text-xs mt-2">تاريخ التقرير: {{ currentDate }}</p>
+            <h1 class="text-3xl font-black mb-2" style="color: #FFFFFF;">أفضل 10 أسهم في السوق المصري</h1>
+            <p class="text-sm" style="color: #9CA3AF;">تقرير استراتيجي مفصل بناءً على التحليل الفني والقيم العادلة</p>
+            <p class="text-xs mt-2" style="color: #6B7280;">تاريخ التقرير: {{ currentDate }}</p>
           </div>
 
           <!-- Top 5 Short Term -->
           <div class="mb-8">
-            <h2 class="text-xl font-bold text-emerald-400 mb-4 border-r-4 border-emerald-500 pr-3">أفضل 5 فرص تجميع (مدى قصير)</h2>
+            <h2 class="text-xl font-bold mb-4 border-r-4 pr-3" style="color: #34D399; border-color: #10B981;">أفضل 5 فرص تجميع (مدى قصير)</h2>
             <div class="space-y-3">
-              <div *ngFor="let s of topShortTermStocks(); let i = index" class="bg-gray-900/50 border border-gray-800 p-4 rounded-xl flex items-center justify-between">
+              <div *ngFor="let s of topShortTermStocks(); let i = index" class="p-4 rounded-xl flex items-center justify-between border" style="background-color: #111827; border-color: #1F2937;">
                 <div class="flex items-center gap-4">
-                  <div class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">{{ i + 1 }}</div>
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold" style="background-color: rgba(16, 185, 129, 0.1); color: #34D399;">{{ i + 1 }}</div>
                   <div>
-                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs text-gray-500 font-normal mr-2">{{ s.quote.nameAr }}</span></h3>
-                    <p class="text-xs text-emerald-400 font-semibold mt-1">القرار: {{ s.shortTermRec?.action }}</p>
+                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs font-normal mr-2" style="color: #6B7280;">{{ s.quote.nameAr }}</span></h3>
+                    <p class="text-xs font-semibold mt-1" style="color: #34D399;">القرار: {{ s.shortTermRec?.action }}</p>
                   </div>
                 </div>
                 <div class="text-left">
-                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px] text-gray-500">ج.م</span></div>
-                  <div class="text-xs text-emerald-400 font-bold mt-1">الهدف: {{ s.shortTermRec?.targetPrice }}</div>
+                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px]" style="color: #6B7280;">ج.م</span></div>
+                  <div class="text-xs font-bold mt-1" style="color: #34D399;">الهدف: {{ s.shortTermRec?.targetPrice }}</div>
                 </div>
               </div>
             </div>
@@ -299,26 +300,26 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
 
           <!-- Top 5 Long Term -->
           <div>
-            <h2 class="text-xl font-bold text-purple-400 mb-4 border-r-4 border-purple-500 pr-3">أفضل 5 فرص استثمار (مدى طويل)</h2>
+            <h2 class="text-xl font-bold mb-4 border-r-4 pr-3" style="color: #A78BFA; border-color: #8B5CF6;">أفضل 5 فرص استثمار (مدى طويل)</h2>
             <div class="space-y-3">
-              <div *ngFor="let s of topLongTermStocks(); let i = index" class="bg-gray-900/50 border border-gray-800 p-4 rounded-xl flex items-center justify-between">
+              <div *ngFor="let s of topLongTermStocks(); let i = index" class="p-4 rounded-xl flex items-center justify-between border" style="background-color: #111827; border-color: #1F2937;">
                 <div class="flex items-center gap-4">
-                  <div class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">{{ i + 1 }}</div>
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold" style="background-color: rgba(139, 92, 246, 0.1); color: #A78BFA;">{{ i + 1 }}</div>
                   <div>
-                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs text-gray-500 font-normal mr-2">{{ s.quote.nameAr }}</span></h3>
-                    <p class="text-xs text-purple-400 font-semibold mt-1">القرار: {{ s.longTermRec?.action }}</p>
+                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs font-normal mr-2" style="color: #6B7280;">{{ s.quote.nameAr }}</span></h3>
+                    <p class="text-xs font-semibold mt-1" style="color: #A78BFA;">القرار: {{ s.longTermRec?.action }}</p>
                   </div>
                 </div>
                 <div class="text-left">
-                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px] text-gray-500">ج.م</span></div>
-                  <div class="text-xs text-amber-400 font-bold mt-1">القيمة العادلة: {{ s.longTermRec?.targetPrice }} (+{{ s.fairValueUpsidePercent }}%)</div>
+                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px]" style="color: #6B7280;">ج.م</span></div>
+                  <div class="text-xs font-bold mt-1" style="color: #FBBF24;">القيمة العادلة: {{ s.longTermRec?.targetPrice }} (+{{ s.fairValueUpsidePercent }}%)</div>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Footer -->
-          <div class="mt-12 pt-6 border-t border-gray-800 text-center text-[10px] text-gray-500">
+          <div class="mt-12 pt-6 border-t text-center text-[10px]" style="border-color: #1F2937; color: #6B7280;">
             هذا التقرير تم إنشاؤه آلياً بواسطة EGX Stock Bot ولا يعتبر توصية صريحة بالبيع أو الشراء.
           </div>
         </div>
@@ -419,11 +420,14 @@ export class StrategiesComponent {
       // Temporarily display for rendering
       element.parentElement!.style.display = 'block';
       
+      // IMPORTANT: Wait for browser to reflow the DOM and calculate sizes!
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const opt = {
         margin:       0,
         filename:     `EGX_Top_Strategies_${new Date().toISOString().split('T')[0]}.pdf`,
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        image:        { type: 'jpeg' as const, quality: 0.95 },
+        html2canvas:  { scale: 1.5, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' as const }
       };
 
