@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
 import { HttpClient } from '@angular/common/http';
@@ -460,8 +460,14 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
           </div>
 
           <!-- Empty State -->
-          <div *ngIf="!fundamentalsLoading && !fundamentalsData" class="text-center py-4 text-xs text-gray-400">
+          <div *ngIf="!fundamentalsLoading && !fundamentalsData && !fundamentalsError" class="text-center py-4 text-xs text-gray-400">
             <p>اضغط الزر أعلاه لاستخراج أحدث نتائج أعمال للشركة من الأخبار</p>
+          </div>
+
+          <!-- Error State -->
+          <div *ngIf="fundamentalsError" class="text-center py-4 text-xs text-rose-400 font-bold bg-rose-500/10 rounded-xl border border-rose-500/20">
+            <i class="pi pi-exclamation-triangle mb-1 text-base"></i><br/>
+            {{ fundamentalsError }}
           </div>
 
           <!-- Fundamentals Data -->
@@ -492,6 +498,7 @@ export class StockModalComponent implements OnChanges {
 
   private http = inject(HttpClient);
   private sanitizer = inject(DomSanitizer);
+  private cdr = inject(ChangeDetectorRef);
 
   aiRecommendation: string = '';
   aiProvider: string = '';
@@ -503,6 +510,7 @@ export class StockModalComponent implements OnChanges {
 
   fundamentalsLoading: boolean = false;
   fundamentalsData: any = null;
+  fundamentalsError: string = '';
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['stock'] || changes['visible']) {
@@ -531,6 +539,7 @@ export class StockModalComponent implements OnChanges {
     if (!this.stock) return;
     this.fundamentalsLoading = true;
     this.fundamentalsData = null;
+    this.fundamentalsError = '';
     
     const url = `/api/fundamentals?name=${encodeURIComponent(this.stock.quote.nameAr)}`;
     const headers: any = {};
@@ -543,10 +552,13 @@ export class StockModalComponent implements OnChanges {
       next: (res) => {
         this.fundamentalsData = res.fundamentals;
         this.fundamentalsLoading = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error fetching fundamentals:', err);
+        this.fundamentalsError = 'حدث خطأ أثناء الاتصال بالذكاء الاصطناعي أو السيرفر (تأكد من صحة API Key والاتصال).';
         this.fundamentalsLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -560,6 +572,7 @@ export class StockModalComponent implements OnChanges {
     this.intradayLoading = false;
     this.fundamentalsData = null;
     this.fundamentalsLoading = false;
+    this.fundamentalsError = '';
   }
 
   getFormattedMessage(text: string): SafeHtml {
