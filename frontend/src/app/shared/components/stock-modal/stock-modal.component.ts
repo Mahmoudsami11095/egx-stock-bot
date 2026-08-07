@@ -56,8 +56,10 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
             <!-- Fair Value -->
             <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
               <span class="text-[11px] text-emerald-400 font-bold block">القيمة العادلة المحسوبة</span>
-              <strong class="text-xl text-emeraldAccent font-black block">{{ stock.fairValue }} <small class="text-xs font-normal text-gray-400">ج.م</small></strong>
-              <span class="text-xs text-emeraldAccent font-extrabold block">+{{ stock.fairValueUpsidePercent }}% نمو متوقع</span>
+              <strong class="text-xl text-emeraldAccent font-black block" [ngClass]="{'text-roseAccent': stock.fairValueUpsidePercent < 0}">{{ stock.fairValue }} <small class="text-xs font-normal text-gray-400">ج.م</small></strong>
+              <span class="text-xs font-extrabold block" [ngClass]="stock.fairValueUpsidePercent >= 0 ? 'text-emeraldAccent' : 'text-roseAccent'">
+                {{ stock.fairValueUpsidePercent > 0 ? '+' : '' }}{{ stock.fairValueUpsidePercent }}% {{ stock.fairValueUpsidePercent >= 0 ? 'نمو متوقع' : 'أعلى من التقييم' }}
+              </span>
             </div>
 
             <!-- P/E Ratio -->
