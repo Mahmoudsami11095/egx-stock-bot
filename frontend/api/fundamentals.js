@@ -149,13 +149,14 @@ module.exports = async function handler(req, res) {
     async function getArabicName(companyName, apiKey) {
       if (/[\u0600-\u06FF]/.test(companyName)) return companyName; // Already contains Arabic
       
-      const prompt = `What is the commonly known Arabic name of this Egyptian stock market company: "${companyName}"? Just reply with the short Arabic name without any extra text or symbols.`;
+      const prompt = `What is the commonly known Arabic name of this Egyptian stock market company: "${companyName}"?
+Reply ONLY with a valid JSON object in this format: {"arabicName": "الاسم بالعربي"}`;
       
       let translatedName = companyName;
       for (const model of GEMINI_MODELS) {
         const resp = await callGeminiSingleModel(prompt, apiKey, model);
-        if (resp.data && resp.data.trim()) {
-          translatedName = resp.data.trim();
+        if (resp.data && resp.data.arabicName) {
+          translatedName = resp.data.arabicName.trim();
           break;
         }
       }
