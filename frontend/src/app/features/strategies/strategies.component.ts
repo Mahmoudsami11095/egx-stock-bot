@@ -1,4 +1,6 @@
 import { Component, inject, signal, computed } from '@angular/core';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -77,8 +79,8 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
         </div>
       </div>
 
-      <!-- Filter Tabs -->
-      <div class="flex flex-col sm:flex-row items-center gap-3">
+      <!-- Filter Tabs & Actions -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
         <div class="flex items-center gap-2 p-1 bg-darkCard/80 border border-darkBorder rounded-2xl w-full sm:w-auto overflow-x-auto">
           <button (click)="activeTab.set('SHORT_TERM')"
                   [class]="activeTab() === 'SHORT_TERM' ? 'bg-emerald-500/20 text-emerald-300 font-bold border-emerald-500/30' : 'text-gray-400 hover:text-white border-transparent hover:bg-darkBorder'"
@@ -94,14 +96,24 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
           </button>
         </div>
 
-        <!-- Search -->
-        <div class="flex-1 min-w-[180px] w-full sm:max-w-xs mr-auto">
-          <div class="relative">
-            <i class="pi pi-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
-            <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
-                   placeholder="بحث باسم أو رمز السهم..."
-                   class="w-full bg-darkCard border border-darkBorder rounded-xl py-2.5 pr-9 pl-4 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400/50 transition-colors" />
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <!-- Search -->
+          <div class="flex-1 sm:w-56">
+            <div class="relative">
+              <i class="pi pi-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+              <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
+                     placeholder="بحث باسم أو رمز السهم..."
+                     class="w-full bg-darkCard border border-darkBorder rounded-xl py-2 pr-9 pl-4 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400/50 transition-colors" />
+            </div>
           </div>
+          
+          <!-- Download Button -->
+          <button (click)="downloadReport()" 
+                  [disabled]="isGeneratingPdf"
+                  class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 border border-blue-400/30 whitespace-nowrap disabled:opacity-50 disabled:cursor-wait">
+            <i class="pi" [ngClass]="isGeneratingPdf ? 'pi-spinner pi-spin' : 'pi-file-pdf'"></i>
+            {{ isGeneratingPdf ? 'جاري التحضير...' : 'تحميل PDF' }}
+          </button>
         </div>
       </div>
 
@@ -251,6 +263,66 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
 
       <!-- Detail Modal -->
       <app-stock-modal [(visible)]="modalVisible" [stock]="selectedStock"></app-stock-modal>
+
+      <!-- Hidden PDF Template -->
+      <div style="display: none;">
+        <div id="pdf-report-content" class="bg-[#0A0F1E] text-white p-8 font-sans border border-blue-900/30" dir="rtl" style="width: 800px; min-height: 1122px; border-radius: 12px; background: linear-gradient(135deg, #0A0F1E 0%, #111827 100%);">
+          <!-- Header -->
+          <div class="text-center mb-8 pb-6 border-b border-gray-800">
+            <div class="inline-flex items-center justify-center gap-2 px-4 py-1 rounded-full text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400 mb-4">
+              تقرير التوصيات الاستراتيجية
+            </div>
+            <h1 class="text-3xl font-black mb-2">أفضل 10 أسهم في السوق المصري</h1>
+            <p class="text-gray-400 text-sm">تقرير استراتيجي مفصل بناءً على التحليل الفني والقيم العادلة</p>
+            <p class="text-gray-500 text-xs mt-2">تاريخ التقرير: {{ currentDate }}</p>
+          </div>
+
+          <!-- Top 5 Short Term -->
+          <div class="mb-8">
+            <h2 class="text-xl font-bold text-emerald-400 mb-4 border-r-4 border-emerald-500 pr-3">أفضل 5 فرص تجميع (مدى قصير)</h2>
+            <div class="space-y-3">
+              <div *ngFor="let s of topShortTermStocks(); let i = index" class="bg-gray-900/50 border border-gray-800 p-4 rounded-xl flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">{{ i + 1 }}</div>
+                  <div>
+                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs text-gray-500 font-normal mr-2">{{ s.quote.nameAr }}</span></h3>
+                    <p class="text-xs text-emerald-400 font-semibold mt-1">القرار: {{ s.shortTermRec?.action }}</p>
+                  </div>
+                </div>
+                <div class="text-left">
+                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px] text-gray-500">ج.م</span></div>
+                  <div class="text-xs text-emerald-400 font-bold mt-1">الهدف: {{ s.shortTermRec?.targetPrice }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top 5 Long Term -->
+          <div>
+            <h2 class="text-xl font-bold text-purple-400 mb-4 border-r-4 border-purple-500 pr-3">أفضل 5 فرص استثمار (مدى طويل)</h2>
+            <div class="space-y-3">
+              <div *ngFor="let s of topLongTermStocks(); let i = index" class="bg-gray-900/50 border border-gray-800 p-4 rounded-xl flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">{{ i + 1 }}</div>
+                  <div>
+                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs text-gray-500 font-normal mr-2">{{ s.quote.nameAr }}</span></h3>
+                    <p class="text-xs text-purple-400 font-semibold mt-1">القرار: {{ s.longTermRec?.action }}</p>
+                  </div>
+                </div>
+                <div class="text-left">
+                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px] text-gray-500">ج.م</span></div>
+                  <div class="text-xs text-amber-400 font-bold mt-1">القيمة العادلة: {{ s.longTermRec?.targetPrice }} (+{{ s.fairValueUpsidePercent }}%)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mt-12 pt-6 border-t border-gray-800 text-center text-[10px] text-gray-500">
+            هذا التقرير تم إنشاؤه آلياً بواسطة EGX Stock Bot ولا يعتبر توصية صريحة بالبيع أو الشراء.
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -267,6 +339,8 @@ export class StrategiesComponent {
   public apiService = inject(StockApiService);
   public modalVisible = false;
   public selectedStock: StockAnalysisResult | null = null;
+  public isGeneratingPdf = false;
+  public currentDate = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
 
   public activeTab = signal<StrategyTab>('SHORT_TERM');
   public searchTerm = signal<string>('');
@@ -318,6 +392,52 @@ export class StrategiesComponent {
     const sorted = [...activeStocks].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent);
     return sorted.filter(s => this.matchesSearch(s));
   });
+
+  // Top Stocks For PDF Report
+  topShortTermStocks = computed(() => {
+    // Only return top 5 stocks that have actual BUY/ACCUMULATE actions
+    const activeStocks = this.apiService.stocks().filter(s => 
+      this.isHalalOnly(s) && s.shortTermRec && 
+      (s.shortTermRec.action.includes('تجميع') || s.shortTermRec.action.includes('شراء'))
+    );
+    return [...activeStocks].sort((a, b) => b.quote.changePercent - a.quote.changePercent).slice(0, 5);
+  });
+
+  topLongTermStocks = computed(() => {
+    const activeStocks = this.apiService.stocks().filter(s => 
+      this.isHalalOnly(s) && s.longTermRec && s.fairValueUpsidePercent > 10
+    );
+    return [...activeStocks].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent).slice(0, 5);
+  });
+
+  async downloadReport() {
+    this.isGeneratingPdf = true;
+    try {
+      const element = document.getElementById('pdf-report-content');
+      if (!element) return;
+      
+      // Temporarily display for rendering
+      element.parentElement!.style.display = 'block';
+      
+      const opt = {
+        margin:       0,
+        filename:     `EGX_Top_Strategies_${new Date().toISOString().split('T')[0]}.pdf`,
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+    } finally {
+      const element = document.getElementById('pdf-report-content');
+      if (element) {
+        element.parentElement!.style.display = 'none';
+      }
+      this.isGeneratingPdf = false;
+    }
+  }
 
   selectStock(stock: StockAnalysisResult) {
     this.selectedStock = stock;
