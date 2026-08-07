@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectorRef } from '@angular/core';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 import { CommonModule } from '@angular/common';
@@ -394,6 +394,7 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
 })
 export class StrategiesComponent {
   public apiService = inject(StockApiService);
+  private cdr = inject(ChangeDetectorRef);
   public modalVisible = false;
   public selectedStock: StockAnalysisResult | null = null;
   public isGeneratingPdf = false;
@@ -503,6 +504,7 @@ export class StrategiesComponent {
       if (elementLong) elementLong.parentElement!.style.display = 'none';
       
       this.isGeneratingPdf = false;
+      this.cdr.detectChanges();
     }
   }
 
