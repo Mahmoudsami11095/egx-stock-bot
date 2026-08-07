@@ -1,4 +1,6 @@
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const ISIN_SYMBOL_MAP = {
   'EGS72XL1C014': { symbol: 'PHGC', name: 'بريميوم هيلثكير جروب (PHGC)' },
@@ -8,6 +10,23 @@ const ISIN_SYMBOL_MAP = {
 const CONVENTIONAL_NON_HALAL = new Set([
   'COMI', 'CIEB', 'HDBK', 'EXPA', 'QNBA', 'EAST', 'SUGR', 'EKHO', 'SAIB'
 ]);
+
+// ─── EARNINGS OVERRIDE LOADING ──────────────────────────────────────────────
+// Load manual earnings overrides from data/earnings_overrides.json
+// This allows pasting latest EGX bulletin data to override TradingView's stale TTM
+function loadEarningsOverrides() {
+  try {
+    const overridePath = path.join(__dirname, '..', 'data', 'earnings_overrides.json');
+    if (fs.existsSync(overridePath)) {
+      const raw = fs.readFileSync(overridePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return parsed.overrides || {};
+    }
+  } catch (e) {
+    console.warn('Could not load earnings overrides:', e.message);
+  }
+  return {};
+}
 
 function fetchHttpsJson(url) {
   return new Promise((resolve) => {
@@ -64,7 +83,11 @@ function fetchTradingViewScan() {
         'high', 'low', 'price_52_week_high', 'price_52_week_low',
         'RSI', 'SMA20', 'SMA50', 'price_earnings_ttm', 'earnings_per_share_basic_ttm',
         'Recommend.All', 'MACD.macd', 'MACD.signal', 'ADX', 'ATR',
-        'dividend_yield_recent', 'dps_common_stock_prim_issue_fy', 'book_value_per_share_fq', 'net_income_ttm', 'total_shares_outstanding'
+        'dividend_yield_recent', 'dps_common_stock_prim_issue_fy', 'book_value_per_share_fq',
+        'net_income_ttm', 'total_shares_outstanding',
+        // New columns for smart EPS
+        'net_income_fq', 'net_income_fy', 'last_annual_eps', 'earnings_release_date',
+        'after_tax_margin'
       ],
       sort: { sortBy: 'volume', sortOrder: 'desc' },
       range: [0, 350]
@@ -97,7 +120,10 @@ function fetchTradingViewScan() {
               dayHigh, dayLow, fiftyTwoWeekHigh, fiftyTwoWeekLow,
               rsi, sma20, sma50, peRatioRaw, epsRaw,
               recommendScore, macdVal, macdSignalVal, adxVal, atrVal,
-              divYieldTv, dpsTv, bvpsTv, netIncomeTv, totalSharesTv
+              divYieldTv, dpsTv, bvpsTv, netIncomeTtm, totalSharesTv,
+              // New fields
+              netIncomeFq, netIncomeFy, lastAnnualEps, earningsReleaseDate,
+              afterTaxMargin
             ] = row.d;
 
             const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -114,23 +140,6 @@ function fetchTradingViewScan() {
               finalName = description;
             }
 
-            // 100% Dynamic EPS resolution for any stock on EGX
-            let effectiveEps = (epsRaw && epsRaw > 0) ? epsRaw : undefined;
-            if (!effectiveEps && netIncomeTv && totalSharesTv && totalSharesTv > 0) {
-              effectiveEps = netIncomeTv / totalSharesTv;
-            }
-            if (!effectiveEps && dpsTv && dpsTv > 0) {
-              effectiveEps = dpsTv / 0.60;
-            }
-
-            // 100% Dynamic Dividend Yield & DPS resolution
-            const effectiveDps = dpsTv || (divYieldTv && currentPrice > 0 ? (currentPrice * divYieldTv) / 100 : undefined);
-            const effectiveDivYield = (divYieldTv && divYieldTv > 0) ? Number(divYieldTv.toFixed(2)) : (effectiveDps && currentPrice > 0 ? Number(((effectiveDps / currentPrice) * 100).toFixed(2)) : undefined);
-            const effectiveDivPerShare = effectiveDps ? Number(effectiveDps.toFixed(2)) : undefined;
-
-            // 100% Dynamic P/E Ratio resolution
-            const effectivePe = peRatioRaw ? Number(peRatioRaw.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : undefined);
-
             results.push({
               rawSym,
               symbol: finalSymbol,
@@ -146,11 +155,18 @@ function fetchTradingViewScan() {
               rsi: rsi ? Number(rsi.toFixed(2)) : 50,
               sma20: sma20 ? Number(sma20.toFixed(2)) : currentPrice,
               sma50: sma50 ? Number(sma50.toFixed(2)) : currentPrice,
-              peRatio: effectivePe,
-              eps: effectiveEps,
-              dividendYield: effectiveDivYield,
-              dividendPerShare: effectiveDivPerShare,
+              peRatioRaw,
+              epsRaw,
+              divYieldTv,
+              dpsTv,
               bvps: bvpsTv,
+              netIncomeTtm,
+              totalShares: totalSharesTv,
+              netIncomeFq,
+              netIncomeFy,
+              lastAnnualEps,
+              earningsReleaseDate,
+              afterTaxMargin,
               recommendScore: recommendScore || 0,
               macdVal: macdVal ? Number(macdVal.toFixed(4)) : 0,
               macdSignalVal: macdSignalVal ? Number(macdSignalVal.toFixed(4)) : 0,
@@ -176,7 +192,183 @@ function fetchTradingViewScan() {
   });
 }
 
-function calculateFairValue(stock) {
+// ─── SMART EPS ENGINE ────────────────────────────────────────────────────────
+// 3-tier EPS estimation with earnings freshness detection and manual override
+function computeSmartEps(stock, override) {
+  const now = Date.now() / 1000; // current time in seconds
+  const STALE_THRESHOLD = 180 * 24 * 3600; // 6 months in seconds
+
+  // ── TIER 0: Manual EGX Bulletin Override (highest priority) ──
+  if (override) {
+    const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
+    const shares = override.totalShares || stock.totalShares;
+    if (shares && shares > 0) {
+      const overrideEps = annualizedNetProfit / shares;
+      // Also blend with TTM if available (30% TTM + 70% override)
+      const ttmEps = stock.epsRaw > 0 ? stock.epsRaw :
+                     (stock.netIncomeTtm && stock.totalShares > 0 ? stock.netIncomeTtm / stock.totalShares : null);
+      let blendedEps = overrideEps;
+      if (ttmEps && ttmEps > 0) {
+        blendedEps = 0.70 * overrideEps + 0.30 * ttmEps;
+      }
+      return {
+        eps: blendedEps,
+        source: 'OVERRIDE',
+        confidence: 'HIGH',
+        details: `EGX Bulletin: ${override.source} | Annualized NI: ${(annualizedNetProfit / 1e9).toFixed(2)}B | EPS: ${overrideEps.toFixed(2)}`
+      };
+    }
+  }
+
+  // ── TIER 1: TradingView TTM EPS (if fresh) ──
+  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : Infinity;
+  const isFresh = earningsAge < STALE_THRESHOLD;
+
+  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
+    return {
+      eps: stock.epsRaw,
+      source: 'TTM_FRESH',
+      confidence: 'HIGH',
+      details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)`
+    };
+  }
+
+  // ── TIER 2: Smart Annualized from quarterly + growth projection ──
+  const totalShares = stock.totalShares;
+  if (totalShares && totalShares > 0) {
+    // 2a: Annualize latest fiscal quarter if available
+    let annualizedQtrEps = null;
+    if (stock.netIncomeFq && stock.netIncomeFq > 0) {
+      annualizedQtrEps = (stock.netIncomeFq * 4) / totalShares;
+    }
+
+    // 2b: Compute YoY growth rate from TTM vs FY
+    let growthRate = 0;
+    if (stock.netIncomeTtm && stock.netIncomeFy && stock.netIncomeFy > 0) {
+      growthRate = (stock.netIncomeTtm - stock.netIncomeFy) / Math.abs(stock.netIncomeFy);
+      growthRate = Math.max(-0.50, Math.min(1.0, growthRate)); // clamp to [-50%, +100%]
+    }
+
+    // 2c: Growth-projected EPS from last annual EPS
+    let projectedEps = null;
+    if (stock.lastAnnualEps && stock.lastAnnualEps > 0) {
+      projectedEps = stock.lastAnnualEps * (1 + growthRate);
+    }
+
+    // 2d: TTM-derived EPS
+    let ttmDerivedEps = null;
+    if (stock.netIncomeTtm && stock.netIncomeTtm > 0) {
+      ttmDerivedEps = stock.netIncomeTtm / totalShares;
+    }
+
+    // If TTM exists but stale, blend with growth projection
+    if (ttmDerivedEps && ttmDerivedEps > 0) {
+      if (projectedEps && projectedEps > 0 && growthRate !== 0) {
+        // Blend: 60% TTM + 40% growth-projected
+        const blendedEps = 0.60 * ttmDerivedEps + 0.40 * projectedEps;
+        return {
+          eps: blendedEps,
+          source: 'TTM_GROWTH_BLEND',
+          confidence: 'HIGH',
+          details: `TTM: ${ttmDerivedEps.toFixed(2)} | Growth: ${(growthRate * 100).toFixed(1)}% | Projected: ${projectedEps.toFixed(2)} | Blended: ${blendedEps.toFixed(2)}`
+        };
+      }
+      return {
+        eps: ttmDerivedEps,
+        source: 'TTM_DERIVED',
+        confidence: 'HIGH',
+        details: `Derived from net_income_ttm / total_shares`
+      };
+    }
+
+    // If only quarterly data exists, annualize it
+    if (annualizedQtrEps && annualizedQtrEps > 0) {
+      // Temper quarterly annualization — single quarter can be noisy
+      // Blend with last annual EPS if available (50/50)
+      if (stock.lastAnnualEps && stock.lastAnnualEps > 0) {
+        const blended = 0.50 * annualizedQtrEps + 0.50 * stock.lastAnnualEps;
+        return {
+          eps: blended,
+          source: 'QTR_ANNUAL_BLEND',
+          confidence: 'MEDIUM',
+          details: `Qtr annualized: ${annualizedQtrEps.toFixed(2)} | Last annual: ${stock.lastAnnualEps.toFixed(2)} | Blended: ${blended.toFixed(2)}`
+        };
+      }
+      return {
+        eps: annualizedQtrEps,
+        source: 'QTR_ANNUALIZED',
+        confidence: 'MEDIUM',
+        details: `net_income_fq × 4 / total_shares`
+      };
+    }
+
+    // If we have last annual EPS and nothing else
+    if (stock.lastAnnualEps && stock.lastAnnualEps > 0) {
+      return {
+        eps: stock.lastAnnualEps,
+        source: 'LAST_ANNUAL',
+        confidence: 'MEDIUM',
+        details: `Last completed fiscal year EPS`
+      };
+    }
+  }
+
+  // ── TIER 3: Fallback — existing dynamic resolution (DPS-based) ──
+  if (stock.epsRaw && stock.epsRaw > 0) {
+    return {
+      eps: stock.epsRaw,
+      source: 'TTM_STALE',
+      confidence: 'MEDIUM',
+      details: `TradingView TTM EPS (stale, ${Math.round(earningsAge / 86400)}d old)`
+    };
+  }
+
+  if (stock.dpsTv && stock.dpsTv > 0) {
+    const dpsEps = stock.dpsTv / 0.60;
+    return {
+      eps: dpsEps,
+      source: 'DPS_DERIVED',
+      confidence: 'LOW',
+      details: `Estimated from DPS (${stock.dpsTv}) / 0.60 payout ratio`
+    };
+  }
+
+  return { eps: null, source: 'NONE', confidence: 'LOW', details: 'No EPS data available' };
+}
+
+// ─── RESOLVE FULL FUNDAMENTALS ───────────────────────────────────────────────
+function resolveFundamentals(stock, override) {
+  const smartEps = computeSmartEps(stock, override);
+
+  // EPS
+  const eps = smartEps.eps;
+
+  // P/E Ratio
+  const peRatio = stock.peRatioRaw ? Number(stock.peRatioRaw.toFixed(2)) :
+    (eps && eps > 0 ? Number((stock.currentPrice / eps).toFixed(2)) : undefined);
+
+  // DPS — override takes priority
+  const dps = (override && override.dps) ? override.dps :
+    stock.dpsTv || (stock.divYieldTv && stock.currentPrice > 0 ? (stock.currentPrice * stock.divYieldTv) / 100 : undefined);
+
+  // Dividend Yield
+  const dividendYield = (stock.divYieldTv && stock.divYieldTv > 0) ? Number(stock.divYieldTv.toFixed(2)) :
+    (dps && stock.currentPrice > 0 ? Number(((dps / stock.currentPrice) * 100).toFixed(2)) : undefined);
+
+  const dividendPerShare = dps ? Number(Number(dps).toFixed(2)) : undefined;
+
+  return {
+    eps,
+    peRatio,
+    dividendYield,
+    dividendPerShare,
+    epsSource: smartEps.source,
+    epsConfidence: smartEps.confidence,
+    epsDetails: smartEps.details
+  };
+}
+
+function calculateFairValue(stock, fundamentals) {
   const price = stock.currentPrice;
   const low52 = stock.fiftyTwoWeekLow || price * 0.7;
   const high52 = stock.fiftyTwoWeekHigh || price * 1.3;
@@ -184,22 +376,24 @@ function calculateFairValue(stock) {
   const clampedScore = Math.max(-1, Math.min(1, stock.recommendScore || 0));
   const momentumMultiplier = 1 + (clampedScore * 0.05);
 
-  if (stock.eps && stock.eps > 0) {
+  if (fundamentals.eps && fundamentals.eps > 0) {
     // Model A: Dynamic EPS Valuation
     const sectorPE = 12.0;
-    const fairValueRaw = stock.eps * sectorPE * momentumMultiplier * macroDiscount;
+    const fairValueRaw = fundamentals.eps * sectorPE * momentumMultiplier * macroDiscount;
     const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
-    return { fairValue: Number(clamped.toFixed(2)), confidence: 'HIGH' };
+    const conf = fundamentals.epsConfidence === 'HIGH' ? 'HIGH' :
+                 fundamentals.epsConfidence === 'MEDIUM' ? 'MEDIUM' : 'LOW';
+    return { fairValue: Number(clamped.toFixed(2)), confidence: conf };
   } else if (stock.bvps && stock.bvps > 0) {
     // Model B: Dynamic Book Value (Graham-style) Valuation
     const sectorPB = 2.8;
     const fairValueRaw = stock.bvps * sectorPB * momentumMultiplier * macroDiscount;
     const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
     return { fairValue: Number(clamped.toFixed(2)), confidence: 'MEDIUM' };
-  } else if (stock.dividendPerShare && stock.dividendPerShare > 0) {
+  } else if (fundamentals.dividendPerShare && fundamentals.dividendPerShare > 0) {
     // Model C: Dynamic Dividend Discount Model (DDM)
     const requiredReturn = 0.12;
-    const fairValueRaw = (stock.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
+    const fairValueRaw = (fundamentals.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
     const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
     return { fairValue: Number(clamped.toFixed(2)), confidence: 'MEDIUM' };
   }
@@ -221,99 +415,47 @@ function calculateIntradaySignal(stock) {
   const price = stock.currentPrice;
   let score = 0;
 
-  // 1. Volume Momentum (0 to +3 points) - institutional activity detection
   if (stock.volume > 0 && stock.avgVolume > 0) {
     const volRatio = stock.volume / stock.avgVolume;
-    if (volRatio >= 2.0) {
-      score += 3;
-      reasons.push(`⚡ حجم تداول استثنائي (${volRatio.toFixed(1)}x المتوسط) - نشاط مؤسسي قوي`);
-    } else if (volRatio >= 1.5) {
-      score += 2;
-      reasons.push(`📈 ارتفاع حجم التداول (${volRatio.toFixed(1)}x المتوسط) - زخم متزايد`);
-    } else if (volRatio >= 1.2) {
-      score += 1;
-      reasons.push(`📊 حجم تداول فوق المتوسط (${volRatio.toFixed(1)}x)`);
-    }
+    if (volRatio >= 2.0) { score += 3; reasons.push(`⚡ حجم تداول استثنائي (${volRatio.toFixed(1)}x المتوسط) - نشاط مؤسسي قوي`); }
+    else if (volRatio >= 1.5) { score += 2; reasons.push(`📈 ارتفاع حجم التداول (${volRatio.toFixed(1)}x المتوسط) - زخم متزايد`); }
+    else if (volRatio >= 1.2) { score += 1; reasons.push(`📊 حجم تداول فوق المتوسط (${volRatio.toFixed(1)}x)`); }
   }
 
-  // 2. RSI Levels (-2 to +2 points) - overbought/oversold for intraday
-  if (stock.rsi < 30) {
-    score += 2;
-    reasons.push(`🚀 RSI (${stock.rsi}) تشبع بيعي حاد - فرصة ارتداد سريع`);
-  } else if (stock.rsi < 40) {
-    score += 1;
-    reasons.push(`📈 RSI (${stock.rsi}) في منطقة الارتداد الإيجابي`);
-  } else if (stock.rsi > 80) {
-    score -= 2;
-    reasons.push(`🚨 RSI (${stock.rsi}) تشبع شرائي حاد - خطر جني أرباح`);
-  } else if (stock.rsi > 70) {
-    score -= 1;
-    reasons.push(`⚠️ RSI (${stock.rsi}) تشبع شرائي - احترس من التصحيح`);
-  }
+  if (stock.rsi < 30) { score += 2; reasons.push(`🚀 RSI (${stock.rsi}) تشبع بيعي حاد - فرصة ارتداد سريع`); }
+  else if (stock.rsi < 40) { score += 1; reasons.push(`📈 RSI (${stock.rsi}) في منطقة الارتداد الإيجابي`); }
+  else if (stock.rsi > 80) { score -= 2; reasons.push(`🚨 RSI (${stock.rsi}) تشبع شرائي حاد - خطر جني أرباح`); }
+  else if (stock.rsi > 70) { score -= 1; reasons.push(`⚠️ RSI (${stock.rsi}) تشبع شرائي - احترس من التصحيح`); }
 
-  // 3. Price position in day range (-1 to +1 points)
   if (stock.dayHigh > stock.dayLow) {
     const dayRange = stock.dayHigh - stock.dayLow;
-    const positionFromLow = (price - stock.dayLow) / dayRange; // 0 = at low, 1 = at high
-    if (positionFromLow <= 0.25) {
-      score += 1;
-      reasons.push(`📥 السعر قرب أدنى مستوى اليوم - نقطة دخول منخفضة`);
-    } else if (positionFromLow >= 0.75) {
-      score -= 1;
-      reasons.push(`📤 السعر قرب أعلى مستوى اليوم - مخاطرة شراء مرتفعة`);
-    }
+    const positionFromLow = (price - stock.dayLow) / dayRange;
+    if (positionFromLow <= 0.25) { score += 1; reasons.push(`📥 السعر قرب أدنى مستوى اليوم - نقطة دخول منخفضة`); }
+    else if (positionFromLow >= 0.75) { score -= 1; reasons.push(`📤 السعر قرب أعلى مستوى اليوم - مخاطرة شراء مرتفعة`); }
   }
 
-  // 4. Today's change momentum (-1 to +1 points)
-  if (stock.changePercent >= 3) {
-    score += 1;
-    reasons.push(`🔥 صعود قوي اليوم (+${stock.changePercent}%) - زخم صاعد`);
-  } else if (stock.changePercent <= -3) {
-    score -= 1;
-    reasons.push(`📉 هبوط قوي اليوم (${stock.changePercent}%) - ضغط بيعي`);
-  }
+  if (stock.changePercent >= 3) { score += 1; reasons.push(`🔥 صعود قوي اليوم (+${stock.changePercent}%) - زخم صاعد`); }
+  else if (stock.changePercent <= -3) { score -= 1; reasons.push(`📉 هبوط قوي اليوم (${stock.changePercent}%) - ضغط بيعي`); }
 
-  // 5. MACD crossover (-1 to +1 points)
-  if (stock.macdVal > stock.macdSignalVal) {
-    score += 1;
-    reasons.push(`🟢 MACD تقاطع إيجابي (صاعد)`);
-  } else {
-    score -= 1;
-    reasons.push(`🔴 MACD تقاطع سلبي (هابط)`);
-  }
+  if (stock.macdVal > stock.macdSignalVal) { score += 1; reasons.push(`🟢 MACD تقاطع إيجابي (صاعد)`); }
+  else { score -= 1; reasons.push(`🔴 MACD تقاطع سلبي (هابط)`); }
 
-  // 6. Trend vs SMA20 (-1 to +1 points)
-  if (price > stock.sma20) {
-    score += 1;
-    reasons.push(`🐂 السعر فوق SMA20 - اتجاه صاعد داخل الجلسة`);
-  } else {
-    score -= 1;
-    reasons.push(`🐻 السعر تحت SMA20 - اتجاه هابط داخل الجلسة`);
-  }
+  if (price > stock.sma20) { score += 1; reasons.push(`🐂 السعر فوق SMA20 - اتجاه صاعد داخل الجلسة`); }
+  else { score -= 1; reasons.push(`🐻 السعر تحت SMA20 - اتجاه هابط داخل الجلسة`); }
 
-  // Determine intraday signal type
   let intradaySignal = 'NEUTRAL';
   if (score >= 5) intradaySignal = 'STRONG_BUY';
   else if (score >= 2) intradaySignal = 'BUY';
   else if (score <= -5) intradaySignal = 'STRONG_SELL';
   else if (score <= -2) intradaySignal = 'SELL';
 
-  // Calculate intraday entry, target, stop loss based on ATR
   const atrVal = stock.atrVal || price * 0.02;
   const isBuy = score >= 0;
-
   const intradayEntry = Number(price.toFixed(2));
   const intradayTarget = Number((price + (isBuy ? 1 : -1) * Math.max(atrVal * 1.5, price * 0.02)).toFixed(2));
   const intradayStopLoss = Number((price + (isBuy ? -1 : 1) * Math.max(atrVal, price * 0.015)).toFixed(2));
 
-  return {
-    intradaySignal,
-    intradayScore: score,
-    intradayReasons: reasons,
-    intradayEntry,
-    intradayTarget,
-    intradayStopLoss
-  };
+  return { intradaySignal, intradayScore: score, intradayReasons: reasons, intradayEntry, intradayTarget, intradayStopLoss };
 }
 
 function calculateSignal(stock, fairValue, fairValueUpsidePercent) {
@@ -349,9 +491,7 @@ function calculateSignal(stock, fairValue, fairValueUpsidePercent) {
   const entryMax = Number((price * 1.01).toFixed(2));
 
   return {
-    signalType,
-    signalScore: totalScore,
-    reasons,
+    signalType, signalScore: totalScore, reasons,
     suggestedEntry: { min: entryMin, max: entryMax },
     suggestedTarget1: Number(Math.max(price * 1.05, Math.min(fairValue, price * 1.15)).toFixed(2)),
     suggestedTarget2: fairValue,
@@ -370,6 +510,8 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Load earnings overrides and fetch data in parallel
+    const earningsOverrides = loadEarningsOverrides();
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
       fetchHalalSymbolsSet()
@@ -381,15 +523,16 @@ module.exports = async (req, res) => {
       const symUpper = s.symbol.toUpperCase();
       const rawUpper = (s.rawSym || '').toUpperCase();
 
-      if (CONVENTIONAL_NON_HALAL.has(symUpper) || CONVENTIONAL_NON_HALAL.has(rawUpper)) {
-        continue;
-      }
+      if (CONVENTIONAL_NON_HALAL.has(symUpper) || CONVENTIONAL_NON_HALAL.has(rawUpper)) continue;
+      if (halalSet && !halalSet.has(symUpper) && !halalSet.has(rawUpper)) continue;
 
-      if (halalSet && !halalSet.has(symUpper) && !halalSet.has(rawUpper)) {
-        continue;
-      }
+      // Look up manual override for this symbol
+      const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
 
-      const { fairValue, confidence } = calculateFairValue(s);
+      // Resolve fundamentals using smart EPS engine
+      const fundamentals = resolveFundamentals(s, override);
+
+      const { fairValue, confidence } = calculateFairValue(s, fundamentals);
       const upsidePercent = Number((((fairValue - s.currentPrice) / s.currentPrice) * 100).toFixed(2));
       const signalData = calculateSignal(s, fairValue, upsidePercent);
       const intradayData = calculateIntradaySignal(s);
@@ -400,49 +543,31 @@ module.exports = async (req, res) => {
       let stBadge = 'ترقب';
       let stReason = 'السهم يتداول في مسار عرضي، يُنصح بالاحتفاظ مع الالتزام بوقف الخسارة.';
       if (s.sma20 > s.sma50 && s.macdVal !== undefined && s.macdSignalVal !== undefined && s.macdVal > s.macdSignalVal) {
-        stAction = 'تجميع فني (Buy/Accumulate)';
-        stBadge = 'إيجابي';
+        stAction = 'تجميع فني (Buy/Accumulate)'; stBadge = 'إيجابي';
         stReason = 'اتجاه صاعد على المدى القصير مع زخم إيجابي للماكد. ينصح بالتجميع بالقرب من مناطق الدعم.';
       } else if (s.sma20 < s.sma50 && s.rsi < 40) {
-        stAction = 'ترقب ارتداد (Watch)';
-        stBadge = 'مراقبة';
+        stAction = 'ترقب ارتداد (Watch)'; stBadge = 'مراقبة';
         stReason = 'السهم في مسار هابط ولكن يقترب من مناطق تشبع بيعي. ننتظر إشارة انعكاس.';
       } else if (s.rsi > 70) {
-        stAction = 'جني أرباح جزئي (Take Profit)';
-        stBadge = 'مخاطرة';
+        stAction = 'جني أرباح جزئي (Take Profit)'; stBadge = 'مخاطرة';
         stReason = 'السهم في مناطق تشبع شرائي قوية، يُنصح بتخفيف المراكز وجني الأرباح.';
       }
-      const shortTermRec = {
-        action: stAction,
-        badge: stBadge,
-        reason: stReason,
-        targetPrice: signalData.suggestedTarget1,
-        stopLoss: signalData.suggestedStopLoss
-      };
+      const shortTermRec = { action: stAction, badge: stBadge, reason: stReason, targetPrice: signalData.suggestedTarget1, stopLoss: signalData.suggestedStopLoss };
 
       // Long-Term (1-3 years)
-      let ltAction = 'احتفاظ استثماري (Hold)';
-      let ltBadge = 'عادل';
+      let ltAction = 'احتفاظ استثماري (Hold)'; let ltBadge = 'عادل';
       let ltReason = 'السهم يتداول بالقرب من قيمته العادلة الأساسية.';
       if (upsidePercent >= 20) {
-        ltAction = 'استثمار طويل الأجل (Strong Buy)';
-        ltBadge = 'فرصة قيمة';
+        ltAction = 'استثمار طويل الأجل (Strong Buy)'; ltBadge = 'فرصة قيمة';
         ltReason = 'السهم يتداول بخصم كبير عن قيمته العادلة، يمثل فرصة استثمارية ممتازة بناءً على الأساسيات.';
       } else if (upsidePercent >= 5) {
-        ltAction = 'تجميع استثماري (Accumulate)';
-        ltBadge = 'أقل من القيمة';
+        ltAction = 'تجميع استثماري (Accumulate)'; ltBadge = 'أقل من القيمة';
         ltReason = 'السهم يتداول دون قيمته العادلة، يُنصح ببناء مراكز استثمارية تدريجياً.';
       } else if (upsidePercent <= -15) {
-        ltAction = 'تخفيف مراكز (Reduce)';
-        ltBadge = 'مبالغة سعرية';
+        ltAction = 'تخفيف مراكز (Reduce)'; ltBadge = 'مبالغة سعرية';
         ltReason = 'السهم يتداول بعلاوة سعرية عالية فوق قيمته العادلة، يُنصح بجني الأرباح لتجنب التصحيح.';
       }
-      const longTermRec = {
-        action: ltAction,
-        badge: ltBadge,
-        reason: ltReason,
-        targetPrice: fairValue
-      };
+      const longTermRec = { action: ltAction, badge: ltBadge, reason: ltReason, targetPrice: fairValue };
 
       processed.push({
         symbol: s.symbol,
@@ -458,8 +583,10 @@ module.exports = async (req, res) => {
         rsi: s.rsi,
         sma20: s.sma20,
         sma50: s.sma50,
-        peRatio: s.peRatio,
-        eps: s.eps,
+        peRatio: fundamentals.peRatio,
+        eps: fundamentals.eps,
+        epsSource: fundamentals.epsSource,
+        epsDetails: fundamentals.epsDetails,
         macdVal: s.macdVal,
         macdSignalVal: s.macdSignalVal,
         adxVal: s.adxVal,
@@ -484,9 +611,9 @@ module.exports = async (req, res) => {
           fiftyTwoWeekLow: s.fiftyTwoWeekLow,
           volume: s.volume,
           avgVolume: s.avgVolume,
-          peRatio: s.peRatio,
-          dividendYield: s.dividendYield,
-          dividendPerShare: s.dividendPerShare
+          peRatio: fundamentals.peRatio,
+          dividendYield: fundamentals.dividendYield,
+          dividendPerShare: fundamentals.dividendPerShare
         },
         indicators: {
           rsi: s.rsi,

@@ -1,9 +1,149 @@
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
 import { StockMeta, getSectorPE, getSectorPB, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
 import { NewsScraperService } from './newsScraperService';
 import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
+
+// ─── EARNINGS OVERRIDE LOADING ──────────────────────────────────────────────
+interface EarningsOverride {
+  netProfit: number;
+  periodMonths: number;
+  totalShares?: number;
+  dps?: number;
+  source: string;
+  updatedAt: string;
+}
+
+function loadEarningsOverrides(): Record<string, EarningsOverride> {
+  try {
+    const overridePath = path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json');
+    if (fs.existsSync(overridePath)) {
+      const raw = fs.readFileSync(overridePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return parsed.overrides || {};
+    }
+  } catch (e: any) {
+    logger.warn(`Could not load earnings overrides: ${e.message}`);
+  }
+  return {};
+}
+
+// ─── SMART EPS ENGINE ────────────────────────────────────────────────────────
+interface SmartEpsResult {
+  eps: number | null;
+  source: string;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  details: string;
+}
+
+function computeSmartEps(
+  epsRaw: number | null | undefined,
+  netIncomeTtm: number | null | undefined,
+  netIncomeFq: number | null | undefined,
+  netIncomeFy: number | null | undefined,
+  lastAnnualEps: number | null | undefined,
+  earningsReleaseDate: number | null | undefined,
+  totalShares: number | null | undefined,
+  dpsTv: number | null | undefined,
+  override: EarningsOverride | null
+): SmartEpsResult {
+  const now = Date.now() / 1000;
+  const STALE_THRESHOLD = 180 * 24 * 3600;
+
+  // Tier 0: Manual EGX Bulletin Override
+  if (override) {
+    const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
+    const shares = override.totalShares || totalShares;
+    if (shares && shares > 0) {
+      const overrideEps = annualizedNetProfit / shares;
+      const ttmEps = (epsRaw && epsRaw > 0) ? epsRaw :
+        (netIncomeTtm && totalShares && totalShares > 0 ? netIncomeTtm / totalShares : null);
+      let blendedEps = overrideEps;
+      if (ttmEps && ttmEps > 0) {
+        blendedEps = 0.70 * overrideEps + 0.30 * ttmEps;
+      }
+      return {
+        eps: blendedEps, source: 'OVERRIDE', confidence: 'HIGH',
+        details: `EGX Bulletin: ${override.source} | Annualized NI: ${(annualizedNetProfit / 1e9).toFixed(2)}B | EPS: ${overrideEps.toFixed(2)}`
+      };
+    }
+  }
+
+  // Tier 1: Fresh TTM EPS
+  const earningsAge = earningsReleaseDate ? (now - earningsReleaseDate) : Infinity;
+  const isFresh = earningsAge < STALE_THRESHOLD;
+
+  if (epsRaw && epsRaw > 0 && isFresh) {
+    return { eps: epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
+      details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)` };
+  }
+
+  // Tier 2: Smart Annualized
+  if (totalShares && totalShares > 0) {
+    let annualizedQtrEps: number | null = null;
+    if (netIncomeFq && netIncomeFq > 0) {
+      annualizedQtrEps = (netIncomeFq * 4) / totalShares;
+    }
+
+    let growthRate = 0;
+    if (netIncomeTtm && netIncomeFy && netIncomeFy > 0) {
+      growthRate = (netIncomeTtm - netIncomeFy) / Math.abs(netIncomeFy);
+      growthRate = Math.max(-0.50, Math.min(1.0, growthRate));
+    }
+
+    let projectedEps: number | null = null;
+    if (lastAnnualEps && lastAnnualEps > 0) {
+      projectedEps = lastAnnualEps * (1 + growthRate);
+    }
+
+    let ttmDerivedEps: number | null = null;
+    if (netIncomeTtm && netIncomeTtm > 0) {
+      ttmDerivedEps = netIncomeTtm / totalShares;
+    }
+
+    if (ttmDerivedEps && ttmDerivedEps > 0) {
+      if (projectedEps && projectedEps > 0 && growthRate !== 0) {
+        const blendedEps = 0.60 * ttmDerivedEps + 0.40 * projectedEps;
+        return { eps: blendedEps, source: 'TTM_GROWTH_BLEND', confidence: 'HIGH',
+          details: `TTM: ${ttmDerivedEps.toFixed(2)} | Growth: ${(growthRate * 100).toFixed(1)}% | Blended: ${blendedEps.toFixed(2)}` };
+      }
+      return { eps: ttmDerivedEps, source: 'TTM_DERIVED', confidence: 'HIGH',
+        details: `Derived from net_income_ttm / total_shares` };
+    }
+
+    if (annualizedQtrEps && annualizedQtrEps > 0) {
+      if (lastAnnualEps && lastAnnualEps > 0) {
+        const blended = 0.50 * annualizedQtrEps + 0.50 * lastAnnualEps;
+        return { eps: blended, source: 'QTR_ANNUAL_BLEND', confidence: 'MEDIUM',
+          details: `Qtr annualized: ${annualizedQtrEps.toFixed(2)} | Last annual: ${lastAnnualEps.toFixed(2)}` };
+      }
+      return { eps: annualizedQtrEps, source: 'QTR_ANNUALIZED', confidence: 'MEDIUM',
+        details: `net_income_fq × 4 / total_shares` };
+    }
+
+    if (lastAnnualEps && lastAnnualEps > 0) {
+      return { eps: lastAnnualEps, source: 'LAST_ANNUAL', confidence: 'MEDIUM',
+        details: `Last completed fiscal year EPS` };
+    }
+  }
+
+  // Tier 3: Stale fallback
+  if (epsRaw && epsRaw > 0) {
+    return { eps: epsRaw, source: 'TTM_STALE', confidence: 'MEDIUM',
+      details: `TradingView TTM EPS (stale, ${Math.round(earningsAge / 86400)}d old)` };
+  }
+
+  if (dpsTv && dpsTv > 0) {
+    const dpsEps = dpsTv / 0.60;
+    return { eps: dpsEps, source: 'DPS_DERIVED', confidence: 'LOW',
+      details: `Estimated from DPS (${dpsTv}) / 0.60 payout ratio` };
+  }
+
+  return { eps: null, source: 'NONE', confidence: 'LOW', details: 'No EPS data available' };
+}
 
 export interface BatchStockResult {
   stock: StockMeta;
@@ -266,7 +406,13 @@ export class DataFetcherService {
         'dps_common_stock_prim_issue_fy',
         'book_value_per_share_fq',
         'net_income_ttm',
-        'total_shares_outstanding'
+        'total_shares_outstanding',
+        // Smart EPS columns
+        'net_income_fq',
+        'net_income_fy',
+        'last_annual_eps',
+        'earnings_release_date',
+        'after_tax_margin'
       ]
     });
 
@@ -340,7 +486,13 @@ export class DataFetcherService {
                 dpsRaw,
                 bvpsRaw,
                 netIncomeRaw,
-                totalSharesRaw
+                totalSharesRaw,
+                // Smart EPS fields
+                netIncomeFq,
+                netIncomeFy,
+                lastAnnualEpsRaw,
+                earningsReleaseDateRaw,
+                afterTaxMarginRaw
               ] = row.d;
 
               const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -351,19 +503,21 @@ export class DataFetcherService {
               const change = (currentPrice * (changePercent || 0)) / 100;
               const previousClose = currentPrice - change;
 
-              // Dynamic EPS resolution across any stock (TradingView -> Net Income / Shares -> DPS payout ratio)
-              let effectiveEps = (epsRaw && epsRaw > 0) ? epsRaw : undefined;
-              if (!effectiveEps && netIncomeRaw && totalSharesRaw && totalSharesRaw > 0) {
-                effectiveEps = netIncomeRaw / totalSharesRaw;
-              }
-              if (!effectiveEps && dpsRaw && dpsRaw > 0) {
-                effectiveEps = dpsRaw / 0.60;
-              }
+              // Smart EPS Engine with manual override support
+              const earningsOverrides = loadEarningsOverrides();
+              const override = earningsOverrides[stock.symbol.toUpperCase()] || null;
+              const smartEpsResult = computeSmartEps(
+                epsRaw, netIncomeRaw, netIncomeFq, netIncomeFy,
+                lastAnnualEpsRaw, earningsReleaseDateRaw, totalSharesRaw,
+                dpsRaw, override
+              );
+              const effectiveEps = smartEpsResult.eps ?? undefined;
 
               // Dynamic DPS & Dividend Yield resolution
-              const effectiveDps = dpsRaw || (divYieldVal && currentPrice > 0 ? (currentPrice * divYieldVal) / 100 : undefined);
+              const overrideDps = override?.dps;
+              const effectiveDps = overrideDps || dpsRaw || (divYieldVal && currentPrice > 0 ? (currentPrice * divYieldVal) / 100 : undefined);
               const effectiveDivYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : (effectiveDps && currentPrice > 0 ? Number(((effectiveDps / currentPrice) * 100).toFixed(2)) : undefined);
-              const effectiveDivPerShare = effectiveDps ? Number(effectiveDps.toFixed(2)) : undefined;
+              const effectiveDivPerShare = effectiveDps ? Number(Number(effectiveDps).toFixed(2)) : undefined;
 
               // Dynamic P/E Ratio resolution
               const effectivePe = peRatioRaw ? Number(peRatioRaw.toFixed(2)) : (effectiveEps && effectiveEps > 0 ? Number((currentPrice / effectiveEps).toFixed(2)) : undefined);
