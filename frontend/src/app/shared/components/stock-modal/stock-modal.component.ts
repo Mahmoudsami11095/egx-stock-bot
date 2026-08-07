@@ -541,7 +541,7 @@ export class StockModalComponent implements OnChanges {
     this.fundamentalsData = null;
     this.fundamentalsError = '';
     
-    const url = `/api/fundamentals?name=${encodeURIComponent(this.stock.quote.nameAr)}`;
+    const url = `/api/fundamentals?name=${encodeURIComponent(this.stock.quote.nameAr)}&symbol=${encodeURIComponent(this.stock.quote.symbol)}`;
     const headers: any = {};
     const savedKey = localStorage.getItem('GEMINI_API_KEY');
     if (savedKey) {

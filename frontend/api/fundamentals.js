@@ -146,7 +146,14 @@ module.exports = async function handler(req, res) {
     }
 
     // 1. Fetch RSS News
-    const query = `"${companyName}" (أرباح OR إيرادات OR مبيعات OR نتائج أعمال)`;
+    // By using the symbol alongside the name, we ensure Arabic news is found even if the name is in English
+    let searchParts = [];
+    if (symbol) searchParts.push(`"${symbol}"`);
+    if (name) searchParts.push(`"${name}"`);
+    
+    // Combine them with OR
+    const searchQuery = searchParts.join(' OR ');
+    const query = `(${searchQuery}) (أرباح OR إيرادات OR مبيعات OR نتائج أعمال)`;
     const rawXml = await fetchGoogleNews(query);
     const snippets = extractSnippets(rawXml);
 
