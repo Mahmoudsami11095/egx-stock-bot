@@ -108,11 +108,11 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
           </div>
           
           <!-- Download Button -->
-          <button (click)="downloadReport()" 
+          <button (click)="downloadReport(activeTab())" 
                   [disabled]="isGeneratingPdf"
                   class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 border border-blue-400/30 whitespace-nowrap disabled:opacity-50 disabled:cursor-wait">
             <i class="pi" [ngClass]="isGeneratingPdf ? 'pi-spinner pi-spin' : 'pi-file-pdf'"></i>
-            {{ isGeneratingPdf ? 'جاري التحضير...' : 'تحميل PDF' }}
+            {{ isGeneratingPdf ? 'جاري التحضير...' : (activeTab() === 'SHORT_TERM' ? 'تقرير المدى القصير' : 'تقرير المدى الطويل') }}
           </button>
         </div>
       </div>
@@ -265,62 +265,118 @@ type StrategyTab = 'SHORT_TERM' | 'LONG_TERM';
       <app-stock-modal [(visible)]="modalVisible" [stock]="selectedStock"></app-stock-modal>
 
       <!-- Hidden PDF Template -->
-      <!-- Hidden PDF Template -->
+      <!-- Hidden PDF Template: Short Term -->
       <div style="display: none;">
-        <div id="pdf-report-content" class="text-white p-8 font-sans border" dir="rtl" style="width: 800px; min-height: 1122px; border-radius: 12px; background-color: #0A0F1E; border-color: #1E3A8A;">
+        <div id="pdf-report-short" class="text-white p-8 font-sans border" dir="rtl" style="width: 800px; min-height: 1122px; border-radius: 12px; background-color: #0A0F1E; border-color: #1E3A8A;">
           <!-- Header -->
           <div class="text-center mb-8 pb-6 border-b" style="border-color: #1F2937;">
-            <div class="inline-flex items-center justify-center gap-2 px-4 py-1 rounded-full text-xs font-bold mb-4" style="background-color: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #60A5FA;">
+            <div class="inline-flex items-center justify-center gap-2 px-4 py-1 rounded-full text-xs font-bold mb-4" style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34D399;">
               تقرير التوصيات الاستراتيجية
             </div>
-            <h1 class="text-3xl font-black mb-2" style="color: #FFFFFF;">أفضل 10 أسهم في السوق المصري</h1>
-            <p class="text-sm" style="color: #9CA3AF;">تقرير استراتيجي مفصل بناءً على التحليل الفني والقيم العادلة</p>
+            <h1 class="text-3xl font-black mb-2" style="color: #FFFFFF;">أفضل 10 أسهم للمضاربة (المدى القصير)</h1>
+            <p class="text-sm" style="color: #9CA3AF;">فرص تجميع فنية مبنية على الزخم الإيجابي والانعكاسات السعرية</p>
             <p class="text-xs mt-2" style="color: #6B7280;">تاريخ التقرير: {{ currentDate }}</p>
           </div>
 
-          <!-- Top 5 Short Term -->
-          <div class="mb-8">
-            <h2 class="text-xl font-bold mb-4 border-r-4 pr-3" style="color: #34D399; border-color: #10B981;">أفضل 5 فرص تجميع (مدى قصير)</h2>
-            <div class="space-y-3">
-              <div *ngFor="let s of topShortTermStocks(); let i = index" class="p-4 rounded-xl flex items-center justify-between border" style="background-color: #111827; border-color: #1F2937;">
-                <div class="flex items-center gap-4">
+          <div class="space-y-4">
+            <div *ngFor="let s of topShortTermStocks(); let i = index" class="p-4 rounded-xl border" style="background-color: #111827; border-color: #1F2937;">
+              <div class="flex items-start justify-between border-b pb-3 mb-3" style="border-color: #374151;">
+                <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold" style="background-color: rgba(16, 185, 129, 0.1); color: #34D399;">{{ i + 1 }}</div>
                   <div>
-                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs font-normal mr-2" style="color: #6B7280;">{{ s.quote.nameAr }}</span></h3>
-                    <p class="text-xs font-semibold mt-1" style="color: #34D399;">القرار: {{ s.shortTermRec?.action }}</p>
+                    <h3 class="font-bold text-lg">{{ s.quote.symbol }} <span class="text-xs font-normal mr-1" style="color: #9CA3AF;">{{ s.quote.nameAr }}</span></h3>
+                    <div class="text-xs font-bold px-2 py-0.5 rounded mt-1 inline-block" style="background-color: rgba(16, 185, 129, 0.1); color: #34D399;">{{ s.shortTermRec?.action }}</div>
                   </div>
                 </div>
                 <div class="text-left">
-                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px]" style="color: #6B7280;">ج.م</span></div>
-                  <div class="text-xs font-bold mt-1" style="color: #34D399;">الهدف: {{ s.shortTermRec?.targetPrice }}</div>
+                  <div class="text-xl font-black" style="color: #FFFFFF;">{{ s.quote.currentPrice }} <span class="text-[10px]" style="color: #9CA3AF;">ج.م</span></div>
+                  <div class="text-xs font-bold" style="color: #34D399;">الهدف: {{ s.shortTermRec?.targetPrice }} ج.م</div>
                 </div>
               </div>
+              <div class="grid grid-cols-4 gap-2 mb-3">
+                <div class="p-2 rounded" style="background-color: #1F2937;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">RSI الزخم</span>
+                  <strong class="text-xs" [style.color]="s.indicators.rsi > 70 ? '#EF4444' : s.indicators.rsi < 30 ? '#34D399' : '#FBBF24'">{{ s.indicators.rsi | number:'1.0-1' }}</strong>
+                </div>
+                <div class="p-2 rounded" style="background-color: #1F2937;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">SMA (20)</span>
+                  <strong class="text-xs" [style.color]="s.quote.currentPrice > s.indicators.sma20 ? '#34D399' : '#EF4444'">{{ s.indicators.sma20 | number:'1.2-2' }}</strong>
+                </div>
+                <div class="p-2 rounded" style="background-color: #1F2937;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">الماكد (MACD)</span>
+                  <strong class="text-xs" [style.color]="(s.indicators.macd?.macd || 0) > (s.indicators.macd?.signal || 0) ? '#34D399' : '#EF4444'">
+                    {{ (s.indicators.macd?.macd || 0) > (s.indicators.macd?.signal || 0) ? 'إيجابي' : 'سلبي' }}
+                  </strong>
+                </div>
+                <div class="p-2 rounded border" style="background-color: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
+                  <span class="block text-[9px]" style="color: #EF4444;">وقف الخسارة</span>
+                  <strong class="text-xs" style="color: #EF4444;">{{ s.shortTermRec?.stopLoss }} ج.م</strong>
+                </div>
+              </div>
+              <p class="text-xs" style="color: #D1D5DB; line-height: 1.6;"><strong>التحليل: </strong>{{ s.shortTermRec?.reason }}</p>
             </div>
           </div>
 
-          <!-- Top 5 Long Term -->
-          <div>
-            <h2 class="text-xl font-bold mb-4 border-r-4 pr-3" style="color: #A78BFA; border-color: #8B5CF6;">أفضل 5 فرص استثمار (مدى طويل)</h2>
-            <div class="space-y-3">
-              <div *ngFor="let s of topLongTermStocks(); let i = index" class="p-4 rounded-xl flex items-center justify-between border" style="background-color: #111827; border-color: #1F2937;">
-                <div class="flex items-center gap-4">
+          <div class="mt-8 pt-4 border-t text-center text-[10px]" style="border-color: #1F2937; color: #6B7280;">
+            هذا التقرير تم إنشاؤه آلياً بواسطة EGX Stock Bot بناءً على التحليل الفني. لا يعتبر توصية صريحة بالبيع أو الشراء.
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden PDF Template: Long Term -->
+      <div style="display: none;">
+        <div id="pdf-report-long" class="text-white p-8 font-sans border" dir="rtl" style="width: 800px; min-height: 1122px; border-radius: 12px; background-color: #0A0F1E; border-color: #4C1D95;">
+          <!-- Header -->
+          <div class="text-center mb-8 pb-6 border-b" style="border-color: #1F2937;">
+            <div class="inline-flex items-center justify-center gap-2 px-4 py-1 rounded-full text-xs font-bold mb-4" style="background-color: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: #A78BFA;">
+              تقرير التوصيات الاستراتيجية
+            </div>
+            <h1 class="text-3xl font-black mb-2" style="color: #FFFFFF;">أفضل 10 أسهم استثمارية (المدى الطويل)</h1>
+            <p class="text-sm" style="color: #9CA3AF;">أسهم تتداول بخصم كبير عن قيمتها العادلة، تمثل فرصاً استثمارية ممتازة بناءً على الأساسيات</p>
+            <p class="text-xs mt-2" style="color: #6B7280;">تاريخ التقرير: {{ currentDate }}</p>
+          </div>
+
+          <div class="space-y-4">
+            <div *ngFor="let s of topLongTermStocks(); let i = index" class="p-4 rounded-xl border" style="background-color: #111827; border-color: #1F2937;">
+              <div class="flex items-start justify-between border-b pb-3 mb-3" style="border-color: #374151;">
+                <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold" style="background-color: rgba(139, 92, 246, 0.1); color: #A78BFA;">{{ i + 1 }}</div>
                   <div>
-                    <h3 class="font-bold text-lg leading-tight">{{ s.quote.symbol }} <span class="text-xs font-normal mr-2" style="color: #6B7280;">{{ s.quote.nameAr }}</span></h3>
-                    <p class="text-xs font-semibold mt-1" style="color: #A78BFA;">القرار: {{ s.longTermRec?.action }}</p>
+                    <h3 class="font-bold text-lg">{{ s.quote.symbol }} <span class="text-xs font-normal mr-1" style="color: #9CA3AF;">{{ s.quote.nameAr }}</span></h3>
+                    <div class="text-xs font-bold px-2 py-0.5 rounded mt-1 inline-block" style="background-color: rgba(139, 92, 246, 0.1); color: #A78BFA;">{{ s.longTermRec?.action }}</div>
                   </div>
                 </div>
                 <div class="text-left">
-                  <div class="text-lg font-black">{{ s.quote.currentPrice }} <span class="text-[10px]" style="color: #6B7280;">ج.م</span></div>
-                  <div class="text-xs font-bold mt-1" style="color: #FBBF24;">القيمة العادلة: {{ s.longTermRec?.targetPrice }} (+{{ s.fairValueUpsidePercent }}%)</div>
+                  <div class="text-xl font-black" style="color: #FFFFFF;">{{ s.quote.currentPrice }} <span class="text-[10px]" style="color: #9CA3AF;">ج.م</span></div>
+                  <div class="text-xs font-bold" style="color: #FBBF24;">القيمة العادلة: {{ s.longTermRec?.targetPrice }}</div>
                 </div>
               </div>
+              <div class="grid grid-cols-4 gap-2 mb-3">
+                <div class="p-2 rounded border" style="background-color: #1F2937; border-color: #374151;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">النمو المتوقع (Upside)</span>
+                  <strong class="text-sm" style="color: #A78BFA;">+{{ s.fairValueUpsidePercent | number:'1.0-0' }}%</strong>
+                </div>
+                <div class="p-2 rounded border" style="background-color: #1F2937; border-color: #374151;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">موثوقية القيمة</span>
+                  <strong class="text-xs" [style.color]="s.fairValueConfidence === 'HIGH' ? '#34D399' : s.fairValueConfidence === 'MEDIUM' ? '#FBBF24' : '#EF4444'">
+                    {{ s.fairValueConfidence === 'HIGH' ? 'عالية' : s.fairValueConfidence === 'MEDIUM' ? 'متوسطة' : 'منخفضة' }}
+                  </strong>
+                </div>
+                <div class="p-2 rounded border" style="background-color: #1F2937; border-color: #374151;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">مكرر الربحية (P/E)</span>
+                  <strong class="text-xs" style="color: #FFFFFF;">{{ s.quote.peRatio ? (s.quote.peRatio | number:'1.1-1') : 'غير متوفر' }}</strong>
+                </div>
+                <div class="p-2 rounded border" style="background-color: #1F2937; border-color: #374151;">
+                  <span class="block text-[9px]" style="color: #9CA3AF;">ربحية السهم (EPS)</span>
+                  <strong class="text-xs" style="color: #FFFFFF;">{{ (s.quote.peRatio && s.quote.peRatio > 0) ? (s.quote.currentPrice / s.quote.peRatio | number:'1.2-2') : 'غير متوفر' }}</strong>
+                </div>
+              </div>
+              <p class="text-xs" style="color: #D1D5DB; line-height: 1.6;"><strong>التحليل الأساسي: </strong>{{ s.longTermRec?.reason }}</p>
             </div>
           </div>
 
-          <!-- Footer -->
-          <div class="mt-12 pt-6 border-t text-center text-[10px]" style="border-color: #1F2937; color: #6B7280;">
-            هذا التقرير تم إنشاؤه آلياً بواسطة EGX Stock Bot ولا يعتبر توصية صريحة بالبيع أو الشراء.
+          <div class="mt-8 pt-4 border-t text-center text-[10px]" style="border-color: #1F2937; color: #6B7280;">
+            هذا التقرير تم إنشاؤه آلياً بواسطة EGX Stock Bot بناءً على التحليل الأساسي. لا يعتبر توصية صريحة بالبيع أو الشراء.
           </div>
         </div>
       </div>
@@ -396,25 +452,26 @@ export class StrategiesComponent {
 
   // Top Stocks For PDF Report
   topShortTermStocks = computed(() => {
-    // Only return top 5 stocks that have actual BUY/ACCUMULATE actions
+    // Only return top 10 stocks that have actual BUY/ACCUMULATE actions
     const activeStocks = this.apiService.stocks().filter(s => 
       this.isHalalOnly(s) && s.shortTermRec && 
       (s.shortTermRec.action.includes('تجميع') || s.shortTermRec.action.includes('شراء'))
     );
-    return [...activeStocks].sort((a, b) => b.quote.changePercent - a.quote.changePercent).slice(0, 5);
+    return [...activeStocks].sort((a, b) => b.quote.changePercent - a.quote.changePercent).slice(0, 10);
   });
 
   topLongTermStocks = computed(() => {
     const activeStocks = this.apiService.stocks().filter(s => 
       this.isHalalOnly(s) && s.longTermRec && s.fairValueUpsidePercent > 10
     );
-    return [...activeStocks].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent).slice(0, 5);
+    return [...activeStocks].sort((a, b) => b.fairValueUpsidePercent - a.fairValueUpsidePercent).slice(0, 10);
   });
 
-  async downloadReport() {
+  async downloadReport(type: StrategyTab) {
     this.isGeneratingPdf = true;
     try {
-      const element = document.getElementById('pdf-report-content');
+      const targetId = type === 'SHORT_TERM' ? 'pdf-report-short' : 'pdf-report-long';
+      const element = document.getElementById(targetId);
       if (!element) return;
       
       // Temporarily display for rendering
@@ -423,9 +480,13 @@ export class StrategiesComponent {
       // IMPORTANT: Wait for browser to reflow the DOM and calculate sizes!
       await new Promise(resolve => setTimeout(resolve, 100));
       
+      const fileName = type === 'SHORT_TERM' 
+        ? `EGX_ShortTerm_Strategies_${new Date().toISOString().split('T')[0]}.pdf`
+        : `EGX_LongTerm_Strategies_${new Date().toISOString().split('T')[0]}.pdf`;
+        
       const opt = {
         margin:       0,
-        filename:     `EGX_Top_Strategies_${new Date().toISOString().split('T')[0]}.pdf`,
+        filename:     fileName,
         image:        { type: 'jpeg' as const, quality: 0.95 },
         html2canvas:  { scale: 1.5, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' as const }
@@ -435,10 +496,12 @@ export class StrategiesComponent {
     } catch (err) {
       console.error('Failed to generate PDF', err);
     } finally {
-      const element = document.getElementById('pdf-report-content');
-      if (element) {
-        element.parentElement!.style.display = 'none';
-      }
+      const elementShort = document.getElementById('pdf-report-short');
+      if (elementShort) elementShort.parentElement!.style.display = 'none';
+      
+      const elementLong = document.getElementById('pdf-report-long');
+      if (elementLong) elementLong.parentElement!.style.display = 'none';
+      
       this.isGeneratingPdf = false;
     }
   }
