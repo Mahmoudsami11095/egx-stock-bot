@@ -18,17 +18,47 @@ interface EarningsOverride {
 }
 
 function loadEarningsOverrides(): Record<string, EarningsOverride> {
+  // 1. Try static require (Vercel bundler friendly)
   try {
-    const overridePath = path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json');
-    if (fs.existsSync(overridePath)) {
-      const raw = fs.readFileSync(overridePath, 'utf-8');
-      const parsed = JSON.parse(raw);
-      return parsed.overrides || {};
+    const data = require('../../data/earnings_overrides.json');
+    if (data && data.overrides) return data.overrides;
+  } catch (e) {}
+
+  try {
+    const data = require('../data/earnings_overrides.json');
+    if (data && data.overrides) return data.overrides;
+  } catch (e) {}
+
+  // 2. Try fs read as backup
+  try {
+    const locations = [
+      path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json'),
+      path.join(__dirname, '..', 'data', 'earnings_overrides.json'),
+      path.join(process.cwd(), 'data', 'earnings_overrides.json'),
+      path.join(process.cwd(), 'frontend', 'data', 'earnings_overrides.json')
+    ];
+    for (const loc of locations) {
+      if (fs.existsSync(loc)) {
+        const raw = fs.readFileSync(loc, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.overrides) return parsed.overrides;
+      }
     }
   } catch (e: any) {
     logger.warn(`Could not load earnings overrides: ${e.message}`);
   }
-  return {};
+
+  // 3. Default fallback for known EGX bulletin overrides
+  return {
+    'EGAL': {
+      netProfit: 10447306397,
+      periodMonths: 9,
+      totalShares: 412500000,
+      dps: 8.00,
+      source: 'EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)',
+      updatedAt: '2026-08-08'
+    }
+  };
 }
 
 // ─── SMART EPS ENGINE ────────────────────────────────────────────────────────
