@@ -11,8 +11,29 @@ const CONVENTIONAL_NON_HALAL = new Set([
   'COMI', 'CIEB', 'HDBK', 'EXPA', 'QNBA', 'EAST', 'SUGR', 'EKHO', 'SAIB'
 ]);
 
+// Map of EGX symbols to Arabic search names for news scraping
+const STOCK_ARABIC_NAMES = {
+  'EGAL': 'مصر للألومنيوم',
+  'SWDY': 'السويدى الكتريك',
+  'COMI': 'البنك التجاري الدولي',
+  'ETEL': 'المصرية للاتصالات',
+  'ARCC': 'العربية للاسمنت',
+  'TMGH': 'طلعت مصطفى',
+  'TAQA': 'طاقة عربية',
+  'ORAS': 'أوراسكوم للتنمية',
+  'ORWE': 'النساجون الشرقيون',
+  'ABUK': 'أبو قير للأسمدة',
+  'AMOC': 'الإسكندرية للزيوت المعدنية',
+  'HELI': 'مصر الجديدة للإسكان',
+  'MNHD': 'مدينة مصر للإسكان',
+  'MFPC': 'مصر لإنتاج السماد',
+  'ISPH': 'إبيكو للأدوية',
+  'ESRS': 'عز الدخيلة للصلب',
+  'IRAX': 'حديد عز'
+};
+
+// ─── EARNINGS OVERRIDE LOADING ──────────────────────────────────────────────
 function loadEarningsOverrides() {
-  // 1. Try static require (Vercel bundler friendly)
   try {
     const data = require('../../data/earnings_overrides.json');
     if (data && data.overrides) return data.overrides;
@@ -23,7 +44,6 @@ function loadEarningsOverrides() {
     if (data && data.overrides) return data.overrides;
   } catch (e) {}
 
-  // 2. Try fs read as backup
   try {
     const locations = [
       path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json'),
@@ -40,7 +60,6 @@ function loadEarningsOverrides() {
     }
   } catch (e) {}
 
-  // 3. Default fallback for known EGX bulletin overrides
   return {
     'EGAL': {
       netProfit: 10447306397,
@@ -51,6 +70,90 @@ function loadEarningsOverrides() {
       updatedAt: '2026-08-08'
     }
   };
+}
+
+// ─── AUTOMATED ARABIC HEADLINE PARSER ───────────────────────────────────────
+function parseArabicFinancialHeadline(symbol, title, pubDate) {
+  if (!title) return null;
+
+  const isEarningsNews = /(أرباح|أرباحها|صافي|أرباحاً|نتائج|ربحية)/.test(title);
+  if (!isEarningsNews) return null;
+
+  let periodMonths = 12;
+
+  if (/(9 أشهر|تسعة أشهر|الربع الثالث)/.test(title)) {
+    periodMonths = 9;
+  } else if (/(النصف الأول|6 أشهر|ستة أشهر|الربع الثاني)/.test(title)) {
+    periodMonths = 6;
+  } else if (/(الربع الأول|3 أشهر|ثلاثة أشهر)/.test(title)) {
+    periodMonths = 3;
+  } else if (/(الربع الرابع|سنوية|عام كامل|خلال عام)/.test(title)) {
+    periodMonths = 12;
+  }
+
+  let netProfit = null;
+
+  const billionMatch = title.match(/(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت)\s+([0-9]+(?:\.[0-9]+)?)\s*مليار/);
+  const millionMatch = title.match(/(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت)\s+([0-9]+(?:\.[0-9]+)?)\s*مليون/);
+
+  if (billionMatch) {
+    netProfit = parseFloat(billionMatch[1]) * 1_000_000_000;
+  } else if (millionMatch) {
+    netProfit = parseFloat(millionMatch[1]) * 1_000_000;
+  }
+
+  if (!netProfit || netProfit <= 0) return null;
+
+  const annualizedNetProfit = netProfit * (12 / periodMonths);
+
+  return {
+    symbol: symbol.toUpperCase(),
+    netProfit,
+    periodMonths,
+    annualizedNetProfit,
+    headline: title,
+    pubDate,
+    source: 'Automated EGX News Parser'
+  };
+}
+
+function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
+  return new Promise((resolve) => {
+    const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال")`;
+    const encoded = encodeURIComponent(query);
+    const url = `https://news.google.com/rss/search?q=${encoded}&hl=ar&gl=EG&ceid=EG:ar`;
+
+    const req = https.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      timeout: 4000
+    }, (res) => {
+      let body = '';
+      res.on('data', (c) => body += c);
+      res.on('end', () => {
+        try {
+          const items = body.match(/<item>[\s\S]*?<\/item>/g) || [];
+          for (const item of items) {
+            const titleMatch = item.match(/<title>(.*?)<\/title>/);
+            const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+            const title = titleMatch ? titleMatch[1] : '';
+            const pubDate = dateMatch ? dateMatch[1] : '';
+
+            const parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
+            if (parsed) {
+              resolve(parsed);
+              return;
+            }
+          }
+          resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    });
+
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
 }
 
 function fetchHttpsJson(url) {
@@ -202,12 +305,10 @@ function fetchTradingViewScan() {
   });
 }
 
-// ─── SMART EPS ENGINE ────────────────────────────────────────────────────────
-function computeSmartEps(stock, override) {
+function computeSmartEps(stock, override, autoParsed) {
   const now = Date.now() / 1000;
   const STALE_THRESHOLD = 180 * 24 * 3600;
 
-  // Tier 0: Manual EGX Bulletin Override
   if (override) {
     const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
     const shares = override.totalShares || stock.totalShares;
@@ -226,7 +327,23 @@ function computeSmartEps(stock, override) {
     }
   }
 
-  // Tier 1: Fresh TTM EPS
+  if (autoParsed && autoParsed.annualizedNetProfit > 0) {
+    const shares = stock.totalShares;
+    if (shares && shares > 0) {
+      const autoEps = autoParsed.annualizedNetProfit / shares;
+      const ttmEps = stock.epsRaw > 0 ? stock.epsRaw :
+                     (stock.netIncomeTtm && stock.totalShares > 0 ? stock.netIncomeTtm / stock.totalShares : null);
+      let blendedEps = autoEps;
+      if (ttmEps && ttmEps > 0) {
+        blendedEps = 0.70 * autoEps + 0.30 * ttmEps;
+      }
+      return {
+        eps: blendedEps, source: 'AUTO_NEWS_PARSER', confidence: 'HIGH',
+        details: `Auto-Scraped News (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
+      };
+    }
+  }
+
   const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : Infinity;
   const isFresh = earningsAge < STALE_THRESHOLD;
 
@@ -235,7 +352,6 @@ function computeSmartEps(stock, override) {
       details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)` };
   }
 
-  // Tier 2: Smart Annualized
   const totalShares = stock.totalShares;
   if (totalShares && totalShares > 0) {
     let annualizedQtrEps = null;
@@ -263,7 +379,7 @@ function computeSmartEps(stock, override) {
       if (projectedEps && projectedEps > 0 && growthRate !== 0) {
         const blendedEps = 0.60 * ttmDerivedEps + 0.40 * projectedEps;
         return { eps: blendedEps, source: 'TTM_GROWTH_BLEND', confidence: 'HIGH',
-          details: `TTM: ${ttmDerivedEps.toFixed(2)} | Growth: ${(growthRate * 100).toFixed(1)}% | Projected: ${projectedEps.toFixed(2)} | Blended: ${blendedEps.toFixed(2)}` };
+          details: `TTM: ${ttmDerivedEps.toFixed(2)} | Growth: ${(growthRate * 100).toFixed(1)}% | Blended: ${blendedEps.toFixed(2)}` };
       }
       return { eps: ttmDerivedEps, source: 'TTM_DERIVED', confidence: 'HIGH',
         details: `Derived from net_income_ttm / total_shares` };
@@ -273,7 +389,7 @@ function computeSmartEps(stock, override) {
       if (stock.lastAnnualEps && stock.lastAnnualEps > 0) {
         const blended = 0.50 * annualizedQtrEps + 0.50 * stock.lastAnnualEps;
         return { eps: blended, source: 'QTR_ANNUAL_BLEND', confidence: 'MEDIUM',
-          details: `Qtr annualized: ${annualizedQtrEps.toFixed(2)} | Last annual: ${stock.lastAnnualEps.toFixed(2)} | Blended: ${blended.toFixed(2)}` };
+          details: `Qtr annualized: ${annualizedQtrEps.toFixed(2)} | Last annual: ${stock.lastAnnualEps.toFixed(2)}` };
       }
       return { eps: annualizedQtrEps, source: 'QTR_ANNUALIZED', confidence: 'MEDIUM',
         details: `net_income_fq × 4 / total_shares` };
@@ -285,7 +401,6 @@ function computeSmartEps(stock, override) {
     }
   }
 
-  // Tier 3: Stale fallback
   if (stock.epsRaw && stock.epsRaw > 0) {
     return { eps: stock.epsRaw, source: 'TTM_STALE', confidence: 'MEDIUM',
       details: `TradingView TTM EPS (stale, ${Math.round(earningsAge / 86400)}d old)` };
@@ -300,8 +415,8 @@ function computeSmartEps(stock, override) {
   return { eps: null, source: 'NONE', confidence: 'LOW', details: 'No EPS data available' };
 }
 
-function resolveFundamentals(stock, override) {
-  const smartEps = computeSmartEps(stock, override);
+function resolveFundamentals(stock, override, autoParsed) {
+  const smartEps = computeSmartEps(stock, override, autoParsed);
   const eps = smartEps.eps;
   const peRatio = stock.peRatioRaw ? Number(stock.peRatioRaw.toFixed(2)) :
     (eps && eps > 0 ? Number((stock.currentPrice / eps).toFixed(2)) : undefined);
@@ -465,7 +580,14 @@ module.exports = async (req, res) => {
       if (halalSet && !halalSet.has(symUpper) && !halalSet.has(rawUpper)) continue;
 
       const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
-      const fundamentals = resolveFundamentals(s, override);
+
+      let autoParsed = null;
+      const nameAr = STOCK_ARABIC_NAMES[symUpper] || STOCK_ARABIC_NAMES[rawUpper];
+      if (!override && nameAr) {
+        autoParsed = await fetchAutomatedEarningsFromRss(nameAr, symUpper);
+      }
+
+      const fundamentals = resolveFundamentals(s, override, autoParsed);
 
       const { fairValue, confidence } = calculateFairValue(s, fundamentals);
       const upsidePercent = Number((((fairValue - s.currentPrice) / s.currentPrice) * 100).toFixed(2));

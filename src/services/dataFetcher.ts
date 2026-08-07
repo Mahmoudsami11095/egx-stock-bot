@@ -6,6 +6,7 @@ import { StockMeta, getSectorPE, getSectorPB, getCbeMacroDiscountFactor, getStoc
 import { logger } from './logger';
 import { NewsScraperService } from './newsScraperService';
 import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
+import { fetchAutomatedEarningsFromRss, AutomatedParsedEarnings } from './automatedEarningsParser';
 
 // ─── EARNINGS OVERRIDE LOADING ──────────────────────────────────────────────
 interface EarningsOverride {
@@ -78,7 +79,8 @@ function computeSmartEps(
   earningsReleaseDate: number | null | undefined,
   totalShares: number | null | undefined,
   dpsTv: number | null | undefined,
-  override: EarningsOverride | null
+  override: EarningsOverride | null,
+  autoParsed: AutomatedParsedEarnings | null = null
 ): SmartEpsResult {
   const now = Date.now() / 1000;
   const STALE_THRESHOLD = 180 * 24 * 3600;
@@ -98,6 +100,23 @@ function computeSmartEps(
       return {
         eps: blendedEps, source: 'OVERRIDE', confidence: 'HIGH',
         details: `EGX Bulletin: ${override.source} | Annualized NI: ${(annualizedNetProfit / 1e9).toFixed(2)}B | EPS: ${overrideEps.toFixed(2)}`
+      };
+    }
+  }
+
+  // Tier 0.5: Automated Live EGX News Parser (automatically extracted from live news disclosures)
+  if (autoParsed && autoParsed.annualizedNetProfit > 0) {
+    if (totalShares && totalShares > 0) {
+      const autoEps = autoParsed.annualizedNetProfit / totalShares;
+      const ttmEps = (epsRaw && epsRaw > 0) ? epsRaw :
+        (netIncomeTtm && totalShares && totalShares > 0 ? netIncomeTtm / totalShares : null);
+      let blendedEps = autoEps;
+      if (ttmEps && ttmEps > 0) {
+        blendedEps = 0.70 * autoEps + 0.30 * ttmEps;
+      }
+      return {
+        eps: blendedEps, source: 'AUTO_NEWS_PARSER', confidence: 'HIGH',
+        details: `Auto-Scraped News (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
       };
     }
   }
