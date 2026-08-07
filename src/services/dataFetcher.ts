@@ -60,11 +60,11 @@ function loadEarningsOverrides(): Record<string, EarningsOverride> {
       updatedAt: '2026-08-08'
     },
     'POUL': {
-      netProfit: 2476080000,
+      netProfit: 2486690000,
       periodMonths: 12,
       totalShares: 479002000,
       dps: 0.33,
-      source: 'Investing.com Financials TTM (Q2 2025 - Q1 2026)',
+      source: 'Mubasher Breaking News Q1 2026 Consolidated Results (Jan-Mar 2026)',
       updatedAt: '2026-08-08'
     }
   };
