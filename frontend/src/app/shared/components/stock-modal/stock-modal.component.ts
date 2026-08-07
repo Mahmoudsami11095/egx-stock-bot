@@ -428,7 +428,60 @@ import { StockAnalysisResult, SignalType } from '../../../core/models/stock.mode
             </div>
           </div>
         </div>
+        
+        <!-- 💰 SECTION 6: البيانات المالية الذكية (AI Fundamentals) -->
+        <div class="glass-card p-5 rounded-3xl border border-green-500/30 bg-gradient-to-br from-green-500/5 via-darkCard to-darkBg space-y-4">
+          <div class="flex items-center justify-between border-b border-darkBorder pb-3">
+            <h3 class="text-base font-black text-green-400 flex items-center gap-2">
+              <i class="pi pi-dollar text-green-400 text-lg"></i> 6. نتائج الأعمال والماليات (AI Fundamentals)
+            </h3>
+            <button
+              *ngIf="!fundamentalsLoading && !fundamentalsData"
+              (click)="fetchFundamentals()"
+              class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-xs font-black shadow-lg shadow-green-500/20 transition-all flex items-center gap-1.5">
+              <i class="pi pi-sparkles"></i> استخراج النتائج
+            </button>
+            <button
+              *ngIf="fundamentalsData"
+              (click)="fundamentalsData = null; fetchFundamentals()"
+              class="px-3 py-1 rounded-xl bg-darkBg hover:bg-darkBorder text-gray-400 hover:text-white text-xs font-bold transition-colors flex items-center gap-1">
+              <i class="pi pi-refresh"></i> تحديث
+            </button>
+          </div>
+
+          <!-- Loading State -->
+          <div *ngIf="fundamentalsLoading" class="flex flex-col items-center justify-center py-6 gap-3">
+             <div class="flex items-center gap-2">
+               <span class="w-2 h-2 rounded-full bg-green-400 animate-bounce"></span>
+               <span class="w-2 h-2 rounded-full bg-green-400 animate-bounce [animation-delay:0.2s]"></span>
+               <span class="w-2 h-2 rounded-full bg-green-400 animate-bounce [animation-delay:0.4s]"></span>
+             </div>
+             <span class="text-xs text-gray-400">يجري استخراج الأرباح والإيرادات بـ Gemini AI...</span>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="!fundamentalsLoading && !fundamentalsData" class="text-center py-4 text-xs text-gray-400">
+            <p>اضغط الزر أعلاه لاستخراج أحدث نتائج أعمال للشركة من الأخبار</p>
+          </div>
+
+          <!-- Fundamentals Data -->
+          <div *ngIf="fundamentalsData && !fundamentalsLoading" class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">💰 صافي الربح:</span>
+              <strong class="text-green-400 text-base font-black">{{ formatLargeNumber(fundamentalsData.netProfit) }} {{ fundamentalsData.currency }}</strong>
+            </div>
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1">
+              <span class="text-gray-400 block font-bold">📈 الإيرادات المجمعة:</span>
+              <strong class="text-emeraldAccent text-base font-black">{{ formatLargeNumber(fundamentalsData.revenue) }} {{ fundamentalsData.currency }}</strong>
+            </div>
+            <div class="bg-darkBg/80 p-3.5 rounded-2xl border border-darkBorder space-y-1 col-span-2 text-center">
+              <span class="text-gray-400 font-bold">عن العام/الربع المالي: </span>
+              <strong class="text-white">{{ fundamentalsData.fiscalYear || 'غير متاح' }}</strong>
+            </div>
+          </div>
+        </div>
       </div>
+
     </p-dialog>
   `
 })
@@ -448,10 +501,54 @@ export class StockModalComponent implements OnChanges {
   intradayProvider: string = '';
   intradayLoading: boolean = false;
 
+  fundamentalsLoading: boolean = false;
+  fundamentalsData: any = null;
+
   ngOnChanges(changes: SimpleChanges) {
     if (changes['stock'] || changes['visible']) {
       this.resetAiState();
     }
+  }
+
+  formatLargeNumber(num: number | null | undefined): string {
+    if (num === null || num === undefined) return 'غير متاح';
+    const n = Number(num);
+    if (isNaN(n)) return 'غير متاح';
+    
+    if (n >= 1000000000) {
+      return (n / 1000000000).toFixed(2) + ' مليار';
+    }
+    if (n >= 1000000) {
+      return (n / 1000000).toFixed(2) + ' مليون';
+    }
+    if (n >= 1000) {
+      return (n / 1000).toFixed(2) + ' ألف';
+    }
+    return n.toString();
+  }
+
+  fetchFundamentals() {
+    if (!this.stock) return;
+    this.fundamentalsLoading = true;
+    this.fundamentalsData = null;
+    
+    const url = `/api/fundamentals?name=${encodeURIComponent(this.stock.quote.nameAr)}`;
+    const headers: any = {};
+    const savedKey = localStorage.getItem('GEMINI_API_KEY');
+    if (savedKey) {
+      headers['x-gemini-key'] = savedKey.trim();
+    }
+
+    this.http.get<any>(url, { headers }).subscribe({
+      next: (res) => {
+        this.fundamentalsData = res.fundamentals;
+        this.fundamentalsLoading = false;
+      },
+      error: (err) => {
+        console.error('Error fetching fundamentals:', err);
+        this.fundamentalsLoading = false;
+      }
+    });
   }
 
   resetAiState() {
@@ -461,6 +558,8 @@ export class StockModalComponent implements OnChanges {
     this.intradayRecommendation = '';
     this.intradayProvider = '';
     this.intradayLoading = false;
+    this.fundamentalsData = null;
+    this.fundamentalsLoading = false;
   }
 
   getFormattedMessage(text: string): SafeHtml {
