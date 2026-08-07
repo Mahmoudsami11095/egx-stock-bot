@@ -13,6 +13,7 @@ const CONVENTIONAL_NON_HALAL = new Set([
 
 // Map of EGX symbols to Arabic search names for news scraping
 const STOCK_ARABIC_NAMES = {
+  'POUL': 'القاهرة للدواجن',
   'EGAL': 'مصر للألومنيوم',
   'SWDY': 'السويدى الكتريك',
   'COMI': 'البنك التجاري الدولي',
@@ -645,9 +646,17 @@ module.exports = async (req, res) => {
       // 1. Manual override
       const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
 
-      // 2. Automated news earnings scraper fallback for stocks with Arabic names
+      // 2. Automated news earnings scraper fallback for all stocks
       let autoParsed = null;
-      const nameAr = STOCK_ARABIC_NAMES[symUpper] || STOCK_ARABIC_NAMES[rawUpper];
+      let nameAr = STOCK_ARABIC_NAMES[symUpper] || STOCK_ARABIC_NAMES[rawUpper];
+      if (!nameAr && s.name) {
+        // Strip English ticker parens e.g. "القاهرة للدواجن (POUL)" -> "القاهرة للدواجن"
+        const cleanName = s.name.replace(/\s*\([A-Z0-9-]+\)\s*/g, '').trim();
+        if (/[\u0600-\u06FF]/.test(cleanName)) {
+          nameAr = cleanName;
+        }
+      }
+
       if (!override && nameAr) {
         autoParsed = await fetchAutomatedEarningsFromRss(nameAr, symUpper);
       }
