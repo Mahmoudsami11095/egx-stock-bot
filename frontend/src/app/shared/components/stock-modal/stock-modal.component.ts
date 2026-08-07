@@ -556,7 +556,15 @@ export class StockModalComponent implements OnChanges {
       },
       error: (err) => {
         console.error('Error fetching fundamentals:', err);
-        this.fundamentalsError = 'حدث خطأ أثناء الاتصال بالذكاء الاصطناعي أو السيرفر (تأكد من صحة API Key والاتصال).';
+        let errorMsg = 'حدث خطأ أثناء الاتصال بالذكاء الاصطناعي أو السيرفر (تأكد من صحة API Key والاتصال).';
+        if (err.error && err.error.details) {
+          if (err.error.details.includes('high demand')) {
+            errorMsg = 'سيرفرات الذكاء الاصطناعي (Gemini) تواجه ضغطاً كبيراً حالياً (High Demand). يرجى المحاولة بعد قليل.';
+          } else {
+            errorMsg = `خطأ من الذكاء الاصطناعي: ${err.error.details}`;
+          }
+        }
+        this.fundamentalsError = errorMsg;
         this.fundamentalsLoading = false;
         this.cdr.detectChanges();
       }
