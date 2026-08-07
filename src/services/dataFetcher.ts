@@ -58,6 +58,14 @@ function loadEarningsOverrides(): Record<string, EarningsOverride> {
       dps: 8.00,
       source: 'EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)',
       updatedAt: '2026-08-08'
+    },
+    'POUL': {
+      netProfit: 2476080000,
+      periodMonths: 12,
+      totalShares: 479002000,
+      dps: 0.33,
+      source: 'Investing.com Financials TTM (Q2 2025 - Q1 2026)',
+      updatedAt: '2026-08-08'
     }
   };
 }

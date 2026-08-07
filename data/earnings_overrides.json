@@ -1,12 +1,5 @@
 {
-  "_README": "Manual earnings override file. Paste latest EGX bulletin data here to override TradingView's stale TTM values. The screener will use these values for fair value calculation when present.",
-  "_INSTRUCTIONS": {
-    "netProfit": "Total net profit in EGP from the EGX bulletin",
-    "periodMonths": "Number of months the net profit covers (e.g., 9 for 9-month report, 12 for annual)",
-    "totalShares": "Total shares outstanding (use TradingView value if not in bulletin)",
-    "source": "Description of the data source (e.g., 'EGX Bulletin 342202 - Q3 FY2025-2026')",
-    "updatedAt": "Date you added/updated this entry (YYYY-MM-DD)"
-  },
+  "_README": "Manual earnings override file. Paste latest EGX bulletin / financial statement data here to override TradingView's null/stale TTM values. The screener will use these values for fair value calculation when present.",
   "overrides": {
     "EGAL": {
       "netProfit": 10447306397,
@@ -14,6 +7,14 @@
       "totalShares": 412500000,
       "dps": 8.00,
       "source": "EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)",
+      "updatedAt": "2026-08-08"
+    },
+    "POUL": {
+      "netProfit": 2476080000,
+      "periodMonths": 12,
+      "totalShares": 479002000,
+      "dps": 0.33,
+      "source": "Investing.com Financials TTM (Q2 2025 - Q1 2026)",
       "updatedAt": "2026-08-08"
     }
   }
