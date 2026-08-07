@@ -85,7 +85,7 @@ function callGeminiSingleModel(prompt, apiKey, modelName) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData)
       },
-      timeout: 10000
+      timeout: 20000
     };
 
     const req = https.request(options, (res) => {
@@ -168,7 +168,7 @@ module.exports = async function handler(req, res) {
 6. يجب أن تكون الأرقام من نوع Number وليس String. (مثلا مليار جنيه = 1000000000).
 
 الأخبار:
-${snippets.slice(0, 15).join('\n---\n')}
+${snippets.slice(0, 5).join('\n---\n')}
 
 يجب أن يكون الرد مطابقاً لهذا الهيكل فقط:
 {
