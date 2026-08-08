@@ -1,6 +1,22 @@
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+function fetchFromAzureVM(reqPath) {
+  return new Promise((resolve) => {
+    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 3500 }, (res) => {
+      if (res.statusCode !== 200) return resolve(null);
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch (e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
 
 const ISIN_SYMBOL_MAP = {
   'EGS72XL1C014': { symbol: 'PHGC', name: 'بريميوم هيلثكير جروب (PHGC)' },
@@ -311,19 +327,19 @@ const STOCK_ARABIC_NAMES = {
 // ─── EARNINGS OVERRIDE LOADING ──────────────────────────────────────────────
 function loadEarningsOverrides() {
   try {
-    const data = require('../../data/earnings_overrides.json');
-    if (data && data.overrides) return data.overrides;
-  } catch (e) {}
-
-  try {
     const data = require('../data/earnings_overrides.json');
     if (data && data.overrides) return data.overrides;
   } catch (e) {}
 
   try {
+    const data = require('./data/earnings_overrides.json');
+    if (data && data.overrides) return data.overrides;
+  } catch (e) {}
+
+  try {
     const locations = [
-      path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json'),
       path.join(__dirname, '..', 'data', 'earnings_overrides.json'),
+      path.join(__dirname, 'data', 'earnings_overrides.json'),
       path.join(process.cwd(), 'data', 'earnings_overrides.json'),
       path.join(process.cwd(), 'frontend', 'data', 'earnings_overrides.json')
     ];
@@ -551,9 +567,13 @@ function fetchTradingViewScan() {
             }
 
             results.push({
-              rawSym, symbol: finalSymbol, name: finalName, currentPrice,
+              rawSym,
+              symbol: finalSymbol,
+              name: finalName,
+              currentPrice,
               changePercent: Number((changePercent || 0).toFixed(2)),
-              volume: volume || 0, avgVolume: Math.round(avgVolume || 0),
+              volume: volume || 0,
+              avgVolume: Math.round(avgVolume || 0),
               dayHigh: Number((dayHigh || currentPrice).toFixed(2)),
               dayLow: Number((dayLow || currentPrice).toFixed(2)),
               fiftyTwoWeekHigh: Number((fiftyTwoWeekHigh || currentPrice).toFixed(2)),
@@ -561,9 +581,18 @@ function fetchTradingViewScan() {
               rsi: rsi ? Number(rsi.toFixed(2)) : 50,
               sma20: sma20 ? Number(sma20.toFixed(2)) : currentPrice,
               sma50: sma50 ? Number(sma50.toFixed(2)) : currentPrice,
-              peRatioRaw, epsRaw, divYieldTv, dpsTv, bvps: bvpsTv,
-              netIncomeTtm, totalShares: totalSharesTv,
-              netIncomeFq, netIncomeFy, lastAnnualEps, earningsReleaseDate, afterTaxMargin,
+              peRatioRaw,
+              epsRaw,
+              divYieldTv,
+              dpsTv,
+              bvps: bvpsTv,
+              netIncomeTtm,
+              totalShares: totalSharesTv,
+              netIncomeFq,
+              netIncomeFy,
+              lastAnnualEps,
+              earningsReleaseDate,
+              afterTaxMargin,
               recommendScore: recommendScore || 0,
               macdVal: macdVal ? Number(macdVal.toFixed(4)) : 0,
               macdSignalVal: macdSignalVal ? Number(macdSignalVal.toFixed(4)) : 0,
@@ -589,11 +618,12 @@ function fetchTradingViewScan() {
   });
 }
 
+// ─── SMART EPS ENGINE WITH AUTOMATED LIVE DISCLOSURE PARSER ────────────────
 function computeSmartEps(stock, override, autoParsed) {
   const now = Date.now() / 1000;
-  const STALE_THRESHOLD = 180 * 24 * 3600;
+  const STALE_THRESHOLD = 180 * 24 * 3600; // 6 months in seconds
 
-  // Tier 0: Manual EGX Bulletin Override
+  // Tier 0: Manual EGX Bulletin Override (highest priority)
   if (override) {
     const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
     const shares = override.totalShares || stock.totalShares;
@@ -606,7 +636,9 @@ function computeSmartEps(stock, override, autoParsed) {
         blendedEps = 0.70 * overrideEps + 0.30 * ttmEps;
       }
       return {
-        eps: blendedEps, source: 'OVERRIDE', confidence: 'HIGH',
+        eps: blendedEps,
+        source: 'OVERRIDE',
+        confidence: 'HIGH',
         details: `EGX Bulletin: ${override.source} | Annualized NI: ${(annualizedNetProfit / 1e9).toFixed(2)}B | EPS: ${overrideEps.toFixed(2)}`
       };
     }
@@ -617,8 +649,12 @@ function computeSmartEps(stock, override, autoParsed) {
   const isFresh = !stock.earningsReleaseDate || earningsAge < STALE_THRESHOLD;
 
   if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
-    return { eps: stock.epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
-      details: `TradingView Audited TTM EPS (${stock.epsRaw.toFixed(2)})` };
+    return {
+      eps: stock.epsRaw,
+      source: 'TTM_FRESH',
+      confidence: 'HIGH',
+      details: `TradingView Audited TTM EPS (${stock.epsRaw.toFixed(2)})`
+    };
   }
 
   // Tier 2: Automated Live EGX News Parser (used when TradingView TTM is missing)
@@ -633,12 +669,15 @@ function computeSmartEps(stock, override, autoParsed) {
         blendedEps = 0.70 * autoEps + 0.30 * ttmEps;
       }
       return {
-        eps: blendedEps, source: 'AUTO_NEWS_PARSER', confidence: 'HIGH',
+        eps: blendedEps,
+        source: 'AUTO_NEWS_PARSER',
+        confidence: 'HIGH',
         details: `Live News Disclosure (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
       };
     }
   }
 
+  // Tier 2: Smart Annualized
   const totalShares = stock.totalShares;
   if (totalShares && totalShares > 0) {
     let annualizedQtrEps = null;
@@ -665,38 +704,67 @@ function computeSmartEps(stock, override, autoParsed) {
     if (ttmDerivedEps && ttmDerivedEps > 0) {
       if (projectedEps && projectedEps > 0 && growthRate !== 0) {
         const blendedEps = 0.60 * ttmDerivedEps + 0.40 * projectedEps;
-        return { eps: blendedEps, source: 'TTM_GROWTH_BLEND', confidence: 'HIGH',
-          details: `TTM: ${ttmDerivedEps.toFixed(2)} | Growth: ${(growthRate * 100).toFixed(1)}% | Blended: ${blendedEps.toFixed(2)}` };
+        return {
+          eps: blendedEps,
+          source: 'TTM_GROWTH_BLEND',
+          confidence: 'HIGH',
+          details: `TTM: ${ttmDerivedEps.toFixed(2)} | Growth: ${(growthRate * 100).toFixed(1)}% | Blended: ${blendedEps.toFixed(2)}`
+        };
       }
-      return { eps: ttmDerivedEps, source: 'TTM_DERIVED', confidence: 'HIGH',
-        details: `Derived from net_income_ttm / total_shares` };
+      return {
+        eps: ttmDerivedEps,
+        source: 'TTM_DERIVED',
+        confidence: 'HIGH',
+        details: `Derived from net_income_ttm / total_shares`
+      };
     }
 
     if (annualizedQtrEps && annualizedQtrEps > 0) {
       if (stock.lastAnnualEps && stock.lastAnnualEps > 0) {
         const blended = 0.50 * annualizedQtrEps + 0.50 * stock.lastAnnualEps;
-        return { eps: blended, source: 'QTR_ANNUAL_BLEND', confidence: 'MEDIUM',
-          details: `Qtr annualized: ${annualizedQtrEps.toFixed(2)} | Last annual: ${stock.lastAnnualEps.toFixed(2)}` };
+        return {
+          eps: blended,
+          source: 'QTR_ANNUAL_BLEND',
+          confidence: 'MEDIUM',
+          details: `Qtr annualized: ${annualizedQtrEps.toFixed(2)} | Last annual: ${stock.lastAnnualEps.toFixed(2)}`
+        };
       }
-      return { eps: annualizedQtrEps, source: 'QTR_ANNUALIZED', confidence: 'MEDIUM',
-        details: `net_income_fq × 4 / total_shares` };
+      return {
+        eps: annualizedQtrEps,
+        source: 'QTR_ANNUALIZED',
+        confidence: 'MEDIUM',
+        details: `net_income_fq × 4 / total_shares`
+      };
     }
 
     if (stock.lastAnnualEps && stock.lastAnnualEps > 0) {
-      return { eps: stock.lastAnnualEps, source: 'LAST_ANNUAL', confidence: 'MEDIUM',
-        details: `Last completed fiscal year EPS` };
+      return {
+        eps: stock.lastAnnualEps,
+        source: 'LAST_ANNUAL',
+        confidence: 'MEDIUM',
+        details: `Last completed fiscal year EPS`
+      };
     }
   }
 
+  // Tier 3: Stale fallback
   if (stock.epsRaw && stock.epsRaw > 0) {
-    return { eps: stock.epsRaw, source: 'TTM_STALE', confidence: 'MEDIUM',
-      details: `TradingView TTM EPS (stale, ${Math.round(earningsAge / 86400)}d old)` };
+    return {
+      eps: stock.epsRaw,
+      source: 'TTM_STALE',
+      confidence: 'MEDIUM',
+      details: `TradingView TTM EPS (stale, ${Math.round(earningsAge / 86400)}d old)`
+    };
   }
 
   if (stock.dpsTv && stock.dpsTv > 0) {
     const dpsEps = stock.dpsTv / 0.60;
-    return { eps: dpsEps, source: 'DPS_DERIVED', confidence: 'LOW',
-      details: `Estimated from DPS (${stock.dpsTv}) / 0.60 payout ratio` };
+    return {
+      eps: dpsEps,
+      source: 'DPS_DERIVED',
+      confidence: 'LOW',
+      details: `Estimated from DPS (${stock.dpsTv}) / 0.60 payout ratio`
+    };
   }
 
   return { eps: null, source: 'NONE', confidence: 'LOW', details: 'No EPS data available' };
@@ -876,6 +944,20 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Try proxying to Azure Primary VM first (Server-to-Server, bypassing HTTPS Mixed Content)
+  try {
+    const source = (req.query && req.query.source) || 'tradingview';
+    const halal = (req.query && (req.query.halal || req.query.sharia)) ? `&halal=${req.query.halal || req.query.sharia}` : '';
+    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}`);
+    if (azureData && Array.isArray(azureData) && azureData.length > 0) {
+      res.setHeader('X-Served-By', 'Azure-VM-Primary');
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+      return res.status(200).json(azureData);
+    }
+  } catch (azureErr) {
+    console.warn('Azure VM proxy failed, falling back to Vercel compute:', azureErr.message);
+  }
+
   try {
     const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
     const earningsOverrides = loadEarningsOverrides();
@@ -895,11 +977,14 @@ module.exports = async (req, res) => {
 
       if (halalOnly && !isHalal) continue;
 
+      // 1. Manual override
       const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
 
+      // 2. Automated news earnings scraper fallback for all stocks
       let autoParsed = null;
       let nameAr = STOCK_ARABIC_NAMES[symUpper] || STOCK_ARABIC_NAMES[rawUpper];
       if (!nameAr && s.name) {
+        // Strip English ticker parens e.g. "القاهرة للدواجن (POUL)" -> "القاهرة للدواجن"
         const cleanName = s.name.replace(/\s*\([A-Z0-9-]+\)\s*/g, '').trim();
         if (/[\u0600-\u06FF]/.test(cleanName)) {
           nameAr = cleanName;

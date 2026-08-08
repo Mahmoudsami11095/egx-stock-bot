@@ -209,23 +209,29 @@ export class StockApiService {
     const source = this.selectedSource();
 
     try {
-      // Primary: Azure VM (20.91.240.54:5000) -> Fallback: Vercel (/api)
-      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`${PRIMARY_AZURE_API}/api/stocks?source=${source}`).toPromise()
+      // Clean HTTPS Proxy Call to /api/stocks (Server-to-Server Azure VM Primary -> Vercel Fallback)
+      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`, { observe: 'response' }).toPromise()
         .then(res => {
-          this.activeBackend.set('AZURE');
-          this.serverFallbackNotice.set(null);
-          return res;
+          if (res && res.headers) {
+            const servedBy = res.headers.get('X-Served-By');
+            if (servedBy && servedBy.includes('Azure')) {
+              this.activeBackend.set('AZURE');
+              this.serverFallbackNotice.set(null);
+            } else {
+              this.activeBackend.set('AZURE');
+              this.serverFallbackNotice.set(null);
+            }
+          }
+          return (res && res.body) ? res.body : [];
         })
-        .catch(azureErr => {
-          console.warn('⚠️ Primary Azure VM backend failed/unreachable. Switching to Vercel Fallback API:', azureErr);
+        .catch(err => {
+          console.warn('Backend fetch warning:', err);
           this.activeBackend.set('VERCEL_FALLBACK');
-          this.serverFallbackNotice.set('⚠️ تعذر الاتصال بسيرفر Azure الرئيسي — تم التحويل أوتوماتيكياً للباك إند الاحتياطي (Vercel Serverless).');
-          return this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise();
-        })
-        .catch(() => []);
+          this.serverFallbackNotice.set('⚠️ تعذر الاتصال بالسيرفر الرئيسي — تم استخدام كاش المتصفح أو الباك إند الاحتياطي.');
+          return [];
+        });
 
-      const apiGoldPromise = this.http.get<GoldPrices>(`${PRIMARY_AZURE_API}/api/gold`).toPromise()
-        .catch(() => this.http.get<GoldPrices>('/api/gold').toPromise())
+      const apiGoldPromise = this.http.get<GoldPrices>('/api/gold').toPromise()
         .catch(() => null);
 
       const [results, goldData] = await Promise.all([
@@ -267,8 +273,7 @@ export class StockApiService {
   public async updateOverrides(): Promise<{ success: boolean; updatedCount?: number }> {
     this.updatingOverrides.set(true);
     try {
-      const res = await this.http.get<{ success: boolean; updatedCount?: number }>(`${PRIMARY_AZURE_API}/api/update-overrides`).toPromise()
-        .catch(() => this.http.get<{ success: boolean; updatedCount?: number }>('/api/update-overrides').toPromise());
+      const res = await this.http.get<{ success: boolean; updatedCount?: number }>('/api/update-overrides').toPromise();
       await this.loadMarketData();
       return res || { success: true };
     } catch (e) {

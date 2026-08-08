@@ -1,6 +1,22 @@
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+function fetchFromAzureVM(reqPath) {
+  return new Promise((resolve) => {
+    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 3500 }, (res) => {
+      if (res.statusCode !== 200) return resolve(null);
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch (e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
 
 const ISIN_SYMBOL_MAP = {
   'EGS72XL1C014': { symbol: 'PHGC', name: 'بريميوم هيلثكير جروب (PHGC)' },
@@ -926,6 +942,20 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Try proxying to Azure Primary VM first (Server-to-Server, bypassing HTTPS Mixed Content)
+  try {
+    const source = (req.query && req.query.source) || 'tradingview';
+    const halal = (req.query && (req.query.halal || req.query.sharia)) ? `&halal=${req.query.halal || req.query.sharia}` : '';
+    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}`);
+    if (azureData && Array.isArray(azureData) && azureData.length > 0) {
+      res.setHeader('X-Served-By', 'Azure-VM-Primary');
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+      return res.status(200).json(azureData);
+    }
+  } catch (azureErr) {
+    console.warn('Azure VM proxy failed, falling back to Vercel compute:', azureErr.message);
   }
 
   try {
