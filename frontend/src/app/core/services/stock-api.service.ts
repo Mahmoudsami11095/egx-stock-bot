@@ -5,6 +5,7 @@ import { StockAnalysisResult, GoldPrices, DataSource } from '../models/stock.mod
 const STORAGE_KEY = 'egx_stocks_live_cache_v5';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp_v5';
 const GOLD_STORAGE_KEY = 'egx_gold_live_cache_v4';
+const PRIMARY_AZURE_API = 'http://20.91.240.54:5000';
 
 const generate1YearFallbackCharts = () => {
   const dates: string[] = [];
@@ -206,13 +207,18 @@ export class StockApiService {
     const source = this.selectedSource();
 
     try {
-      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise()
-        .catch(() => this.http.get<StockAnalysisResult[]>(`http://20.91.240.54:5000/api/stocks?source=${source}`).toPromise())
+      // Primary: Azure VM (20.91.240.54:5000) -> Fallback: Vercel (/api)
+      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`${PRIMARY_AZURE_API}/api/stocks?source=${source}`).toPromise()
+        .catch(() => this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise())
         .catch(() => []);
+
+      const apiGoldPromise = this.http.get<GoldPrices>(`${PRIMARY_AZURE_API}/api/gold`).toPromise()
+        .catch(() => this.http.get<GoldPrices>('/api/gold').toPromise())
+        .catch(() => null);
 
       const [results, goldData] = await Promise.all([
         apiStockPromise,
-        this.http.get<GoldPrices>('/api/gold').toPromise().catch(() => null)
+        apiGoldPromise
       ]);
 
       if (results && results.length > 0) {
@@ -249,7 +255,8 @@ export class StockApiService {
   public async updateOverrides(): Promise<{ success: boolean; updatedCount?: number }> {
     this.updatingOverrides.set(true);
     try {
-      const res = await this.http.get<{ success: boolean; updatedCount?: number }>('/api/update-overrides').toPromise();
+      const res = await this.http.get<{ success: boolean; updatedCount?: number }>(`${PRIMARY_AZURE_API}/api/update-overrides`).toPromise()
+        .catch(() => this.http.get<{ success: boolean; updatedCount?: number }>('/api/update-overrides').toPromise());
       await this.loadMarketData();
       return res || { success: true };
     } catch (e) {
