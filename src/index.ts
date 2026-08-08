@@ -124,6 +124,26 @@ async function bootstrap() {
     }
   });
 
+  app.all('/api/update-overrides', async (req, res) => {
+    try {
+      const updateOverridesHandler = require('../api/update-overrides.js');
+      await updateOverridesHandler(req, res);
+    } catch (err: any) {
+      logger.error(`Error in /api/update-overrides: ${err}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/github-webhook', (req, res) => {
+    const { exec } = require('child_process');
+    logger.info('⚡ GitHub Webhook received! Syncing latest code...');
+    exec('/home/azureuser/egx-stock-bot/auto_git_pull.sh', (err: any, stdout: any, stderr: any) => {
+      if (err) logger.error(`Webhook sync error: ${stderr}`);
+      else logger.info(`Webhook sync output: ${stdout}`);
+    });
+    res.json({ status: 'ok', message: 'Deployment triggered successfully' });
+  });
+
   app.use(express.static(angularDistPath));
 
   // Fallback route for Angular SPA client-side routing
