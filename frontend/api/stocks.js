@@ -485,31 +485,51 @@ function calculateFairValue(stock, fundamentals) {
   const clampedScore = Math.max(-1, Math.min(1, stock.recommendScore || 0));
   const momentumMultiplier = 1 + (clampedScore * 0.05);
 
+  let fvPe = null;
+  let fvPb = null;
+
+  // Model A: Earnings Multiple (P/E)
   if (fundamentals.eps && fundamentals.eps > 0) {
     const sectorPE = 12.0;
-    const fairValueRaw = fundamentals.eps * sectorPE * momentumMultiplier * macroDiscount;
-    const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
-    const conf = fundamentals.epsConfidence === 'HIGH' ? 'HIGH' : fundamentals.epsConfidence === 'MEDIUM' ? 'MEDIUM' : 'LOW';
-    return { fairValue: Number(clamped.toFixed(2)), confidence: conf };
-  } else if (stock.bvps && stock.bvps > 0) {
-    const sectorPB = 2.8;
-    const fairValueRaw = stock.bvps * sectorPB * momentumMultiplier * macroDiscount;
-    const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
-    return { fairValue: Number(clamped.toFixed(2)), confidence: 'MEDIUM' };
+    fvPe = fundamentals.eps * sectorPE * momentumMultiplier * macroDiscount;
+  }
+
+  // Model B: Book Value Multiple (P/B)
+  if (stock.bvps && stock.bvps > 0) {
+    const sectorPB = 2.5;
+    fvPb = stock.bvps * sectorPB * momentumMultiplier * macroDiscount;
+  }
+
+  let fairValueRaw = null;
+  let conf = 'MEDIUM';
+
+  if (fvPe && fvPb) {
+    // Blended Multi-Model: 50% P/E + 50% P/B
+    fairValueRaw = 0.50 * fvPe + 0.50 * fvPb;
+    conf = 'HIGH';
+  } else if (fvPe) {
+    fairValueRaw = fvPe;
+    conf = fundamentals.epsConfidence === 'HIGH' ? 'HIGH' : 'MEDIUM';
+  } else if (fvPb) {
+    fairValueRaw = fvPb;
+    conf = 'MEDIUM';
   } else if (fundamentals.dividendPerShare && fundamentals.dividendPerShare > 0) {
     const requiredReturn = 0.12;
-    const fairValueRaw = (fundamentals.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
+    fairValueRaw = (fundamentals.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
+    conf = 'MEDIUM';
+  }
+
+  if (fairValueRaw && fairValueRaw > 0) {
     const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
-    return { fairValue: Number(clamped.toFixed(2)), confidence: 'MEDIUM' };
+    return { fairValue: Number(clamped.toFixed(2)), confidence: conf };
   }
 
   const rangeMidpoint = low52 + 0.618 * (high52 - low52);
   const volRatio = stock.avgVolume > 0 ? Math.min(stock.volume / stock.avgVolume, 2.0) : 1;
   const scoreFactor = 1 + (clampedScore * 0.1);
-  let fairValue = rangeMidpoint * (0.85 + 0.15 * volRatio) * scoreFactor * macroDiscount;
-  if (scoreFactor >= 1) { fairValue = Math.max(fairValue, price * scoreFactor); }
-  const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValue));
-  return { fairValue: Number(clamped.toFixed(2)), confidence: 'LOW' };
+  const estVal = rangeMidpoint * (0.9 + 0.1 * volRatio) * scoreFactor * macroDiscount;
+  const clampedFallback = Math.max(price * 0.80, Math.min(price * 1.50, estVal));
+  return { fairValue: Number(clampedFallback.toFixed(2)), confidence: 'LOW' };
 }
 
 function calculateIntradaySignal(stock) {
