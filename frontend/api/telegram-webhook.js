@@ -1,6 +1,5 @@
 const https = require('https');
-const stocksApi = require('./stocks.js');
-const goldApi = require('./gold.js');
+const http = require('http');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8640417766:AAHCYMvRWnhAvioS5GKwGszt9MULys-obZg';
 
@@ -37,34 +36,31 @@ function sendTelegramMessage(chatId, text, replyMarkup = null) {
   });
 }
 
-function getMockRes() {
-  let resData = null;
-  let resCode = 200;
-  return {
-    setHeader: () => {},
-    status: (code) => {
-      resCode = code;
-      return {
-        json: (data) => { resData = data; }
-      };
-    },
-    json: (data) => { resData = data; },
-    _getResult: () => resData
-  };
+function fetchJson(url) {
+  return new Promise((resolve) => {
+    const client = url.startsWith('https') ? https : http;
+    client.get(url, { timeout: 4000 }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch (e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
 }
 
 async function fetchStocksData() {
-  const mockReq = { query: {} };
-  const mockRes = getMockRes();
-  await stocksApi(mockReq, mockRes);
-  return mockRes._getResult() || [];
+  const data = await fetchJson('http://20.91.240.54:5000/api/stocks');
+  if (data && Array.isArray(data) && data.length > 0) return data;
+  const vercelData = await fetchJson('https://stocks.templatesnippet.com/api/stocks');
+  return vercelData || [];
 }
 
 async function fetchGoldData() {
-  const mockReq = { query: {} };
-  const mockRes = getMockRes();
-  await goldApi(mockReq, mockRes);
-  return mockRes._getResult() || {};
+  const data = await fetchJson('http://20.91.240.54:5000/api/gold');
+  if (data && data.gold24kEgp) return data;
+  const vercelData = await fetchJson('https://stocks.templatesnippet.com/api/gold');
+  return vercelData || {};
 }
 
 module.exports = async (req, res) => {
@@ -138,8 +134,8 @@ module.exports = async (req, res) => {
         `👑 <b>الجنيه الذهب:</b> ${gold.goldCoinEgp || '46,608'} ج.م\n` +
         `🌍 <b>الأونصة عالمياً:</b> $${gold.goldUsdPerOz || '4,048.58'}\n` +
         `💵 <b>سعر صرف الدولار:</b> ${gold.usdEgpRate || '49.80'} ج.م\n\n` +
-        `💡 <b>التوصية:</b> ${gold.shortTermRec?.action || 'شراء تحوطي على دفعات'}\n` +
-        `📌 <b>السبب:</b> ${gold.shortTermRec?.reason || 'منطقة تجميع إيجابية للذهب مع علاوة صاغة معتدلة'}`;
+        `💡 <b>التوصية:</b> ${gold.signalType || 'شراء تحوطي على دفعات'}\n` +
+        `📌 <b>السبب:</b> تجميع إيجابي للذهب مع استقرار أسعار الصرف`;
 
       await sendTelegramMessage(chatId, goldMsg);
       return res.status(200).send('OK');
@@ -151,7 +147,6 @@ module.exports = async (req, res) => {
       const stocks = await fetchStocksData();
       let filtered = isHalalOnly ? stocks.filter(s => s.isHalal) : stocks;
 
-      // Sort by highest fair value upside
       filtered.sort((a, b) => (b.fairValueUpsidePercent || 0) - (a.fairValueUpsidePercent || 0));
       const topPicks = filtered.slice(0, 7);
 
@@ -171,7 +166,7 @@ module.exports = async (req, res) => {
       return res.status(200).send('OK');
     }
 
-    // Stock Search (by symbol or Arabic name query e.g. "COMI" or "أبو قير")
+    // Stock Search (by symbol or Arabic name query)
     const query = text.replace('/', '').toUpperCase().trim();
     const stocks = await fetchStocksData();
     const found = stocks.find(s =>
@@ -189,7 +184,7 @@ module.exports = async (req, res) => {
         `🏢 ${found.name}\n\n` +
         `💰 <b>السعر الحالي:</b> ${found.currentPrice} ج.م\n` +
         `🎯 <b>القيمة العادلة المحسوبة:</b> ${found.fairValue} ج.م (${upside})\n` +
-        `📈 <b>مؤشر RSI:</b> ${found.rsi} | 📊 <b>P/E Ratio:</b> ${found.peRatio || 'N/A'}\n` +
+        `📈 <b>مؤشر RSI:</b> ${found.rsi || 'N/A'} | 📊 <b>P/E Ratio:</b> ${found.peRatio || 'N/A'}\n` +
         `💡 <b>إشارة التحليل الفني:</b> ${signalEmoji}\n` +
         `⚖️ <b>الشرعية:</b> ${halalBadge}\n\n` +
         `📌 <b>توصية طويلة الأجل:</b> ${found.longTermRec?.action || 'تجميع استثماري'}\n` +
