@@ -206,8 +206,12 @@ export class StockApiService {
     const source = this.selectedSource();
 
     try {
+      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise()
+        .catch(() => this.http.get<StockAnalysisResult[]>(`http://20.91.240.54:5000/api/stocks?source=${source}`).toPromise())
+        .catch(() => []);
+
       const [results, goldData] = await Promise.all([
-        this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise().catch(() => []),
+        apiStockPromise,
         this.http.get<GoldPrices>('/api/gold').toPromise().catch(() => null)
       ]);
 
