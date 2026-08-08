@@ -45,6 +45,7 @@ export interface StockAnalysisResult {
   fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW';
   fairValueUpsidePercent: number;
   marketRegime: 'BULLISH' | 'BEARISH' | 'UNKNOWN';
+  isHalal?: boolean;
   shariaTier: ShariaTier;
   shariaStatusText: string;
   purificationPercent?: number;

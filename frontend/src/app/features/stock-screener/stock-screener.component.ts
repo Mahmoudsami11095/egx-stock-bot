@@ -50,6 +50,11 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
                   class="px-3.5 py-2 rounded-xl text-xs transition-all border border-darkBorder">
             الكل ({{ apiService.stocks().length }})
           </button>
+          <button (click)="activeFilter.set('HALAL')"
+                  [class]="activeFilter() === 'HALAL' ? 'bg-emerald-500 text-black font-extrabold shadow-lg shadow-emerald-500/20' : 'bg-darkCard text-emerald-400 hover:bg-darkBorder border-emerald-500/30'"
+                  class="px-3.5 py-2 rounded-xl text-xs transition-all border">
+            🌙 الأسهم الحلال ({{ halalCount() }})
+          </button>
           <button (click)="activeFilter.set('BUY')"
                   [class]="activeFilter() === 'BUY' ? 'bg-emeraldAccent text-black font-bold' : 'bg-darkCard text-gray-300 hover:bg-darkBorder'"
                   class="px-3.5 py-2 rounded-xl text-xs transition-all border border-darkBorder">
@@ -85,6 +90,7 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
           <ng-template pTemplate="header">
             <tr>
               <th pSortableColumn="quote.symbol">السهم <p-sortIcon field="quote.symbol"></p-sortIcon></th>
+              <th pSortableColumn="isHalal">الشريعة <p-sortIcon field="isHalal"></p-sortIcon></th>
               <th pSortableColumn="quote.currentPrice">السعر اللحظي <p-sortIcon field="quote.currentPrice"></p-sortIcon></th>
               <th pSortableColumn="fairValue">القيمة العادلة <p-sortIcon field="fairValue"></p-sortIcon></th>
               <th pSortableColumn="fairValueUpsidePercent">فارق النمو <p-sortIcon field="fairValueUpsidePercent"></p-sortIcon></th>
@@ -102,6 +108,14 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
               <td>
                 <div class="font-black text-white text-sm">{{ stock.quote.symbol }}</div>
                 <div class="text-xs text-gray-400 truncate max-w-[160px]">{{ stock.quote.nameAr }}</div>
+              </td>
+
+              <!-- Sharia Compliance Badge -->
+              <td>
+                <span [class]="stock.isHalal ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30'"
+                      class="px-2 py-0.5 rounded text-[11px] font-extrabold border inline-flex items-center gap-1">
+                  {{ stock.isHalal ? '🌙 حلال' : '🔴 تقليدي' }}
+                </span>
               </td>
 
               <!-- Price & Change -->
@@ -193,9 +207,13 @@ export class StockScreenerComponent {
   public apiService = inject(StockApiService);
 
   public searchQuery = signal('');
-  public activeFilter = signal<'ALL' | 'BUY' | 'UNDERVALUED' | 'INTRADAY_BUY' | 'INTRADAY_SELL'>('ALL');
+  public activeFilter = signal<'ALL' | 'HALAL' | 'BUY' | 'UNDERVALUED' | 'INTRADAY_BUY' | 'INTRADAY_SELL'>('ALL');
   public modalVisible = false;
   public selectedStock: StockAnalysisResult | null = null;
+
+  public halalCount = computed(() =>
+    this.apiService.stocks().filter(s => s.isHalal).length
+  );
 
   public buyCount = computed(() =>
     this.apiService.stocks().filter(s => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY').length
@@ -222,7 +240,9 @@ export class StockScreenerComponent {
       );
     }
 
-    if (filter === 'BUY') {
+    if (filter === 'HALAL') {
+      list = list.filter(s => s.isHalal);
+    } else if (filter === 'BUY') {
       list = list.filter(s => s.signalType === 'BUY' || s.signalType === 'STRONG_BUY');
     } else if (filter === 'UNDERVALUED') {
       list = list.filter(s => s.fairValueUpsidePercent >= 15);

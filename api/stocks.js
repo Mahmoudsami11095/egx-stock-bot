@@ -929,6 +929,7 @@ module.exports = async (req, res) => {
   }
 
   try {
+    const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
     const earningsOverrides = loadEarningsOverrides();
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
@@ -943,6 +944,8 @@ module.exports = async (req, res) => {
 
       const isNonHalal = CONVENTIONAL_NON_HALAL.has(symUpper) || CONVENTIONAL_NON_HALAL.has(rawUpper);
       const isHalal = !isNonHalal && (!halalSet || halalSet.size === 0 || halalSet.has(symUpper) || halalSet.has(rawUpper));
+
+      if (halalOnly && !isHalal) continue;
 
       // 1. Manual override
       const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
