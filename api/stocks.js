@@ -366,7 +366,7 @@ function fetchTradingViewScan() {
 // ─── SMART EPS ENGINE WITH AUTOMATED LIVE DISCLOSURE PARSER ────────────────
 function computeSmartEps(stock, override, autoParsed) {
   const now = Date.now() / 1000;
-  const STALE_THRESHOLD = 180 * 24 * 3600;
+  const STALE_THRESHOLD = 180 * 24 * 3600; // 6 months in seconds
 
   // Tier 0: Manual EGX Bulletin Override (highest priority)
   if (override) {
@@ -389,7 +389,20 @@ function computeSmartEps(stock, override, autoParsed) {
     }
   }
 
-  // Tier 0.5: Automated Live EGX News Parser (automatically extracted from live news disclosures)
+  // Tier 1: Fresh TradingView TTM EPS (takes priority when available and fresh)
+  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : Infinity;
+  const isFresh = earningsAge < STALE_THRESHOLD;
+
+  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
+    return {
+      eps: stock.epsRaw,
+      source: 'TTM_FRESH',
+      confidence: 'HIGH',
+      details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)`
+    };
+  }
+
+  // Tier 2: Automated Live EGX News Parser (used when TradingView TTM is stale or missing)
   if (autoParsed && autoParsed.annualizedNetProfit > 0) {
     const shares = stock.totalShares;
     if (shares && shares > 0) {
@@ -407,19 +420,6 @@ function computeSmartEps(stock, override, autoParsed) {
         details: `Auto-Scraped News (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
       };
     }
-  }
-
-  // Tier 1: Fresh TTM EPS
-  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : Infinity;
-  const isFresh = earningsAge < STALE_THRESHOLD;
-
-  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
-    return {
-      eps: stock.epsRaw,
-      source: 'TTM_FRESH',
-      confidence: 'HIGH',
-      details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)`
-    };
   }
 
   // Tier 2: Smart Annualized
