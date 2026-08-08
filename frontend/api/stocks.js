@@ -418,19 +418,6 @@ async function fetchGoogleSheetOverrides() {
     }).on('error', () => resolve(loadEarningsOverridesLocal()));
   });
 }
-      source: 'EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)',
-      updatedAt: '2026-08-08'
-    },
-    'POUL': {
-      netProfit: 2486690000,
-      periodMonths: 12,
-      totalShares: 479002000,
-      dps: 0.33,
-      source: 'Mubasher Breaking News Q1 2026 Consolidated Results (Jan-Mar 2026)',
-      updatedAt: '2026-08-08'
-    }
-  };
-}
 
 // ─── AUTOMATED ARABIC HEADLINE PARSER ───────────────────────────────────────
 function parseArabicFinancialHeadline(symbol, title, pubDate) {
