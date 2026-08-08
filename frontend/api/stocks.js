@@ -650,8 +650,8 @@ module.exports = async (req, res) => {
       const symUpper = s.symbol.toUpperCase();
       const rawUpper = (s.rawSym || '').toUpperCase();
 
-      if (CONVENTIONAL_NON_HALAL.has(symUpper) || CONVENTIONAL_NON_HALAL.has(rawUpper)) continue;
-      if (halalSet && !halalSet.has(symUpper) && !halalSet.has(rawUpper)) continue;
+      const isNonHalal = CONVENTIONAL_NON_HALAL.has(symUpper) || CONVENTIONAL_NON_HALAL.has(rawUpper);
+      const isHalal = !isNonHalal && (!halalSet || halalSet.size === 0 || halalSet.has(symUpper) || halalSet.has(rawUpper));
 
       const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
 
@@ -714,7 +714,7 @@ module.exports = async (req, res) => {
         macdVal: s.macdVal, macdSignalVal: s.macdSignalVal,
         adxVal: s.adxVal, atrVal: s.atrVal,
         fairValue, fairValueConfidence: confidence, fairValueUpsidePercent: upsidePercent,
-        isHalal: true,
+        isHalal: isHalal,
         ...signalData, ...intradayData,
         quote: {
           symbol: s.symbol, nameEn: s.name, nameAr: s.name,
@@ -737,8 +737,8 @@ module.exports = async (req, res) => {
           volumeRatio: s.avgVolume > 0 ? Number((s.volume / s.avgVolume).toFixed(2)) : 1
         },
         suggestedTarget: { target1: signalData.suggestedTarget1, target2: signalData.suggestedTarget2 },
-        shariaTier: 'COMPLIANT',
-        shariaStatusText: '🟢 متوافق مع أحكام الشريعة الإسلامية',
+        shariaTier: isHalal ? 'COMPLIANT' : 'NON_COMPLIANT',
+        shariaStatusText: isHalal ? '🟢 متوافق مع أحكام الشريعة الإسلامية' : '🔴 غير متوافق (أسهم تقليدية/بنوك)',
         shortTermRec, longTermRec
       });
     }
