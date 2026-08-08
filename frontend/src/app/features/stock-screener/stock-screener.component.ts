@@ -22,7 +22,16 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
           <p class="text-xs sm:text-sm text-gray-400">مرتبة أوتوماتيكياً حسب أعلى فارق للقيمة العادلة ونسب النمو المتوقعة</p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- Server Connection Status Pill -->
+          <span [class]="apiService.activeBackend() === 'AZURE'
+                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5'
+                        : 'bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-pulse'"
+                [title]="apiService.activeBackend() === 'AZURE' ? 'متصل بالسيرفر الرئيسي Azure VM (20.91.240.54:5000)' : 'تعذر الاتصال بـ Azure — يعمل على Vercel Fallback'">
+            <span [class]="apiService.activeBackend() === 'AZURE' ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse' : 'w-2 h-2 rounded-full bg-amber-400'"></span>
+            {{ apiService.activeBackend() === 'AZURE' ? '🟢 Azure VM (الرئيسي)' : '⚠️ Vercel (الاحتياطي)' }}
+          </span>
+
           <button (click)="handleUpdateOverrides()"
                   [disabled]="apiService.updatingOverrides()"
                   class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 cursor-pointer">
@@ -35,6 +44,15 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
             <i class="pi pi-external-link"></i> فتح Google Sheet أونلاين
           </a>
         </div>
+      </div>
+
+      <!-- Azure Server Failure Fallback Toastr Banner -->
+      <div *ngIf="apiService.serverFallbackNotice()" class="bg-amber-500/20 border border-amber-500/40 text-amber-200 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between transition-all shadow-lg">
+        <div class="flex items-center gap-2">
+          <i class="pi pi-exclamation-triangle text-amber-400 text-base"></i>
+          <span>{{ apiService.serverFallbackNotice() }}</span>
+        </div>
+        <button (click)="apiService.serverFallbackNotice.set(null)" class="text-amber-300 hover:text-white cursor-pointer"><i class="pi pi-times"></i></button>
       </div>
 
       <!-- Notification Toast Banner -->

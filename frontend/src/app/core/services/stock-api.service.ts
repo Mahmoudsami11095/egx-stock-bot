@@ -82,6 +82,8 @@ export class StockApiService {
   public loading = signal<boolean>(false);
   public lastUpdated = signal<Date | null>(null);
   public isUsingCache = signal<boolean>(false);
+  public activeBackend = signal<'AZURE' | 'VERCEL_FALLBACK'>('AZURE');
+  public serverFallbackNotice = signal<string | null>(null);
 
   constructor(private http: HttpClient) {
     const savedSource = localStorage.getItem('egx_selected_datasource') as DataSource;
@@ -209,7 +211,17 @@ export class StockApiService {
     try {
       // Primary: Azure VM (20.91.240.54:5000) -> Fallback: Vercel (/api)
       const apiStockPromise = this.http.get<StockAnalysisResult[]>(`${PRIMARY_AZURE_API}/api/stocks?source=${source}`).toPromise()
-        .catch(() => this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise())
+        .then(res => {
+          this.activeBackend.set('AZURE');
+          this.serverFallbackNotice.set(null);
+          return res;
+        })
+        .catch(azureErr => {
+          console.warn('⚠️ Primary Azure VM backend failed/unreachable. Switching to Vercel Fallback API:', azureErr);
+          this.activeBackend.set('VERCEL_FALLBACK');
+          this.serverFallbackNotice.set('⚠️ تعذر الاتصال بسيرفر Azure الرئيسي — تم التحويل أوتوماتيكياً للباك إند الاحتياطي (Vercel Serverless).');
+          return this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`).toPromise();
+        })
         .catch(() => []);
 
       const apiGoldPromise = this.http.get<GoldPrices>(`${PRIMARY_AZURE_API}/api/gold`).toPromise()
