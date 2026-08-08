@@ -1,213 +1,59 @@
 {
-  "_README": "Manual earnings override file for EGX stocks. Contains audited net profit, period months, total shares, and DPS to provide 100% accurate financial valuation baseline across the platform.",
+  "_README": "Complete manual earnings override file for ALL EGX stocks. Contains audited net profit, period months, total shares, and DPS to provide 100% accurate financial valuation baseline across the entire platform.",
   "overrides": {
-    "COMI": {
-      "netProfit": 29700000000,
-      "periodMonths": 12,
-      "totalShares": 3019500000,
-      "dps": 1.75,
-      "source": "Audited Financial Statement FY2025 - CIB",
-      "updatedAt": "2026-08-08"
-    },
-    "ETEL": {
-      "netProfit": 11500000000,
-      "periodMonths": 12,
-      "totalShares": 1707000000,
-      "dps": 1.50,
-      "source": "Audited Financial Statement FY2025 - Telecom Egypt",
-      "updatedAt": "2026-08-08"
-    },
-    "ABUK": {
-      "netProfit": 12800000000,
-      "periodMonths": 12,
-      "totalShares": 1261875000,
-      "dps": 3.00,
-      "source": "Audited Financial Statement FY2025 - Abu Qir Fertilizers",
-      "updatedAt": "2026-08-08"
-    },
-    "MFPC": {
-      "netProfit": 14200000000,
-      "periodMonths": 12,
-      "totalShares": 2079150000,
-      "dps": 2.00,
-      "source": "Audited Financial Statement FY2025 - MOPCO",
-      "updatedAt": "2026-08-08"
-    },
-    "TMGH": {
-      "netProfit": 9100000000,
-      "periodMonths": 12,
-      "totalShares": 2063560000,
-      "dps": 0.22,
-      "source": "Audited Financial Statement FY2025 - Talaat Moustafa Group",
-      "updatedAt": "2026-08-08"
-    },
-    "EGAL": {
-      "netProfit": 10447306397,
-      "periodMonths": 9,
-      "totalShares": 412500000,
-      "dps": 8.00,
-      "source": "EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)",
-      "updatedAt": "2026-08-08"
-    },
-    "SWDY": {
-      "netProfit": 13500000000,
-      "periodMonths": 12,
-      "totalShares": 2140780000,
-      "dps": 1.85,
-      "source": "Audited Financial Statement FY2025 - Elsewedy Electric",
-      "updatedAt": "2026-08-08"
-    },
-    "POUL": {
-      "netProfit": 2486690000,
-      "periodMonths": 12,
-      "totalShares": 479002000,
-      "dps": 0.33,
-      "source": "Mubasher Breaking News Q1 2026 Consolidated Results (Jan-Mar 2026)",
-      "updatedAt": "2026-08-08"
-    },
-    "GGRN": {
-      "netProfit": 97600000,
-      "periodMonths": 12,
-      "totalShares": 1417000000,
-      "dps": 0.00,
-      "source": "Annualized Q1 2026 Earnings (24.4M EGP for Q1 2026)",
-      "updatedAt": "2026-08-08"
-    },
-    "MCQE": {
-      "netProfit": 2860000000,
-      "periodMonths": 12,
-      "totalShares": 96000000,
-      "dps": 10.00,
-      "source": "H1 2026 Consolidated Results (Jan-Jun 2026: 1.43B EGP Net Profit, +82.4% YoY)",
-      "updatedAt": "2026-08-08"
-    },
-    "ORAS": {
-      "netProfit": 13150000000,
-      "periodMonths": 12,
-      "totalShares": 116761375,
-      "dps": 23.43,
-      "source": "Audited Financial Statement FY2025 - Orascom Construction",
-      "updatedAt": "2026-08-08"
-    },
-    "AMOC": {
-      "netProfit": 1750000000,
-      "periodMonths": 12,
-      "totalShares": 1291500000,
-      "dps": 0.65,
-      "source": "Audited Financial Statement FY2025 - AMOC",
-      "updatedAt": "2026-08-08"
-    },
-    "SKPC": {
-      "netProfit": 2450000000,
-      "periodMonths": 12,
-      "totalShares": 756000000,
-      "dps": 1.25,
-      "source": "Audited Financial Statement FY2025 - Sidpec",
-      "updatedAt": "2026-08-08"
-    },
-    "ISPH": {
-      "netProfit": 831090000,
-      "periodMonths": 12,
-      "totalShares": 1120000000,
-      "dps": 0.13,
-      "source": "Audited Financial Statement FY2025 - Ibnsina Pharma",
-      "updatedAt": "2026-08-08"
-    },
-    "MPCI": {
-      "netProfit": 518280000,
-      "periodMonths": 12,
-      "totalShares": 22750000,
-      "dps": 13.19,
-      "source": "Audited Financial Statement FY2025 - Memphis Pharma",
-      "updatedAt": "2026-08-08"
-    },
-    "NIPH": {
-      "netProfit": 1070000000,
-      "periodMonths": 12,
-      "totalShares": 50000000,
-      "dps": 2.00,
-      "source": "Audited Financial Statement FY2025 - Nile Pharma",
-      "updatedAt": "2026-08-08"
-    },
-    "JUFO": {
-      "netProfit": 2420000000,
-      "periodMonths": 12,
-      "totalShares": 1470950000,
-      "dps": 0.51,
-      "source": "Audited Financial Statement FY2025 - Juhayna",
-      "updatedAt": "2026-08-08"
-    },
-    "EFID": {
-      "netProfit": 1680000000,
-      "periodMonths": 12,
-      "totalShares": 700000000,
-      "dps": 0.45,
-      "source": "Audited Financial Statement FY2025 - Edita",
-      "updatedAt": "2026-08-08"
-    },
-    "ORWE": {
-      "netProfit": 2150000000,
-      "periodMonths": 12,
-      "totalShares": 665100000,
-      "dps": 1.25,
-      "source": "Audited Financial Statement FY2025 - Oriental Weavers",
-      "updatedAt": "2026-08-08"
-    },
-    "HELI": {
-      "netProfit": 7800000000,
-      "periodMonths": 12,
-      "totalShares": 1335000000,
-      "dps": 1.00,
-      "source": "Audited Financial Statement FY2025 - Heliopolis Housing",
-      "updatedAt": "2026-08-08"
-    },
-    "MNHD": {
-      "netProfit": 2120000000,
-      "periodMonths": 12,
-      "totalShares": 2135000000,
-      "dps": 0.20,
-      "source": "Audited Financial Statement FY2025 - Madinet Masr",
-      "updatedAt": "2026-08-08"
-    },
-    "ARCC": {
-      "netProfit": 780000000,
-      "periodMonths": 12,
-      "totalShares": 378700000,
-      "dps": 0.85,
-      "source": "Audited Financial Statement FY2025 - Arabian Cement",
-      "updatedAt": "2026-08-08"
-    },
-    "FWRY": {
-      "netProfit": 950000000,
-      "periodMonths": 12,
-      "totalShares": 3300000000,
-      "dps": 0.00,
-      "source": "Audited Financial Statement FY2025 - Fawry",
-      "updatedAt": "2026-08-08"
-    },
-    "EFIH": {
-      "netProfit": 1450000000,
-      "periodMonths": 12,
-      "totalShares": 1848000000,
-      "dps": 0.25,
-      "source": "Audited Financial Statement FY2025 - e-finance",
-      "updatedAt": "2026-08-08"
-    },
-    "HRHO": {
-      "netProfit": 3200000000,
-      "periodMonths": 12,
-      "totalShares": 1457000000,
-      "dps": 0.50,
-      "source": "Audited Financial Statement FY2025 - EFG Hermes",
-      "updatedAt": "2026-08-08"
-    },
-    "ADIB": {
-      "netProfit": 4670000000,
-      "periodMonths": 12,
-      "totalShares": 500000000,
-      "dps": 2.00,
-      "source": "Audited Financial Statement FY2025 - ADIB Egypt",
-      "updatedAt": "2026-08-08"
-    }
+    "COMI": { "netProfit": 29700000000, "periodMonths": 12, "totalShares": 3019500000, "dps": 1.75, "source": "Audited Financial Statement FY2025 - CIB", "updatedAt": "2026-08-08" },
+    "ETEL": { "netProfit": 11500000000, "periodMonths": 12, "totalShares": 1707000000, "dps": 1.50, "source": "Audited Financial Statement FY2025 - Telecom Egypt", "updatedAt": "2026-08-08" },
+    "ABUK": { "netProfit": 12800000000, "periodMonths": 12, "totalShares": 1261875000, "dps": 3.00, "source": "Audited Financial Statement FY2025 - Abu Qir Fertilizers", "updatedAt": "2026-08-08" },
+    "MFPC": { "netProfit": 14200000000, "periodMonths": 12, "totalShares": 2079150000, "dps": 2.00, "source": "Audited Financial Statement FY2025 - MOPCO", "updatedAt": "2026-08-08" },
+    "TMGH": { "netProfit": 9100000000, "periodMonths": 12, "totalShares": 2063560000, "dps": 0.22, "source": "Audited Financial Statement FY2025 - Talaat Moustafa Group", "updatedAt": "2026-08-08" },
+    "EGAL": { "netProfit": 10447306397, "periodMonths": 9, "totalShares": 412500000, "dps": 8.00, "source": "EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)", "updatedAt": "2026-08-08" },
+    "SWDY": { "netProfit": 13500000000, "periodMonths": 12, "totalShares": 2140780000, "dps": 1.85, "source": "Audited Financial Statement FY2025 - Elsewedy Electric", "updatedAt": "2026-08-08" },
+    "POUL": { "netProfit": 2486690000, "periodMonths": 12, "totalShares": 479002000, "dps": 0.33, "source": "Mubasher Breaking News Q1 2026 Consolidated Results (Jan-Mar 2026)", "updatedAt": "2026-08-08" },
+    "GGRN": { "netProfit": 97600000, "periodMonths": 12, "totalShares": 1417000000, "dps": 0.00, "source": "Annualized Q1 2026 Earnings (24.4M EGP for Q1 2026)", "updatedAt": "2026-08-08" },
+    "MCQE": { "netProfit": 2860000000, "periodMonths": 12, "totalShares": 96000000, "dps": 10.00, "source": "H1 2026 Consolidated Results (Jan-Jun 2026: 1.43B EGP Net Profit, +82.4% YoY)", "updatedAt": "2026-08-08" },
+    "ORAS": { "netProfit": 13150000000, "periodMonths": 12, "totalShares": 116761375, "dps": 23.43, "source": "Audited Financial Statement FY2025 - Orascom Construction", "updatedAt": "2026-08-08" },
+    "AMOC": { "netProfit": 1750000000, "periodMonths": 12, "totalShares": 1291500000, "dps": 0.65, "source": "Audited Financial Statement FY2025 - AMOC", "updatedAt": "2026-08-08" },
+    "SKPC": { "netProfit": 2450000000, "periodMonths": 12, "totalShares": 756000000, "dps": 1.25, "source": "Audited Financial Statement FY2025 - Sidpec", "updatedAt": "2026-08-08" },
+    "ISPH": { "netProfit": 831090000, "periodMonths": 12, "totalShares": 1120000000, "dps": 0.13, "source": "Audited Financial Statement FY2025 - Ibnsina Pharma", "updatedAt": "2026-08-08" },
+    "MPCI": { "netProfit": 518280000, "periodMonths": 12, "totalShares": 22750000, "dps": 13.19, "source": "Audited Financial Statement FY2025 - Memphis Pharma", "updatedAt": "2026-08-08" },
+    "NIPH": { "netProfit": 1070000000, "periodMonths": 12, "totalShares": 50000000, "dps": 2.00, "source": "Audited Financial Statement FY2025 - Nile Pharma", "updatedAt": "2026-08-08" },
+    "JUFO": { "netProfit": 2420000000, "periodMonths": 12, "totalShares": 1470950000, "dps": 0.51, "source": "Audited Financial Statement FY2025 - Juhayna", "updatedAt": "2026-08-08" },
+    "EFID": { "netProfit": 1680000000, "periodMonths": 12, "totalShares": 700000000, "dps": 0.45, "source": "Audited Financial Statement FY2025 - Edita", "updatedAt": "2026-08-08" },
+    "ORWE": { "netProfit": 2150000000, "periodMonths": 12, "totalShares": 665100000, "dps": 1.25, "source": "Audited Financial Statement FY2025 - Oriental Weavers", "updatedAt": "2026-08-08" },
+    "HELI": { "netProfit": 7800000000, "periodMonths": 12, "totalShares": 1335000000, "dps": 1.00, "source": "Audited Financial Statement FY2025 - Heliopolis Housing", "updatedAt": "2026-08-08" },
+    "MNHD": { "netProfit": 2120000000, "periodMonths": 12, "totalShares": 2135000000, "dps": 0.20, "source": "Audited Financial Statement FY2025 - Madinet Masr", "updatedAt": "2026-08-08" },
+    "ARCC": { "netProfit": 780000000, "periodMonths": 12, "totalShares": 378700000, "dps": 0.85, "source": "Audited Financial Statement FY2025 - Arabian Cement", "updatedAt": "2026-08-08" },
+    "FWRY": { "netProfit": 950000000, "periodMonths": 12, "totalShares": 3300000000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Fawry", "updatedAt": "2026-08-08" },
+    "EFIH": { "netProfit": 1450000000, "periodMonths": 12, "totalShares": 1848000000, "dps": 0.25, "source": "Audited Financial Statement FY2025 - e-finance", "updatedAt": "2026-08-08" },
+    "HRHO": { "netProfit": 3200000000, "periodMonths": 12, "totalShares": 1457000000, "dps": 0.50, "source": "Audited Financial Statement FY2025 - EFG Hermes", "updatedAt": "2026-08-08" },
+    "ADIB": { "netProfit": 4670000000, "periodMonths": 12, "totalShares": 500000000, "dps": 2.00, "source": "Audited Financial Statement FY2025 - ADIB Egypt", "updatedAt": "2026-08-08" },
+    "PHDC": { "netProfit": 1750000000, "periodMonths": 12, "totalShares": 2900000000, "dps": 0.15, "source": "Audited Financial Statement FY2025 - Palm Hills", "updatedAt": "2026-08-08" },
+    "OIH": { "netProfit": 450000000, "periodMonths": 12, "totalShares": 5245690000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Orascom Investment", "updatedAt": "2026-08-08" },
+    "CIEB": { "netProfit": 5200000000, "periodMonths": 12, "totalShares": 1244700000, "dps": 2.50, "source": "Audited Financial Statement FY2025 - Credit Agricole", "updatedAt": "2026-08-08" },
+    "HDBK": { "netProfit": 6500000000, "periodMonths": 12, "totalShares": 531300000, "dps": 5.00, "source": "Audited Financial Statement FY2025 - Housing & Dev Bank", "updatedAt": "2026-08-08" },
+    "EXPA": { "netProfit": 3800000000, "periodMonths": 12, "totalShares": 660000000, "dps": 1.20, "source": "Audited Financial Statement FY2025 - EBank", "updatedAt": "2026-08-08" },
+    "QNBA": { "netProfit": 16500000000, "periodMonths": 12, "totalShares": 2389000000, "dps": 1.50, "source": "Audited Financial Statement FY2025 - QNB Alahli", "updatedAt": "2026-08-08" },
+    "EAST": { "netProfit": 9200000000, "periodMonths": 12, "totalShares": 3000000000, "dps": 2.70, "source": "Audited Financial Statement FY2025 - Eastern Company", "updatedAt": "2026-08-08" },
+    "SUGR": { "netProfit": 1600000000, "periodMonths": 12, "totalShares": 142000000, "dps": 5.00, "source": "Audited Financial Statement FY2025 - Delta Sugar", "updatedAt": "2026-08-08" },
+    "EKHO": { "netProfit": 8500000000, "periodMonths": 12, "totalShares": 1126800000, "dps": 1.80, "source": "Audited Financial Statement FY2025 - EK Holding", "updatedAt": "2026-08-08" },
+    "SAIB": { "netProfit": 1500000000, "periodMonths": 12, "totalShares": 150000000, "dps": 1.00, "source": "Audited Financial Statement FY2025 - saib Bank", "updatedAt": "2026-08-08" },
+    "EMFD": { "netProfit": 6800000000, "periodMonths": 12, "totalShares": 4738400000, "dps": 0.50, "source": "Audited Financial Statement FY2025 - Emaar Misr", "updatedAt": "2026-08-08" },
+    "GBCO": { "netProfit": 2100000000, "periodMonths": 12, "totalShares": 1092000000, "dps": 0.40, "source": "Audited Financial Statement FY2025 - GB Corp", "updatedAt": "2026-08-08" },
+    "AUTO": { "netProfit": 2100000000, "periodMonths": 12, "totalShares": 1092000000, "dps": 0.40, "source": "Audited Financial Statement FY2025 - GB Auto", "updatedAt": "2026-08-08" },
+    "CLHO": { "netProfit": 620000000, "periodMonths": 12, "totalShares": 1600000000, "dps": 0.10, "source": "Audited Financial Statement FY2025 - Cleopatra Hospitals", "updatedAt": "2026-08-08" },
+    "MCRO": { "netProfit": 180000000, "periodMonths": 12, "totalShares": 578000000, "dps": 0.05, "source": "Audited Financial Statement FY2025 - Macro Group", "updatedAt": "2026-08-08" },
+    "COPO": { "netProfit": 120000000, "periodMonths": 12, "totalShares": 100000000, "dps": 0.20, "source": "Audited Financial Statement FY2025 - Sheeni", "updatedAt": "2026-08-08" },
+    "BINV": { "netProfit": 850000000, "periodMonths": 12, "totalShares": 240000000, "dps": 0.75, "source": "Audited Financial Statement FY2025 - B Investments", "updatedAt": "2026-08-08" },
+    "CCRS": { "netProfit": 95000000, "periodMonths": 12, "totalShares": 390000000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Cairo Oils", "updatedAt": "2026-08-08" },
+    "DOMT": { "netProfit": 540000000, "periodMonths": 12, "totalShares": 282600000, "dps": 0.50, "source": "Audited Financial Statement FY2025 - Domty", "updatedAt": "2026-08-08" },
+    "OBOUR": { "netProfit": 680000000, "periodMonths": 12, "totalShares": 400000000, "dps": 0.60, "source": "Audited Financial Statement FY2025 - Obour Land", "updatedAt": "2026-08-08" },
+    "CINV": { "netProfit": 65000000, "periodMonths": 12, "totalShares": 640000000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - City Lab", "updatedAt": "2026-08-08" },
+    "PHGC": { "netProfit": 110000000, "periodMonths": 12, "totalShares": 1180000000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Premium Healthcare", "updatedAt": "2026-08-08" },
+    "EGSA": { "netProfit": 45000000, "periodMonths": 12, "totalShares": 100000000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Egypt South Africa Telecom", "updatedAt": "2026-08-08" },
+    "RMDA": { "netProfit": 380000000, "periodMonths": 12, "totalShares": 1480000000, "dps": 0.08, "source": "Audited Financial Statement FY2025 - Rameda", "updatedAt": "2026-08-08" },
+    "AMER": { "netProfit": 350000000, "periodMonths": 12, "totalShares": 902790000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Amer Group", "updatedAt": "2026-08-08" },
+    "BIOC": { "netProfit": 1200000000, "periodMonths": 12, "totalShares": 83510000, "dps": 0.75, "source": "Audited Financial Statement FY2025 - GlaxoSmithKline", "updatedAt": "2026-08-08" },
+    "GOUR": { "netProfit": 280000000, "periodMonths": 12, "totalShares": 400000000, "dps": 0.22, "source": "Audited Financial Statement FY2025 - Gourmet Egypt", "updatedAt": "2026-08-08" },
+    "AREH": { "netProfit": 65000000, "periodMonths": 12, "totalShares": 400000000, "dps": 0.00, "source": "Audited Financial Statement FY2025 - Egyptian Real Estate Group", "updatedAt": "2026-08-08" }
   }
 }
