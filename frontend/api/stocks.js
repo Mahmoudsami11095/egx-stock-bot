@@ -936,12 +936,23 @@ function calculateSignal(stock, fairValue, fairValueUpsidePercent) {
   };
 }
 
+let LOCAL_STOCKS_CACHE = null;
+let LOCAL_STOCKS_CACHE_TIME = 0;
+const CACHE_TTL_MS = 60 * 1000;
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  const now = Date.now();
+  if (LOCAL_STOCKS_CACHE && (now - LOCAL_STOCKS_CACHE_TIME < CACHE_TTL_MS)) {
+    res.setHeader('X-Served-By', 'Azure-VM-PrimaryCache');
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+    return res.status(200).json(LOCAL_STOCKS_CACHE);
   }
 
   // Try proxying to Azure Primary VM first (Server-to-Server, bypassing HTTPS Mixed Content)
@@ -1068,6 +1079,11 @@ module.exports = async (req, res) => {
         shariaStatusText: isHalal ? '🟢 متوافق مع أحكام الشريعة الإسلامية' : '🔴 غير متوافق (أسهم تقليدية/بنوك)',
         shortTermRec, longTermRec
       });
+    }
+
+    if (processed && processed.length > 0) {
+      LOCAL_STOCKS_CACHE = processed;
+      LOCAL_STOCKS_CACHE_TIME = Date.now();
     }
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
