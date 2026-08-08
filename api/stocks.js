@@ -368,7 +368,7 @@ function computeSmartEps(stock, override, autoParsed) {
   const now = Date.now() / 1000;
   const STALE_THRESHOLD = 180 * 24 * 3600; // 6 months in seconds
 
-  // Tier 0: Manual EGX Bulletin Override (highest priority)
+  // Tier 0: Manual EGX Bulletin Override (for explicit manual overrides)
   if (override) {
     const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
     const shares = override.totalShares || stock.totalShares;
@@ -389,20 +389,7 @@ function computeSmartEps(stock, override, autoParsed) {
     }
   }
 
-  // Tier 1: Fresh TradingView TTM EPS (takes priority when available)
-  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : 0;
-  const isFresh = !stock.earningsReleaseDate || earningsAge < STALE_THRESHOLD;
-
-  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
-    return {
-      eps: stock.epsRaw,
-      source: 'TTM_FRESH',
-      confidence: 'HIGH',
-      details: `TradingView TTM EPS (${stock.epsRaw.toFixed(2)})`
-    };
-  }
-
-  // Tier 2: Automated Live EGX News Parser (used when TradingView TTM is stale or missing)
+  // Tier 1 (HIGHEST PRIORITY): Automated Live EGX News Parser (Real-time breaking disclosures)
   if (autoParsed && autoParsed.annualizedNetProfit > 0) {
     const shares = stock.totalShares;
     if (shares && shares > 0) {
@@ -417,9 +404,22 @@ function computeSmartEps(stock, override, autoParsed) {
         eps: blendedEps,
         source: 'AUTO_NEWS_PARSER',
         confidence: 'HIGH',
-        details: `Auto-Scraped News (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
+        details: `Live News Disclosure (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
       };
     }
+  }
+
+  // Tier 2: TradingView Audited TTM EPS (Fallback if no live news disclosure)
+  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : 0;
+  const isFresh = !stock.earningsReleaseDate || earningsAge < STALE_THRESHOLD;
+
+  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
+    return {
+      eps: stock.epsRaw,
+      source: 'TTM_FRESH',
+      confidence: 'HIGH',
+      details: `TradingView TTM EPS (${stock.epsRaw.toFixed(2)})`
+    };
   }
 
   // Tier 2: Smart Annualized

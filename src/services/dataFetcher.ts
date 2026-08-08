@@ -112,16 +112,7 @@ function computeSmartEps(
     }
   }
 
-  // Tier 1: Fresh TTM EPS (takes priority when available)
-  const earningsAge = earningsReleaseDate ? (now - earningsReleaseDate) : 0;
-  const isFresh = !earningsReleaseDate || earningsAge < STALE_THRESHOLD;
-
-  if (epsRaw && epsRaw > 0 && isFresh) {
-    return { eps: epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
-      details: `TradingView TTM EPS (${epsRaw.toFixed(2)})` };
-  }
-
-  // Tier 2: Automated Live EGX News Parser (used when TradingView TTM is stale or missing)
+  // Tier 1 (HIGHEST PRIORITY): Automated Live EGX News Parser (Real-time breaking disclosures)
   if (autoParsed && autoParsed.annualizedNetProfit > 0) {
     if (totalShares && totalShares > 0) {
       const autoEps = autoParsed.annualizedNetProfit / totalShares;
@@ -133,9 +124,18 @@ function computeSmartEps(
       }
       return {
         eps: blendedEps, source: 'AUTO_NEWS_PARSER', confidence: 'HIGH',
-        details: `Auto-Scraped News (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
+        details: `Live News Disclosure (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
       };
     }
+  }
+
+  // Tier 2: TradingView Audited TTM EPS (Fallback if no live news disclosure)
+  const earningsAge = earningsReleaseDate ? (now - earningsReleaseDate) : 0;
+  const isFresh = !earningsReleaseDate || earningsAge < STALE_THRESHOLD;
+
+  if (epsRaw && epsRaw > 0 && isFresh) {
+    return { eps: epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
+      details: `TradingView TTM EPS (${epsRaw.toFixed(2)})` };
   }
 
   // Tier 2: Smart Annualized
