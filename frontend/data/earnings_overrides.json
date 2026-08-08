@@ -25,6 +25,14 @@
       "source": "Annualized Q1 2026 Earnings (24.4M EGP for Q1 2026)",
       "updatedAt": "2026-08-08"
     },
+    "MCQE": {
+      "netProfit": 2860000000,
+      "periodMonths": 12,
+      "totalShares": 96000000,
+      "dps": 10.00,
+      "source": "H1 2026 Consolidated Results (Jan-Jun 2026: 1.43B EGP Net Profit, +82.4% YoY)",
+      "updatedAt": "2026-08-08"
+    },
     "MPCI": {
       "netProfit": 518280000,
       "periodMonths": 12,
