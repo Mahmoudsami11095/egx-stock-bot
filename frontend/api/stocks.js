@@ -373,7 +373,16 @@ function computeSmartEps(stock, override, autoParsed) {
     }
   }
 
-  // Tier 1 (HIGHEST PRIORITY): Automated Live EGX News Parser (Real-time breaking disclosures)
+  // Tier 1: TradingView Audited TTM EPS (verified financial numbers)
+  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : 0;
+  const isFresh = !stock.earningsReleaseDate || earningsAge < STALE_THRESHOLD;
+
+  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
+    return { eps: stock.epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
+      details: `TradingView Audited TTM EPS (${stock.epsRaw.toFixed(2)})` };
+  }
+
+  // Tier 2: Automated Live EGX News Parser (used when TradingView TTM is missing)
   if (autoParsed && autoParsed.annualizedNetProfit > 0) {
     const shares = stock.totalShares;
     if (shares && shares > 0) {
@@ -389,15 +398,6 @@ function computeSmartEps(stock, override, autoParsed) {
         details: `Live News Disclosure (${autoParsed.periodMonths}M): "${autoParsed.headline}" | EPS: ${autoEps.toFixed(2)}`
       };
     }
-  }
-
-  // Tier 2: TradingView Audited TTM EPS (Fallback if no live news disclosure)
-  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : 0;
-  const isFresh = !stock.earningsReleaseDate || earningsAge < STALE_THRESHOLD;
-
-  if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
-    return { eps: stock.epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
-      details: `TradingView TTM EPS (${stock.epsRaw.toFixed(2)})` };
   }
 
   const totalShares = stock.totalShares;

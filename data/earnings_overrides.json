@@ -24,6 +24,46 @@
       "dps": 0.00,
       "source": "Annualized Q1 2026 Earnings (24.4M EGP for Q1 2026)",
       "updatedAt": "2026-08-08"
+    },
+    "MPCI": {
+      "netProfit": 518280000,
+      "periodMonths": 12,
+      "totalShares": 22750000,
+      "dps": 13.19,
+      "source": "Audited Financial Statement FY2025",
+      "updatedAt": "2026-08-08"
+    },
+    "NIPH": {
+      "netProfit": 1070000000,
+      "periodMonths": 12,
+      "totalShares": 50000000,
+      "dps": 2.00,
+      "source": "Audited Financial Statement FY2025",
+      "updatedAt": "2026-08-08"
+    },
+    "INFI": {
+      "netProfit": 250000000,
+      "periodMonths": 12,
+      "totalShares": 20370000,
+      "dps": 1.00,
+      "source": "Audited Financial Statement FY2025",
+      "updatedAt": "2026-08-08"
+    },
+    "JUFO": {
+      "netProfit": 2420000000,
+      "periodMonths": 12,
+      "totalShares": 1470950000,
+      "dps": 0.51,
+      "source": "Audited Financial Statement FY2025",
+      "updatedAt": "2026-08-08"
+    },
+    "SWDY": {
+      "netProfit": 13500000000,
+      "periodMonths": 12,
+      "totalShares": 2140780000,
+      "dps": 1.85,
+      "source": "Audited Financial Statement FY2025",
+      "updatedAt": "2026-08-08"
     }
   }
 }
