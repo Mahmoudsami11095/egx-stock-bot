@@ -13,6 +13,7 @@ const CONVENTIONAL_NON_HALAL = new Set([
 
 // Map of EGX symbols to Arabic search names for news scraping
 const STOCK_ARABIC_NAMES = {
+  'GGRN': 'جو جرين',
   'POUL': 'القاهرة للدواجن',
   'EGAL': 'مصر للألومنيوم',
   'SWDY': 'السويدى الكتريك',

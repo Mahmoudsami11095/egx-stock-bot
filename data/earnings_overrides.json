@@ -16,6 +16,14 @@
       "dps": 0.33,
       "source": "Mubasher Breaking News Q1 2026 Consolidated Results (Jan-Mar 2026)",
       "updatedAt": "2026-08-08"
+    },
+    "GGRN": {
+      "netProfit": 97600000,
+      "periodMonths": 12,
+      "totalShares": 1417000000,
+      "dps": 0.00,
+      "source": "Annualized Q1 2026 Earnings (24.4M EGP for Q1 2026)",
+      "updatedAt": "2026-08-08"
     }
   }
 }
