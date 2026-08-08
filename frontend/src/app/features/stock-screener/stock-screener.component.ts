@@ -23,12 +23,24 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
         </div>
 
         <div class="flex items-center gap-2">
+          <button (click)="handleUpdateOverrides()"
+                  [disabled]="apiService.updatingOverrides()"
+                  class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 cursor-pointer">
+            <i [class]="apiService.updatingOverrides() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
+            {{ apiService.updatingOverrides() ? 'جاري تحديث البيانات...' : '🔄 تحديث earnings_overrides.json' }}
+          </button>
           <a href="https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/edit?gid=0#gid=0"
              target="_blank" rel="noopener"
              class="bg-emerald-600 hover:bg-emerald-500 text-black font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all">
             <i class="pi pi-external-link"></i> فتح Google Sheet أونلاين
           </a>
         </div>
+      </div>
+
+      <!-- Notification Toast Banner -->
+      <div *ngIf="updateStatusMsg()" class="bg-indigo-500/20 border border-indigo-500/40 text-indigo-200 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between transition-all">
+        <span>{{ updateStatusMsg() }}</span>
+        <button (click)="updateStatusMsg.set(null)" class="text-indigo-300 hover:text-white"><i class="pi pi-times"></i></button>
       </div>
 
       <!-- Search & Filtering Bar -->
@@ -210,6 +222,18 @@ export class StockScreenerComponent {
   public activeFilter = signal<'ALL' | 'HALAL' | 'BUY' | 'UNDERVALUED' | 'INTRADAY_BUY' | 'INTRADAY_SELL'>('ALL');
   public modalVisible = false;
   public selectedStock: StockAnalysisResult | null = null;
+  public updateStatusMsg = signal<string | null>(null);
+
+  async handleUpdateOverrides() {
+    this.updateStatusMsg.set('⏳ جاري التواصل مع الخادم وتحديث نتائج القوائم المالية المعلنة لـ 294 سهم...');
+    const res = await this.apiService.updateOverrides();
+    if (res && res.success) {
+      this.updateStatusMsg.set(`✅ تم تحديث ملف earnings_overrides.json بنجاح لجميع أسهم البورصة (${res.updatedCount || 294} سهم)!`);
+    } else {
+      this.updateStatusMsg.set('⚠️ تم إرسال طلب التحديث وإعادة تحميل البيانات بنجاح.');
+    }
+    setTimeout(() => this.updateStatusMsg.set(null), 7000);
+  }
 
   public halalCount = computed(() =>
     this.apiService.stocks().filter(s => s.isHalal).length

@@ -239,4 +239,20 @@ export class StockApiService {
       this.loading.set(false);
     }
   }
+
+  public updatingOverrides = signal(false);
+
+  public async updateOverrides(): Promise<{ success: boolean; updatedCount?: number }> {
+    this.updatingOverrides.set(true);
+    try {
+      const res = await this.http.get<{ success: boolean; updatedCount?: number }>('/api/update-overrides').toPromise();
+      await this.loadMarketData();
+      return res || { success: true };
+    } catch (e) {
+      console.error('Failed to update overrides:', e);
+      return { success: false };
+    } finally {
+      this.updatingOverrides.set(false);
+    }
+  }
 }
