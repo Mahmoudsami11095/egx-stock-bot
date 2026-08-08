@@ -30,7 +30,6 @@ function loadEarningsOverrides(): Record<string, EarningsOverride> {
     if (data && data.overrides) return data.overrides;
   } catch (e) {}
 
-  // 2. Try fs read as backup
   try {
     const locations = [
       path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json'),
@@ -48,26 +47,70 @@ function loadEarningsOverrides(): Record<string, EarningsOverride> {
   } catch (e: any) {
     logger.warn(`Could not load earnings overrides: ${e.message}`);
   }
+  return {};
+}
 
-  // 3. Default fallback for known EGX bulletin overrides
-  return {
-    'EGAL': {
-      netProfit: 10447306397,
-      periodMonths: 9,
-      totalShares: 412500000,
-      dps: 8.00,
-      source: 'EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)',
-      updatedAt: '2026-08-08'
-    },
-    'POUL': {
-      netProfit: 2486690000,
-      periodMonths: 12,
-      totalShares: 479002000,
-      dps: 0.33,
-      source: 'Mubasher Breaking News Q1 2026 Consolidated Results (Jan-Mar 2026)',
-      updatedAt: '2026-08-08'
+let GOOGLE_SHEET_CACHE_DF: any = null;
+let GOOGLE_SHEET_CACHE_TIME_DF = 0;
+
+function parseCSVLineDF(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
     }
-  };
+  }
+  result.push(current.trim());
+  return result;
+}
+
+export async function fetchGoogleSheetOverridesDF(): Promise<Record<string, any>> {
+  const now = Date.now();
+  if (GOOGLE_SHEET_CACHE_DF && (now - GOOGLE_SHEET_CACHE_TIME_DF < 60000)) {
+    return GOOGLE_SHEET_CACHE_DF;
+  }
+
+  return new Promise((resolve) => {
+    const url = 'https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/gviz/tq?tqx=out:csv&gid=0';
+    https.get(url, { timeout: 4000 }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length <= 1) return resolve(loadEarningsOverrides());
+
+        const overrides: any = loadEarningsOverrides();
+        for (let i = 1; i < lines.length; i++) {
+          const row = parseCSVLineDF(lines[i]);
+          const symbol = (row[0] || '').replace(/"/g, '').trim().toUpperCase();
+          const name = (row[1] || '').replace(/"/g, '').trim();
+          const fairValueStr = (row[4] || '').replace(/"/g, '').trim();
+          const fairValue = parseFloat(fairValueStr);
+
+          if (symbol && !isNaN(fairValue) && fairValue > 0) {
+            overrides[symbol] = {
+              ...(overrides[symbol] || {}),
+              symbol,
+              name: name || (overrides[symbol] && overrides[symbol].name),
+              fairValue,
+              notes: `Loaded live from Google Sheet (${symbol})`
+            };
+          }
+        }
+        GOOGLE_SHEET_CACHE_DF = overrides;
+        GOOGLE_SHEET_CACHE_TIME_DF = Date.now();
+        resolve(overrides);
+      });
+    }).on('error', () => resolve(loadEarningsOverrides()));
+  });
 }
 
 // ─── SMART EPS ENGINE ────────────────────────────────────────────────────────

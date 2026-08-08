@@ -324,16 +324,39 @@ const STOCK_ARABIC_NAMES = {
   "ZMID": "Zahraa Maadi &"
 };
 
-// ─── EARNINGS OVERRIDE LOADING ──────────────────────────────────────────────
-function loadEarningsOverrides() {
+// ─── EARNINGS OVERRIDE LOADING & GOOGLE SHEET SYNC ──────────────────────────────
+let GOOGLE_SHEET_CACHE = null;
+let GOOGLE_SHEET_CACHE_TIME = 0;
+const GOOGLE_SHEET_TTL_MS = 60 * 1000;
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function loadEarningsOverridesLocal() {
   try {
     const data = require('../data/earnings_overrides.json');
-    if (data && data.overrides) return data.overrides;
+    if (data && data.overrides) return { ...data.overrides };
   } catch (e) {}
 
   try {
     const data = require('./data/earnings_overrides.json');
-    if (data && data.overrides) return data.overrides;
+    if (data && data.overrides) return { ...data.overrides };
   } catch (e) {}
 
   try {
@@ -347,17 +370,54 @@ function loadEarningsOverrides() {
       if (fs.existsSync(loc)) {
         const raw = fs.readFileSync(loc, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.overrides) return parsed.overrides;
+        if (parsed && parsed.overrides) return { ...parsed.overrides };
       }
     }
   } catch (e) {}
 
-  return {
-    'EGAL': {
-      netProfit: 10447306397,
-      periodMonths: 9,
-      totalShares: 412500000,
-      dps: 8.00,
+  return {};
+}
+
+async function fetchGoogleSheetOverrides() {
+  const now = Date.now();
+  if (GOOGLE_SHEET_CACHE && (now - GOOGLE_SHEET_CACHE_TIME < GOOGLE_SHEET_TTL_MS)) {
+    return GOOGLE_SHEET_CACHE;
+  }
+
+  return new Promise((resolve) => {
+    const url = 'https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/gviz/tq?tqx=out:csv&gid=0';
+    https.get(url, { timeout: 4000 }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length <= 1) return resolve(loadEarningsOverridesLocal());
+
+        const overrides = loadEarningsOverridesLocal();
+        for (let i = 1; i < lines.length; i++) {
+          const row = parseCSVLine(lines[i]);
+          const symbol = (row[0] || '').replace(/"/g, '').trim().toUpperCase();
+          const name = (row[1] || '').replace(/"/g, '').trim();
+          const fairValueStr = (row[4] || '').replace(/"/g, '').trim();
+          const fairValue = parseFloat(fairValueStr);
+
+          if (symbol && !isNaN(fairValue) && fairValue > 0) {
+            overrides[symbol] = {
+              ...(overrides[symbol] || {}),
+              symbol,
+              name: name || (overrides[symbol] && overrides[symbol].name),
+              fairValue,
+              notes: `Loaded live from Google Sheet (${symbol})`
+            };
+          }
+        }
+        GOOGLE_SHEET_CACHE = overrides;
+        GOOGLE_SHEET_CACHE_TIME = Date.now();
+        resolve(overrides);
+      });
+    }).on('error', () => resolve(loadEarningsOverridesLocal()));
+  });
+}
       source: 'EGX Bulletin 342202 - Q3 FY2025-2026 (Jul 2025 - Mar 2026)',
       updatedAt: '2026-08-08'
     },
@@ -971,7 +1031,7 @@ module.exports = async (req, res) => {
 
   try {
     const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
-    const earningsOverrides = loadEarningsOverrides();
+    const earningsOverrides = await fetchGoogleSheetOverrides();
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
       fetchHalalSymbolsSet()

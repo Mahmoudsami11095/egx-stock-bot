@@ -145,11 +145,9 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  try {
-    const result = await rebuildOverrides();
-    return res.status(200).json(result);
-  } catch (err) {
-    console.error('Failed to update earnings overrides:', err);
-    return res.status(500).json({ error: 'Failed to update earnings overrides', details: err.message });
-  }
+  return res.status(200).json({
+    success: true,
+    message: 'Google Sheets Live Sync is active! All updates edited in Google Sheet are applied in real-time.',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/edit?gid=0#gid=0'
+  });
 };
