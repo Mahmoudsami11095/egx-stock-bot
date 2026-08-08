@@ -556,8 +556,14 @@ function calculateFairValue(stock, fundamentals) {
   let conf = 'MEDIUM';
 
   if (fvPe && fvPb) {
-    // Blended Multi-Model: 50% P/E + 50% P/B
-    fairValueRaw = 0.50 * fvPe + 0.50 * fvPb;
+    // Sector-Adaptive Multi-Model Weighting:
+    // When earnings power significantly exceeds accounting book value (e.g. industrial/growth),
+    // weight 75% Earnings (P/E) + 25% Book Value (P/B) to prevent historical asset depreciation drag.
+    if (fvPe > fvPb * 1.3) {
+      fairValueRaw = 0.75 * fvPe + 0.25 * fvPb;
+    } else {
+      fairValueRaw = 0.50 * fvPe + 0.50 * fvPb;
+    }
     conf = 'HIGH';
   } else if (fvPe) {
     fairValueRaw = fvPe;
