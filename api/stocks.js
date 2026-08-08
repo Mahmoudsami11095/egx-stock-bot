@@ -389,16 +389,16 @@ function computeSmartEps(stock, override, autoParsed) {
     }
   }
 
-  // Tier 1: Fresh TradingView TTM EPS (takes priority when available and fresh)
-  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : Infinity;
-  const isFresh = earningsAge < STALE_THRESHOLD;
+  // Tier 1: Fresh TradingView TTM EPS (takes priority when available)
+  const earningsAge = stock.earningsReleaseDate ? (now - stock.earningsReleaseDate) : 0;
+  const isFresh = !stock.earningsReleaseDate || earningsAge < STALE_THRESHOLD;
 
   if (stock.epsRaw && stock.epsRaw > 0 && isFresh) {
     return {
       eps: stock.epsRaw,
       source: 'TTM_FRESH',
       confidence: 'HIGH',
-      details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)`
+      details: `TradingView TTM EPS (${stock.epsRaw.toFixed(2)})`
     };
   }
 

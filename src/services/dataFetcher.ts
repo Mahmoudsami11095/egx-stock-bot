@@ -112,13 +112,13 @@ function computeSmartEps(
     }
   }
 
-  // Tier 1: Fresh TTM EPS (takes priority when available and fresh)
-  const earningsAge = earningsReleaseDate ? (now - earningsReleaseDate) : Infinity;
-  const isFresh = earningsAge < STALE_THRESHOLD;
+  // Tier 1: Fresh TTM EPS (takes priority when available)
+  const earningsAge = earningsReleaseDate ? (now - earningsReleaseDate) : 0;
+  const isFresh = !earningsReleaseDate || earningsAge < STALE_THRESHOLD;
 
   if (epsRaw && epsRaw > 0 && isFresh) {
     return { eps: epsRaw, source: 'TTM_FRESH', confidence: 'HIGH',
-      details: `TradingView TTM EPS (fresh, ${Math.round(earningsAge / 86400)}d old)` };
+      details: `TradingView TTM EPS (${epsRaw.toFixed(2)})` };
   }
 
   // Tier 2: Automated Live EGX News Parser (used when TradingView TTM is stale or missing)
