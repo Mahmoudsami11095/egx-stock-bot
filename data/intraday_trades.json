@@ -1,5 +1,15 @@
 [
   {
+    "id": "SWDY_1786290414300",
+    "symbol": "SWDY",
+    "recommendationType": "STRONG_BUY",
+    "entryPrice": 60,
+    "targetPrice": 75,
+    "stopLossPrice": 55,
+    "entryTime": "2026-08-09T16:00:00.000Z",
+    "status": "OPEN"
+  },
+  {
     "id": "MPCI_1786290414162",
     "symbol": "MPCI",
     "recommendationType": "STRONG_BUY",
