@@ -168,7 +168,7 @@ function fetchTradingViewScrapedData(): Promise<any[]> {
       columns: [
         'name', 'description', 'net_income_ttm', 'total_shares_outstanding',
         'dps_common_stock_prim_issue_fy', 'dividend_yield_recent',
-        'net_income_fy'
+        'net_income_fy', 'earnings_per_share_basic_ttm', 'last_annual_eps'
       ],
       sort: { sortBy: 'volume', sortOrder: 'desc' },
       range: [0, 350]
@@ -234,21 +234,29 @@ export async function syncVerifiedEarningsToSheet() {
   for (const row of rows) {
     if (!row.s || !row.d) continue;
     const rawSym = row.s.replace('EGX:', '').toUpperCase();
-    const [name, description, netIncomeTtm, totalShares, dpsTv, divYieldTv, netIncomeFy] = row.d;
+    const [name, description, netIncomeTtm, totalShares, dpsTv, divYieldTv, netIncomeFy, epsTtm, epsFy] = row.d;
 
-    const netProfit = netIncomeTtm || netIncomeFy;
     const isPlaceholderShares = totalShares === 100000000;
-    const isPlaceholderProfit = netProfit === 120000000;
+    const isPlaceholderProfit = (netIncomeTtm === 120000000) || (netIncomeFy === 120000000);
 
-    if (rawSym && !isNaN(netProfit) && netProfit > 0 && !isPlaceholderProfit) {
+    let netProfit = (!isPlaceholderProfit && (netIncomeTtm || netIncomeFy)) ? Number(netIncomeTtm || netIncomeFy) : 0;
+    const sharesCount = (!isPlaceholderShares && totalShares > 0) ? Number(totalShares) : undefined;
+    const effectiveEps = (epsTtm && !isNaN(epsTtm)) ? Number(epsTtm) : ((epsFy && !isNaN(epsFy)) ? Number(epsFy) : 0);
+
+    // If netProfit is missing but EPS and totalShares are available, calculate netProfit = EPS * totalShares
+    if ((!netProfit || netProfit <= 0) && effectiveEps > 0 && sharesCount && sharesCount > 0) {
+      netProfit = Math.round(effectiveEps * sharesCount);
+    }
+
+    if (rawSym && (netProfit > 0 || sharesCount || dpsTv)) {
       overrides[rawSym] = {
         symbol: rawSym,
         name: description || name || rawSym,
-        netProfit: Number(netProfit),
+        netProfit: netProfit > 0 ? netProfit : undefined,
         periodMonths: 12,
-        totalShares: (!isPlaceholderShares && totalShares > 0) ? Number(totalShares) : undefined,
+        totalShares: sharesCount,
         dps: (dpsTv && !isNaN(dpsTv)) ? Number(dpsTv) : 0,
-        source: "TradingView Audited TTM Financial Statement",
+        source: "TradingView Audited Financial Statement",
         updatedAt: today
       };
     }

@@ -327,7 +327,7 @@ const STOCK_ARABIC_NAMES = {
 // ─── EARNINGS OVERRIDE LOADING & GOOGLE SHEET SYNC ──────────────────────────────
 let GOOGLE_SHEET_CACHE = null;
 let GOOGLE_SHEET_CACHE_TIME = 0;
-const GOOGLE_SHEET_TTL_MS = 60 * 1000;
+const GOOGLE_SHEET_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
 
 function parseCSVLine(line) {
   const result = [];
@@ -517,7 +517,7 @@ function parseArabicFinancialHeadline(symbol, title, pubDate) {
 }
 
 const RSS_CACHE = new Map();
-const RSS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours cache
+const RSS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
 
 function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
   const cached = RSS_CACHE.get(symbol);
@@ -1209,7 +1209,7 @@ module.exports = async (req, res) => {
       LOCAL_STOCKS_CACHE_TIME = Date.now();
     }
 
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=120');
     return res.status(200).json(processed);
   } catch (err) {
     console.error('Error fetching EGX stocks:', err);
