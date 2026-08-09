@@ -68,8 +68,9 @@ async function bootstrap() {
   app.get('/api/stocks', async (req, res) => {
     try {
       const source = (req.query.source as any) || 'tradingview';
+      const useOverrides = req.query.use_overrides === 'true';
       const watchlist = stateManager.getWatchlist();
-      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source);
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source, useOverrides);
       const results = [];
       for (const item of batchResults) {
         const analysis = signalDetector.analyzeStockWithIndicators(
@@ -122,6 +123,19 @@ async function bootstrap() {
       });
     } catch (err: any) {
       logger.error(`Error fetching live gold prices: ${err}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/intraday-trades', async (req, res) => {
+    try {
+      res.json({
+        success: true,
+        open: intradayTracker.getOpenTrades(),
+        closed: intradayTracker.getClosedTrades()
+      });
+    } catch (err: any) {
+      logger.error(`Error in /api/intraday-trades: ${err}`);
       res.status(500).json({ error: err.message });
     }
   });
