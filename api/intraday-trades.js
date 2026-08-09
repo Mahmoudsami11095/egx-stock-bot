@@ -2,6 +2,21 @@ const fs = require('fs');
 const path = require('path');
 
 function loadIntradayTradesLocal() {
+  try {
+    const data = require('../data/intraday_trades.json');
+    if (data && Array.isArray(data)) return data;
+  } catch (e) {}
+
+  try {
+    const data = require('./data/intraday_trades.json');
+    if (data && Array.isArray(data)) return data;
+  } catch (e) {}
+
+  try {
+    const data = require('../../data/intraday_trades.json');
+    if (data && Array.isArray(data)) return data;
+  } catch (e) {}
+
   const locations = [
     path.join(__dirname, '..', 'data', 'intraday_trades.json'),
     path.join(__dirname, 'data', 'intraday_trades.json'),
