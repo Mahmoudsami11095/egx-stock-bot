@@ -11,23 +11,79 @@ export interface AutomatedParsedEarnings {
   source: string;
 }
 
+/** Comparison markers — numbers after these refer to prior periods and must be ignored. */
+const COMPARISON_SPLIT_RE = /\s*(?:مقابل|مقارنة\s*بـ|مقارنة\s*مع|عن\s+العام\s+السابق|في\s+العام\s+السابق|عن\s+نفس\s+الفترة\s+من\s+العام\s+السابق)\s*/i;
+
+/** Numbers immediately preceded by a comparison preposition (within ~30 chars). */
+const COMPARISON_PREFIX_RE = /(?:مقابل|مقارنة\s*ب(?:ـ|)?|عن\s+العام\s+السابق|في\s+(?:العام\s+)?(?:السابق|\d{4}))\s*[:\-]?\s*$/i;
+
+const PROFIT_VERB_PREFIX = '(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت|أرباح|صافي\\s+أ?رباح?)';
+
+/**
+ * Returns the portion of the headline that describes the current reporting period,
+ * stripping trailing prior-year comparison clauses.
+ */
+export function stripComparisonSegments(title: string): string {
+  return title.split(COMPARISON_SPLIT_RE)[0].trim();
+}
+
+/**
+ * Extracts the first billion/million EGP figure from text, skipping comparison-context numbers.
+ */
+export function extractCurrentPeriodProfit(title: string): number | null {
+  const currentSegment = stripComparisonSegments(title);
+
+  const billionPatterns = [
+    new RegExp(`${PROFIT_VERB_PREFIX}\\s+([0-9]+(?:\\.[0-9]+)?)\\s*مليار`, 'i'),
+    /([0-9]+(?:\.[0-9]+)?)\s*مليار\s*جنيه/i,
+    /([0-9]+(?:\.[0-9]+)?)\s*مليار(?!\s*(?:مقابل|في\s+\d{4}))/i,
+  ];
+
+  const millionPatterns = [
+    new RegExp(`${PROFIT_VERB_PREFIX}\\s+([0-9]+(?:\\.[0-9]+)?)\\s*مليون`, 'i'),
+    /([0-9]+(?:\.[0-9]+)?)\s*مليون\s*جنيه/i,
+    /([0-9]+(?:\.[0-9]+)?)\s*مليون(?!\s*(?:مقابل|في\s+\d{4}))/i,
+  ];
+
+  for (const pattern of billionPatterns) {
+    const match = currentSegment.match(pattern);
+    if (match) {
+      const prefix = currentSegment.slice(0, match.index ?? 0);
+      if (!COMPARISON_PREFIX_RE.test(prefix.slice(-40))) {
+        return parseFloat(match[1]) * 1_000_000_000;
+      }
+    }
+  }
+
+  for (const pattern of millionPatterns) {
+    const match = currentSegment.match(pattern);
+    if (match) {
+      const prefix = currentSegment.slice(0, match.index ?? 0);
+      if (!COMPARISON_PREFIX_RE.test(prefix.slice(-40))) {
+        return parseFloat(match[1]) * 1_000_000;
+      }
+    }
+  }
+
+  return null;
+}
+
 /**
  * Parses Arabic financial earnings headlines automatically.
  * Handles patterns like:
  * - "أرباح مصر للألومنيوم تنمو 6% إلى 10.4 مليار جنيه خلال 9 أشهر"
  * - "أرباح السويدي إليكتريك ترتفع إلى 3.5 مليار جنيه في الربع الأول"
  * - "صافي أرباح طاقة عربية يصل إلى 540 مليون جنيه خلال 6 أشهر"
+ * - "أرباح 1.138 مليار مقابل 2.539 مليار في 2024" → extracts 1.138B (not 2.539B)
  */
 export function parseArabicFinancialHeadline(symbol: string, title: string, pubDate: string): AutomatedParsedEarnings | null {
   if (!title) return null;
 
-  // Must contain earnings keywords
   const isEarningsNews = /(أرباح|أرباحها|صافي|أرباحاً|نتائج|ربحية)/.test(title);
   if (!isEarningsNews) return null;
 
-  let periodMonths = 12; // default
+  let periodMonths = 12;
 
-  // Detect fiscal period
   if (/(9 أشهر|تسعة أشهر|الربع الثالث)/.test(title)) {
     periodMonths = 9;
   } else if (/(النصف الأول|6 أشهر|ستة أشهر|الربع الثاني)/.test(title)) {
@@ -38,19 +94,7 @@ export function parseArabicFinancialHeadline(symbol: string, title: string, pubD
     periodMonths = 12;
   }
 
-  let netProfit: number | null = null;
-
-  // Pattern 1: Billion EGP (e.g. "إلى 10.4 مليار", "تسجل 3.5 مليار", "بلغت 10.4 مليار")
-  const billionMatch = title.match(/(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت)\s+([0-9]+(?:\.[0-9]+)?)\s*مليار/);
-  // Pattern 2: Million EGP (e.g. "إلى 540 مليون", "تسجل 250 مليون")
-  const millionMatch = title.match(/(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت)\s+([0-9]+(?:\.[0-9]+)?)\s*مليون/);
-
-  if (billionMatch) {
-    netProfit = parseFloat(billionMatch[1]) * 1_000_000_000;
-  } else if (millionMatch) {
-    netProfit = parseFloat(millionMatch[1]) * 1_000_000;
-  }
-
+  const netProfit = extractCurrentPeriodProfit(title);
   if (!netProfit || netProfit <= 0) return null;
 
   const annualizedNetProfit = netProfit * (12 / periodMonths);
@@ -66,13 +110,26 @@ export function parseArabicFinancialHeadline(symbol: string, title: string, pubD
   };
 }
 
+interface RssItem {
+  title: string;
+  pubDate: string;
+}
+
+function parseRssItems(body: string): RssItem[] {
+  const items = body.match(/<item>[\s\S]*?<\/item>/g) || [];
+  return items.map(item => ({
+    title: (item.match(/<title>(.*?)<\/title>/) || [])[1] || '',
+    pubDate: (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '',
+  }));
+}
+
 /**
  * Live Automated Scraper for EGX Earnings via RSS.
  * Automatically queries Google News for Arabic earnings announcements for a specific stock.
  */
 export function fetchAutomatedEarningsFromRss(stockNameAr: string, symbol: string): Promise<AutomatedParsedEarnings | null> {
   return new Promise((resolve) => {
-    const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال")`;
+    const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال") when:1y`;
     const encoded = encodeURIComponent(query);
     const url = `https://news.google.com/rss/search?q=${encoded}&hl=ar&gl=EG&ceid=EG:ar`;
 
@@ -84,13 +141,14 @@ export function fetchAutomatedEarningsFromRss(stockNameAr: string, symbol: strin
       res.on('data', (c) => body += c);
       res.on('end', () => {
         try {
-          const items = body.match(/<item>[\s\S]*?<\/item>/g) || [];
-          for (const item of items) {
-            const titleMatch = item.match(/<title>(.*?)<\/title>/);
-            const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-            const title = titleMatch ? titleMatch[1] : '';
-            const pubDate = dateMatch ? dateMatch[1] : '';
+          const items = parseRssItems(body);
+          items.sort((a, b) => {
+            const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+            const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+            return dateB - dateA;
+          });
 
+          for (const { title, pubDate } of items) {
             const parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
             if (parsed) {
               resolve(parsed);

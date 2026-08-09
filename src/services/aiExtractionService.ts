@@ -5,6 +5,10 @@ import { NewsSnippet } from './newsScraperService';
 export interface ExtractedFundamentals {
   netProfit: number | null;
   revenue: number | null;
+  periodMonths: number | null;
+  totalShares: number | null;
+  dps: number | null;
+  isCurrentPeriod: boolean | null;
   fiscalYear: string | null;
   currency: string | null;
 }
@@ -34,20 +38,34 @@ export class AiExtractionService {
         }
       });
 
-      const combinedText = snippets.map(s => `${s.title}\n${s.snippet}`).join('\n\n');
+      const combinedText = snippets.map(s => `[Date: ${s.pubDate}]\nTitle: ${s.title}\nSnippet: ${s.snippet}`).join('\n\n');
 
       const prompt = `
-You are a highly accurate financial data extraction AI.
-Read the following Arabic news snippets about an Egyptian company's financial results.
-Extract the company's net profit (صافي الربح) and revenue (الإيرادات) and the fiscal year they correspond to.
+You are an expert financial analyst AI specialized in extracting Egyptian Exchange (EGX) disclosures.
+Read the following Arabic news snippets about a company's financial results.
 
-Rules:
-1. Extract numbers as raw numerical values in millions (e.g., if the text says "263.52 مليون جنيه", output 263520000).
-2. If a value is not found in the text, output null for that field.
-3. Respond ONLY with a valid JSON object strictly matching this schema:
+CRITICAL DISCLOSURE RULES:
+1. ALWAYS extract the CURRENT reported figure for the latest period, NOT historical comparison figures.
+   - Example: If text says "سجلت صافي أرباح 1.138 مليار جنيه عن عام 2025 مقابل 2.539 مليار جنيه في 2024", you MUST output netProfit as 1138000000 (current 2025 result) and IGNORE 2.539B (the prior comparison year).
+2. Extract numerical values in exact base EGP (e.g. 1.138 مليار = 1138000000, 540 مليون = 540000000).
+3. Determine periodMonths:
+   - "الربع الأول" / 3 أشهر = 3
+   - "النصف الأول" / 6 أشهر = 6
+   - "9 أشهر" / الربع الثالث = 9
+   - "سنوية" / "عام كامل" / 12 شهر = 12
+4. Extract totalShares (عدد الأسهم) and dps (توزيعات الأرباح للسهم / كوبون) if explicitly stated in text, else output null.
+5. Set isCurrentPeriod to true when netProfit/revenue clearly refer to the latest/current reporting period; false when only prior-year comparison figures are available; null if unclear.
+6. Ignore any figure introduced by comparison prepositions: "مقابل", "مقارنة بـ", "عن العام السابق", "في العام السابق".
+7. If no clear current result is found, output null for fields.
+
+Respond ONLY with a valid JSON object matching this schema:
 {
   "netProfit": number | null,
   "revenue": number | null,
+  "periodMonths": 3 | 6 | 9 | 12 | null,
+  "totalShares": number | null,
+  "dps": number | null,
+  "isCurrentPeriod": boolean | null,
   "fiscalYear": string | null,
   "currency": string | null
 }

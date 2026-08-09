@@ -21,16 +21,24 @@ export class NewsScraperService {
    */
   public async fetchRecentFinancialNews(stockNameAr: string): Promise<NewsSnippet[]> {
     try {
-      // Build Google News RSS query focusing on the stock name + earnings/revenues keywords
-      const query = `"${stockNameAr}" (أرباح OR إيرادات OR نتائج أعمال)`;
+      // Build Google News RSS query focusing on stock name + financial keywords + recency (within last year)
+      const query = `"${stockNameAr}" (أرباح OR "صافي الربح" OR "نتائج أعمال" OR إيرادات) when:1y`;
       const encodedQuery = encodeURIComponent(query);
       const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ar&gl=EG&ceid=EG:ar`;
 
-      logger.info(`📰 [NewsScraper] Fetching news for: ${stockNameAr}`);
+      logger.info(`📰 [NewsScraper] Fetching recent news for: ${stockNameAr}`);
       const feed = await this.parser.parseURL(url);
 
-      // Return the top 3 most relevant news snippets
-      return feed.items.slice(0, 3).map(item => ({
+      const items = feed.items || [];
+      // Sort by publication date descending (newest first)
+      items.sort((a, b) => {
+        const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+        const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      // Return top 5 newest news snippets
+      return items.slice(0, 5).map(item => ({
         title: item.title || '',
         link: item.link || '',
         pubDate: item.pubDate || '',
