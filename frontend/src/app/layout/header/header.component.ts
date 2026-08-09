@@ -52,16 +52,16 @@ import { StockApiService } from '../../core/services/stock-api.service';
       <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <!-- Brand Logo & Title -->
         <a routerLink="/" class="flex items-center gap-3 group">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emeraldAccent to-cyanAccent p-0.5 shadow-lg shadow-emeraldAccent/20">
-            <div class="w-full h-full bg-darkBg rounded-[10px] flex items-center justify-center font-black text-emeraldAccent text-xl group-hover:scale-95 transition-transform">
-              🕌
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emeraldAccent via-cyan-400 to-amber-400 p-0.5 shadow-lg shadow-emeraldAccent/20 group-hover:scale-105 transition-transform">
+            <div class="w-full h-full bg-darkBg rounded-[10px] flex items-center justify-center p-1.5 overflow-hidden">
+              <img src="favicon.svg" alt="EGX Analytics Logo" class="w-full h-full object-contain" />
             </div>
           </div>
           <div>
             <h1 class="text-lg font-black tracking-tight text-white flex items-center gap-2">
-              EGX Halal Stocks <span class="text-xs bg-emeraldAccent/20 text-emeraldAccent font-bold px-2 py-0.5 rounded-md border border-emeraldAccent/30">Live Intelligence</span>
+              EGX Stock Analytics <span class="text-xs bg-emeraldAccent/20 text-emeraldAccent font-bold px-2 py-0.5 rounded-md border border-emeraldAccent/30">Fair Value Screener</span>
             </h1>
-            <p class="text-xs text-gray-400">منصة تحليل أسهم البورصة المصرية والقيم العادلة المتوافقة مع الشريعة</p>
+            <p class="text-xs text-gray-400">منصة التحليل المالي وحساب القيم العادلة لأسهم البورصة المصرية</p>
           </div>
         </a>
 

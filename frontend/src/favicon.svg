@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbdf7e"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Shield Container -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="url(#emeraldGrad)" stroke-width="12" stroke-opacity="0.4"/>
+
+  <!-- Candlestick Chart Bars -->
+  <!-- Bar 1 -->
+  <line x1="120" y1="360" x2="120" y2="280" stroke="#059669" stroke-width="6" opacity="0.7"/>
+  <rect x="108" y="300" width="24" height="40" rx="4" fill="#059669" opacity="0.8"/>
+
+  <!-- Bar 2 -->
+  <line x1="200" y1="380" x2="200" y2="240" stroke="#10b981" stroke-width="6"/>
+  <rect x="188" y="270" width="24" height="70" rx="4" fill="#10b981"/>
+
+  <!-- Bar 3 -->
+  <line x1="280" y1="320" x2="280" y2="180" stroke="#34d399" stroke-width="6"/>
+  <rect x="268" y="210" width="24" height="80" rx="4" fill="#34d399"/>
+
+  <!-- Bar 4 (High Peak) -->
+  <line x1="360" y1="260" x2="360" y2="110" stroke="url(#goldGrad)" stroke-width="6"/>
+  <rect x="348" y="140" width="24" height="90" rx="4" fill="url(#goldGrad)"/>
+
+  <!-- Glowing Trend Line -->
+  <path d="M 90 320 Q 180 300 240 220 T 420 100" fill="none" stroke="url(#emeraldGrad)" stroke-width="20" stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Uptrend Arrow Head -->
+  <path d="M 370 100 L 430 95 L 425 155 Z" fill="url(#emeraldGrad)" filter="url(#glow)"/>
+</svg>
