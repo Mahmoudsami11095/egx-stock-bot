@@ -3,43 +3,23 @@ const fs = require('fs');
 
 const EARNINGS_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBiThGKFuKtNLJyFaJVniOO73B7a5V3sbj3NVS54VzlY9PVCzaz5-uYrUuRq4G2XLR/exec';
 
-function sendOverridesToAppsScript(url, data) {
-  return new Promise((resolve) => {
-    const payload = JSON.stringify(data);
-    const u = new URL(url);
-
-    const req = https.request({
-      hostname: u.hostname,
-      port: 443,
-      path: u.pathname + u.search,
+async function sendOverridesToAppsScript(url, data) {
+  try {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
-    }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        https.get(res.headers.location, (redRes) => {
-          let body = '';
-          redRes.on('data', c => body += c);
-          redRes.on('end', () => {
-            try { resolve(JSON.parse(body)); } catch (e) { resolve({ status: 'success' }); }
-          });
-        });
-        return;
-      }
-
-      let body = '';
-      res.on('data', c => body += c);
-      res.on('end', () => {
-        try { resolve(JSON.parse(body)); } catch (e) { resolve({ status: 'success' }); }
-      });
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      redirect: 'follow'
     });
-
-    req.on('error', (e) => resolve({ status: 'error', message: e.message }));
-    req.write(payload);
-    req.end();
-  });
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return { status: 'success', raw: text };
+    }
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
 }
 
 function loadEarningsOverridesLocal() {
