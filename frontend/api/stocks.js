@@ -2,6 +2,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { computeFairValue, inferSectorFromName } = require('../../shared/fairValueEngine');
 
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
@@ -895,68 +896,21 @@ function resolveFundamentals(stock, override, autoParsed) {
 }
 
 function calculateFairValue(stock, fundamentals) {
-  const price = stock.currentPrice;
-  const low52 = stock.fiftyTwoWeekLow || price * 0.7;
-  const high52 = stock.fiftyTwoWeekHigh || price * 1.3;
-  const macroDiscount = 0.878;
-  const clampedScore = Math.max(-1, Math.min(1, stock.recommendScore || 0));
-  const momentumMultiplier = 1 + (clampedScore * 0.05);
-
-  let fvPe = null;
-  let fvPb = null;
-
-  // Model A: Earnings Multiple (P/E)
-  if (fundamentals.eps && fundamentals.eps > 0) {
-    const sectorPE = 12.0;
-    // High-confidence audited earnings get realistic valuation scaling
-    const effectiveMacroDiscount = (fundamentals.epsConfidence === 'HIGH') ? 0.96 : macroDiscount;
-    fvPe = fundamentals.eps * sectorPE * momentumMultiplier * effectiveMacroDiscount;
-  }
-
-  // Model B: Book Value Multiple (P/B)
-  if (stock.bvps && stock.bvps > 0) {
-    const sectorPB = 2.5;
-    fvPb = stock.bvps * sectorPB * momentumMultiplier * macroDiscount;
-  }
-
-  let fairValueRaw = null;
-  let conf = 'MEDIUM';
-
-  if (fvPe && fvPb) {
-    // Sector-Adaptive Multi-Model Weighting:
-    // When earnings power significantly exceeds legacy book value (e.g. industrial exporters with depreciated plant assets),
-    // weight 90% Earnings (P/E) + 10% Book Value (P/B) to eliminate historical asset depreciation drag.
-    if (fvPe > fvPb * 1.5) {
-      fairValueRaw = 0.90 * fvPe + 0.10 * fvPb;
-    } else if (fvPe > fvPb * 1.2) {
-      fairValueRaw = 0.75 * fvPe + 0.25 * fvPb;
-    } else {
-      fairValueRaw = 0.50 * fvPe + 0.50 * fvPb;
-    }
-    conf = 'HIGH';
-  } else if (fvPe) {
-    fairValueRaw = fvPe;
-    conf = fundamentals.epsConfidence === 'HIGH' ? 'HIGH' : 'MEDIUM';
-  } else if (fvPb) {
-    fairValueRaw = fvPb;
-    conf = 'MEDIUM';
-  } else if (fundamentals.dividendPerShare && fundamentals.dividendPerShare > 0) {
-    const requiredReturn = 0.12;
-    fairValueRaw = (fundamentals.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
-    conf = 'MEDIUM';
-  }
-
-  if (fairValueRaw && fairValueRaw > 0) {
-    const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
-    return { fairValue: Number(clamped.toFixed(2)), confidence: conf };
-  }
-
-  const rangeMidpoint = low52 + 0.618 * (high52 - low52);
-  const volRatio = stock.avgVolume > 0 ? Math.min(stock.volume / stock.avgVolume, 2.0) : 1;
-  const scoreFactor = 1 + (clampedScore * 0.1);
-  const estVal = rangeMidpoint * (0.9 + 0.1 * volRatio) * scoreFactor * macroDiscount;
-  const clampedFallback = Math.max(price * 0.80, Math.min(price * 1.50, estVal));
-  return { fairValue: Number(clampedFallback.toFixed(2)), confidence: 'LOW' };
+  const sector = stock.sector || inferSectorFromName(stock.symbol, stock.name || '');
+  return computeFairValue({
+    eps: fundamentals.eps,
+    bvps: stock.bvps,
+    dps: fundamentals.dividendPerShare,
+    currentPrice: stock.currentPrice,
+    low52: stock.fiftyTwoWeekLow || stock.currentPrice * 0.7,
+    high52: stock.fiftyTwoWeekHigh || stock.currentPrice * 1.3,
+    volRatio: stock.avgVolume > 0 ? stock.volume / stock.avgVolume : 1,
+    recommendScore: stock.recommendScore || 0,
+    sector,
+    epsConfidence: fundamentals.epsConfidence || 'LOW',
+    symbol: stock.symbol,
+    name: stock.name || '',
+  });
 }
 
 function calculateIntradaySignal(stock) {
@@ -1121,6 +1075,7 @@ module.exports = async (req, res) => {
       }
 
       const fundamentals = resolveFundamentals(s, override, autoParsed);
+      s.sector = s.sector || inferSectorFromName(symUpper, s.name || nameAr || '');
 
       const { fairValue, confidence } = calculateFairValue(s, fundamentals);
       const upsidePercent = Number((((fairValue - s.currentPrice) / s.currentPrice) * 100).toFixed(2));

@@ -27,6 +27,8 @@ export const SECTOR_FX_SENSITIVITY: Record<string, number> = {
   'Petrochemicals': 0.20,     // dollar-denominated prices (SKPC)
   'Metals & Mining': 0.15,    // global metal pricing (EGAL)
   'Banking': -0.05,           // localized assets
+  'Real Estate': 0.05,        // dollar-linked asset values
+  'Investment Fund': 0.0,     // NAV-based, local currency
   'General': 0.0
 };
 
@@ -62,6 +64,8 @@ export const SECTOR_PE_MULTIPLIERS: Record<string, number> = {
   'Petrochemicals': 10.0,
   'Metals & Mining': 9.0,
   'Banking': 8.0,
+  'Real Estate': 11.0,
+  'Investment Fund': 10.0,
   'Halal EGX': 13.5, // Standard baseline fallback
   'General': 13.5
 };
@@ -108,6 +112,8 @@ export const SECTOR_PB_MULTIPLIERS: Record<string, number> = {
   'Petrochemicals': 2.2,
   'Metals & Mining': 2.5,
   'Banking': 1.8,
+  'Real Estate': 2.8,
+  'Investment Fund': 1.2,
   'Halal EGX': 2.5,
   'General': 2.5
 };

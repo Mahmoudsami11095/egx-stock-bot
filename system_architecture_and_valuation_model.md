@@ -18,33 +18,78 @@ The bot relies on three high-frequency, authoritative data streams:
 
 ## 💎 2. Enhanced Automated Fair Value Model (نموذج القيمة العادلة المطور)
 
-The Fair Value is dynamically computed using fundamental earnings & macro-adjusted P/E multipliers when earnings are reported, or structural Fibonacci ranges when earnings metrics are pending.
+The Fair Value is dynamically computed using a **priority cascade** of fundamental valuation models when data is available, or structural Fibonacci ranges when earnings/book/dividend metrics are pending. When both EPS and BVPS are available, the two estimates are blended using instrument-aware weights. All models share a common set of macro adjustments:
 
-### 🔹 Formula A: Macro-Adjusted Fundamental PEG Valuation (عند توفر EPS)
+### 🧮 Shared Macro Adjustments
 
-When Basic Earnings Per Share ($\text{EPS}_{\text{TTM}}$) is available:
+1. **CBE Interest Rate Macro Discount (خصم سعر الفائدة)** — Central Bank of Egypt corridor rate (~27.25%) reduces fundamental multiples:
+   $$\text{MacroDiscount} = \max\left(0.75, \, 1 - \max\left(0, (\text{CBE\_Rate} - 0.12) \times 0.80\right)\right)$$
+   - When EPS confidence is **HIGH** (audited TTM / override), a documented confidence uplift is applied symmetrically to both the PE and PB models:
+     $$\text{EffectiveMacroDiscount} = \min\left(1, \, \text{MacroDiscount} + 0.082\right)$$
+2. **Consensus Growth Modifier (معدل نمو إجماع المحللين)** — adjusts multiples based on analyst consensus (`Recommend.All`, clamped to `[-1, +1]`):
+   $$\text{GrowthModifier} = 1 + 0.05 \times \text{RecommendScore}$$
+3. **FX Devaluation Adjustment (تعديل تعويم الجنيه)** — applied to **all fundamental models (PE, PB, and DDM)** based on sector sensitivity and USD/EGP deviation from a $48.0$ EGP baseline:
+   $$\text{FXAdjustment} = 1 + \text{FxSensitivity}_{\text{sector}} \times \max\left(0, \frac{\text{USD/EGP} - 48.0}{48.0}\right)$$
 
-$$\text{Fair Value} = \text{EPS}_{\text{TTM}} \times \left(\text{SectorPE}_{\text{base}} \times \left(1 + 0.05 \times \text{RecommendScore}\right)\right) \times \text{MacroDiscount}$$
+### 🔹 Model A: Macro-Adjusted Fundamental P/E Valuation (عند توفر EPS)
+
+When Trailing Twelve Months Earnings Per Share ($\text{EPS}_{\text{TTM}}$) is positive:
+
+$$\text{FairValue}_{PE} = \text{EPS}_{\text{TTM}} \times \left(\text{SectorPE}_{\text{base}} \times \text{GrowthModifier} \times \text{EffectiveMacroDiscount} \times \text{FXAdjustment}\right)$$
 
 Where:
 - **Sector Base Multiplier ($\text{SectorPE}_{\text{base}}$):** Calibrated baseline (e.g. Pharmaceuticals: 18.0x, Banking: 8.0x, Food & Bev: 16.0x).
-- **Consensus Growth Modifier ($1 + 0.05 \times \text{RecommendScore}$):** Adjusts multiple based on analyst consensus and revenue momentum.
-- **CBE Interest Rate Macro Discount ($\text{MacroDiscount}$):** Adjusts for Central Bank of Egypt Corridor rate (~27.25%):
-  $$\text{MacroDiscount} = 1 - \max\left(0, (\text{CBE\_Rate} - 0.12) \times 0.80\right) \approx 0.878$$
 
-### 🔹 Formula B: Structural Fibonacci Range Valuation (عند عدم توفر EPS)
+### 🔹 Model B: Macro-Adjusted P/B Valuation (عند توفر BVPS)
 
-If $\text{EPS}$ is not reported or negative, valuation is calculated using structural 52-week price bounds:
+When positive Book Value Per Share ($\text{BVPS}$) is available:
 
-$$\text{Fair Value} = \left(\text{Low}_{52\text{W}} + 0.618 \times \left(\text{High}_{52\text{W}} - \text{Low}_{52\text{W}}\right)\right) \times \left(0.85 + 0.15 \times \text{VolWeight}\right) \times \left(1 + 0.10 \times \text{RecommendScore}\right) \times \text{MacroDiscount}$$
+$$\text{FairValue}_{PB} = \text{BVPS} \times \left(\text{SectorPB}_{\text{base}} \times \text{GrowthModifier} \times \text{EffectiveMacroDiscount} \times \text{FXAdjustment}\right)$$
 
-*Labeled with confidence badge `🟡 نطاق فني هيكلي (Fibonacci Range)` for transparent disclosure.*
+### 🔹 Model C: Dividend Discount Model (DDM) (عند توفر DPS فقط)
+
+When only positive Dividends Per Share ($\text{DPS}$) are available (no EPS/BVPS):
+
+$$\text{FairValue}_{DDM} = \frac{\text{DPS}}{\text{RequiredReturn}} \times \text{GrowthModifier} \times \text{MacroDiscount} \times \text{FXAdjustment}$$
+
+Where the **Required Return** is derived from the CBE corridor rate rather than a fixed assumption, to remain consistent with the prevailing interest-rate environment:
+
+$$\text{RequiredReturn} = \max\left(0.12, \, \text{CBE\_Rate} \times 0.60\right)$$
+
+### 🎯 Instrument-Aware Blending (عند توفر EPS و BVPS معاً)
+
+When both Model A and Model B produce a value, they are blended with weights tailored to the instrument type:
+
+| Instrument Type                  | Weights             | Confidence |
+| :------------------------------- | :------------------ | :--------: |
+| **Fund (صندوق استثمار)**         | $0.15 \times PE + 0.85 \times PB$ | MEDIUM |
+| **Real Estate (عقاري)**          | $0.35 \times PE + 0.65 \times PB$ | HIGH |
+| **Bank (بنك)**                   | $0.40 \times PE + 0.60 \times PB$ | HIGH |
+| Equity — PE far above PB ($>1.5\times$) | $0.90 \times PE + 0.10 \times PB$ | HIGH |
+| Equity — PE above PB ($>1.2\times$)     | $0.75 \times PE + 0.25 \times PB$ | HIGH |
+| Equity — otherwise               | $0.50 \times PE + 0.50 \times PB$ | HIGH |
+
+### 🔹 Model D: Structural Fibonacci Range Valuation (عند عدم توفر أي أساسيات)
+
+If EPS, BVPS, and DPS are all absent or non-positive, valuation falls back to structural 52-week price bounds:
+
+$$\text{FairValue} = \left(\text{Low}_{52\text{W}} + 0.618 \times \left(\text{High}_{52\text{W}} - \text{Low}_{52\text{W}}\right)\right) \times \left(0.85 + 0.15 \times \text{VolWeight}\right) \times \left(1 + 0.10 \times \text{RecommendScore}\right) \times \text{MacroDiscount} \times \text{FXAdjustment}$$
+
+Where $\text{VolWeight} = \min(\text{VolRatio}, 2.0)$. A score floor of `currentPrice × (1 + 0.10 × RecommendScore)` is enforced when the score is positive. Labeled with confidence badge `🟡 نطاق فني هيكلي (Fibonacci Range)` for transparent disclosure.
 
 ### 🛡️ Expanded Safety Guardrails
 
 To prevent irrational extremes while unlocking detection of true **Deep Value** stocks:
 
 $$\text{Fair Value} \in \left[0.75 \times P_{\text{current}}, \, 2.00 \times P_{\text{current}}\right]$$
+
+### ✅ Input Validation
+
+Before any computation, the engine validates inputs to guarantee numerical integrity:
+- `currentPrice`, `low52`, and `high52` must be finite positive numbers.
+- If `high52 < low52`, the bounds are normalized (swap) or rejected with a fallback to the current-price corridor.
+- `NaN`, `Infinity`, or negative fundamental inputs are treated as unavailable, routing to the next available model.
+- `recommendScore` is clamped to $[-1, +1]$; `volRatio` is clamped to $[0, 2]$.
 
 ---
 
@@ -101,7 +146,7 @@ The bot automatically audits all EGX stocks against AAOIFI Sharia standards:
 2. **Interest-Bearing Debt Ratio:** Total debt must not exceed **$33\%$** of market cap / total assets.
 3. **Haram Revenue Ratio:** Non-halal revenue must not exceed **$5\%$** of total income.
 
-_Stocks failing any of these three criteria (e.g. `SUGR` with a 57.59% loan ratio) are automatically purged from watchlists, CSV exports, and Google Sheets._
+_Stocks failing any of these three criteria (e.g. `SUGR` with a 57.59% loan ratio) are automatically purged from watchlists, Google Sheets, and analysis outputs._
 
 ---
 
