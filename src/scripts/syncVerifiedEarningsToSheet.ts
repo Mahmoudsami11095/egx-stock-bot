@@ -47,11 +47,11 @@ const HAND_VERIFIED_AUDITED: Record<string, { netProfit: number; periodMonths: n
     source: "Audited Financial Statement FY2025 - Talaat Moustafa Group"
   },
   "EGAL": {
-    netProfit: 10180000000,
+    netProfit: 10730000000,
     periodMonths: 12,
     totalShares: 412500000,
     dps: 8.00,
-    source: "Audited Financial Statement FY2024/2025 - Egypt Aluminium"
+    source: "Audited Financial Statement TTM - Egypt Aluminium (Investing.com verified)"
   },
   "SWDY": {
     netProfit: 13500000000,
