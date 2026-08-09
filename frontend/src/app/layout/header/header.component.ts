@@ -54,7 +54,30 @@ import { StockApiService } from '../../core/services/stock-api.service';
         <a routerLink="/" class="flex items-center gap-3 group">
           <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emeraldAccent via-cyan-400 to-amber-400 p-0.5 shadow-lg shadow-emeraldAccent/20 group-hover:scale-105 transition-transform">
             <div class="w-full h-full bg-darkBg rounded-[10px] flex items-center justify-center p-1.5 overflow-hidden">
-              <img src="favicon.svg" alt="EGX Analytics Logo" class="w-full h-full object-contain" />
+              <svg viewBox="0 0 512 512" class="w-full h-full">
+                <defs>
+                  <linearGradient id="hdrEmeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#10b981"/>
+                    <stop offset="50%" stop-color="#34d399"/>
+                    <stop offset="100%" stop-color="#059669"/>
+                  </linearGradient>
+                  <linearGradient id="hdrGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#fbdf7e"/>
+                    <stop offset="100%" stop-color="#f59e0b"/>
+                  </linearGradient>
+                </defs>
+                <rect width="512" height="512" rx="128" fill="#090d16"/>
+                <line x1="120" y1="360" x2="120" y2="280" stroke="#059669" stroke-width="8" opacity="0.7"/>
+                <rect x="108" y="300" width="24" height="40" rx="4" fill="#059669" opacity="0.8"/>
+                <line x1="200" y1="380" x2="200" y2="240" stroke="#10b981" stroke-width="8"/>
+                <rect x="188" y="270" width="24" height="70" rx="4" fill="#10b981"/>
+                <line x1="280" y1="320" x2="280" y2="180" stroke="#34d399" stroke-width="8"/>
+                <rect x="268" y="210" width="24" height="80" rx="4" fill="#34d399"/>
+                <line x1="360" y1="260" x2="360" y2="110" stroke="url(#hdrGoldGrad)" stroke-width="8"/>
+                <rect x="348" y="140" width="24" height="90" rx="4" fill="url(#hdrGoldGrad)"/>
+                <path d="M 90 320 Q 180 300 240 220 T 420 100" fill="none" stroke="url(#hdrEmeraldGrad)" stroke-width="22" stroke-linecap="round"/>
+                <path d="M 370 100 L 430 95 L 425 155 Z" fill="url(#hdrEmeraldGrad)"/>
+              </svg>
             </div>
           </div>
           <div>
