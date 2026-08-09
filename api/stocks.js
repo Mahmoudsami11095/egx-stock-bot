@@ -516,7 +516,16 @@ function parseArabicFinancialHeadline(symbol, title, pubDate) {
   };
 }
 
+const RSS_CACHE = new Map();
+const RSS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours cache
+
 function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
+  const cached = RSS_CACHE.get(symbol);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < RSS_CACHE_TTL_MS)) {
+    return Promise.resolve(cached.data);
+  }
+
   return new Promise((resolve) => {
     const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال") when:1y`;
     const encoded = encodeURIComponent(query);
@@ -524,7 +533,7 @@ function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
 
     const req = https.get(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      timeout: 4000
+      timeout: 1500
     }, (res) => {
       let body = '';
       res.on('data', (c) => body += c);
@@ -541,22 +550,22 @@ function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
             return dateB - dateA;
           });
 
+          let parsed = null;
           for (const { title, pubDate } of items) {
-            const parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
-            if (parsed) {
-              resolve(parsed);
-              return;
-            }
+            parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
+            if (parsed) break;
           }
-          resolve(null);
+          RSS_CACHE.set(symbol, { data: parsed, timestamp: Date.now() });
+          resolve(parsed);
         } catch (e) {
+          RSS_CACHE.set(symbol, { data: null, timestamp: Date.now() });
           resolve(null);
         }
       });
     });
 
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => { RSS_CACHE.set(symbol, { data: null, timestamp: Date.now() }); resolve(null); });
+    req.on('timeout', () => { req.destroy(); RSS_CACHE.set(symbol, { data: null, timestamp: Date.now() }); resolve(null); });
   });
 }
 
