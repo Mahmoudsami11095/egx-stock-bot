@@ -1,7 +1,7 @@
 import https from 'https';
 import { parseArabicFinancialHeadline } from '../services/automatedEarningsParser';
 
-const EARNINGS_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby5t4sK1n1vV7_U-gXhI1a84f4pY4oYf18X8k9R/exec';
+const EARNINGS_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBiThGKFuKtNLJyFaJVniOO73B7a5V3sbj3NVS54VzlY9PVCzaz5-uYrUuRq4G2XLR/exec';
 
 const HAND_VERIFIED_AUDITED: Record<string, { netProfit: number; periodMonths: number; totalShares: number; dps: number; source: string }> = {
   "SKPC": {
