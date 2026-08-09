@@ -9,6 +9,8 @@ import { ExportService } from '../services/exportService';
 import { GoogleSheetsService } from '../services/googleSheetsService';
 import { TelegramBotService } from '../bot/telegramBot';
 import { logger } from '../services/logger';
+import { StockAnalysisResult } from '../types/stock';
+import { IntradayTrackerService } from '../services/intradayTracker';
 
 export class CronSchedulerService {
   private goldService = new GoldService();
@@ -20,7 +22,8 @@ export class CronSchedulerService {
     private stateManager: StateManager,
     private dataFetcher: DataFetcherService,
     private signalDetector: SignalDetectorService,
-    private telegramBot: TelegramBotService
+    private telegramBot: TelegramBotService,
+    private intradayTracker: IntradayTrackerService
   ) {}
 
   public startSchedule(): void {
@@ -110,9 +113,11 @@ export class CronSchedulerService {
       const { regime } = await this.dataFetcher.detectMarketRegime();
       const watchlist = this.stateManager.getWatchlist();
       const batchResults = await this.dataFetcher.getBatchQuoteAndIndicators(watchlist);
+      const analyses: StockAnalysisResult[] = [];
 
       for (const r of batchResults) {
         const analysis = this.signalDetector.analyzeStockWithIndicators(r.stock, r.quote, r.indicators, r.automatedFairValue, r.fairValueConfidence, regime);
+        analyses.push(analysis);
         logger.info(`[Scan] ${r.stock.symbol}: ${r.quote.currentPrice} EGP | Fair Value: ${r.automatedFairValue} EGP | Signal: ${analysis.signalType} | Regime: ${regime}`);
 
         if (this.stateManager.shouldSendAlert(r.stock.symbol, analysis.signalType, r.quote.currentPrice)) {
@@ -120,6 +125,9 @@ export class CronSchedulerService {
           await this.telegramBot.sendNotificationCard(analysis);
         }
       }
+
+      // Track and check intraday recommendations
+      await this.intradayTracker.trackAndCheck(analyses, this.telegramBot);
     } catch (error) {
       logger.error(`Error scanning stocks watchlist: ${error}`);
     }

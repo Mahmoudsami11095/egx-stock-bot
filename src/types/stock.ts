@@ -129,3 +129,17 @@ export interface AlertState {
   lastAlertTime: number;
   lastPrice: number;
 }
+
+export interface IntradayTrade {
+  id: string;
+  symbol: string;
+  recommendationType: 'BUY' | 'STRONG_BUY' | 'NEUTRAL';
+  entryPrice: number;
+  targetPrice: number;
+  stopLossPrice: number;
+  entryTime: string;
+  closeTime?: string;
+  status: 'OPEN' | 'CLOSED_TARGET_HIT' | 'CLOSED_STOP_LOSS_HIT';
+  closePrice?: number;
+  pnlPercentage?: number;
+}

@@ -9,6 +9,7 @@ import { logger } from './services/logger';
 
 import { GoldService } from './services/goldService';
 import { ShariaService } from './services/shariaService';
+import { IntradayTrackerService } from './services/intradayTracker';
 
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -24,8 +25,9 @@ async function bootstrap() {
   const signalDetector = new SignalDetectorService();
   const goldService = new GoldService();
   const shariaService = new ShariaService();
-  const telegramBot = new TelegramBotService(stateManager, dataFetcher, signalDetector);
-  const cronScheduler = new CronSchedulerService(stateManager, dataFetcher, signalDetector, telegramBot);
+  const intradayTracker = new IntradayTrackerService();
+  const telegramBot = new TelegramBotService(stateManager, dataFetcher, signalDetector, intradayTracker);
+  const cronScheduler = new CronSchedulerService(stateManager, dataFetcher, signalDetector, telegramBot, intradayTracker);
   const egxLiveScraper = new EgxLiveScraperService();
 
   // 1. Create HTTP & WebSocket Server for Angular SPA & Live Tick Feed

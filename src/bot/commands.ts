@@ -8,6 +8,7 @@ import { ExportService } from '../services/exportService';
 import { GoogleSheetsService } from '../services/googleSheetsService';
 import { formatSignalCard, formatWatchlistStatus } from './templates';
 import { logger } from '../services/logger';
+import { IntradayTrackerService } from '../services/intradayTracker';
 
 export function setupCommands(
   bot: Telegraf,
@@ -17,7 +18,8 @@ export function setupCommands(
   goldService: GoldService = new GoldService(),
   shariaService: ShariaService = new ShariaService(),
   exportService: ExportService = new ExportService(),
-  googleSheetsService: GoogleSheetsService = new GoogleSheetsService()
+  googleSheetsService: GoogleSheetsService = new GoogleSheetsService(),
+  intradayTracker: IntradayTrackerService = new IntradayTrackerService()
 ) {
   // Middleware: Automatically register user Chat ID for push notifications on ANY command
   bot.use((ctx: Context, next) => {
@@ -50,6 +52,8 @@ export function setupCommands(
 • <code>/halal</code> - 🕌 عرض قائمة الأسهم الحلال المتوافقة مع الشريعة في البورصة المصرية.
 • <code>/gold</code> - ⚜️ أسعار الذهب اللحظية في مصر (عيار 24، 21، 18 والجنيه الذهب) وعالمياً.
 • <code>/signals TICKER</code> - تحليل فني شامل وتفصيلي لأي سهم (مثال: <code>/signals ABUK</code> أو <code>/signals MPCI</code>).
+• <code>/trades</code> - 🎯 عرض توصيات المضاربة اللحظية المفتوحة والنشطة حالياً.
+• <code>/performance</code> - 📈 تقرير أداء وإحصائيات توصيات المضاربة اللحظية المغلقة.
 • <code>/add TICKER</code> - إضافة سهم جديد لقائمة المتابعة الحلال.
 • <code>/remove TICKER</code> - حذف سهم من قائمة المتابعة.
 
@@ -196,5 +200,65 @@ export function setupCommands(
     const removed = stateManager.removeStock(symbol);
     if (removed) ctx.reply(`🗑️ تم حذف السهم <b>${symbol}</b> من القائمة.`, { parse_mode: 'HTML' });
     else ctx.reply(`⚠️ لم يتم العثور على السهم <b>${symbol}</b> في القائمة.`, { parse_mode: 'HTML' });
+  });
+
+  // 9. /trades - List open intraday trades
+  bot.command('trades', (ctx: Context) => {
+    const openTrades = intradayTracker.getOpenTrades();
+    if (openTrades.length === 0) {
+      return ctx.replyWithHTML('ℹ️ <b>لا توجد توصيات مضاربة لحظية مفتوحة حالياً.</b>');
+    }
+
+    let msg = `🎯 <b>توصيات المضاربة اللحظية المفتوحة حالياً (${openTrades.length}):</b>\n\n`;
+    for (const t of openTrades) {
+      const entryDate = new Date(t.entryTime).toLocaleString('ar-EG');
+      msg += `🔹 <b>${t.symbol}</b> (${t.recommendationType === 'STRONG_BUY' ? 'شراء قوي' : 'شراء'})\n`;
+      msg += `💵 سعر الدخول: <code>${t.entryPrice} ج.م</code>\n`;
+      msg += `🎯 الهدف اللحظي: <code>${t.targetPrice} ج.م</code>\n`;
+      msg += `🛑 وقف الخسارة: <code>${t.stopLossPrice} ج.م</code>\n`;
+      msg += `⏰ وقت التوصية: <i>${entryDate}</i>\n\n`;
+    }
+    ctx.replyWithHTML(msg);
+  });
+
+  // 10. /performance - Show statistics for closed trades
+  bot.command('performance', (ctx: Context) => {
+    const closedTrades = intradayTracker.getClosedTrades();
+    if (closedTrades.length === 0) {
+      return ctx.replyWithHTML('ℹ️ <b>لا توجد توصيات مغلقة لتحديد إحصائيات الأداء بعد.</b>');
+    }
+
+    const total = closedTrades.length;
+    const targetHits = closedTrades.filter(t => t.status === 'CLOSED_TARGET_HIT');
+    const stopLossHits = closedTrades.filter(t => t.status === 'CLOSED_STOP_LOSS_HIT');
+    
+    const winCount = targetHits.length;
+    const lossCount = stopLossHits.length;
+    const winRate = Number(((winCount / total) * 100).toFixed(1));
+
+    // Calculate total and average P&L %
+    let totalPnl = 0;
+    for (const t of closedTrades) {
+      totalPnl += t.pnlPercentage || 0;
+    }
+    const avgPnl = Number((totalPnl / total).toFixed(2));
+
+    let msg = `📈 <b>إحصائيات أداء توصيات المضاربة اللحظية (Performance):</b>\n\n`;
+    msg += `📊 إجمالي الصفقات المغلقة: <b>${total}</b>\n`;
+    msg += `🟢 الأهداف المحققة (🎯): <b>${winCount}</b>\n`;
+    msg += `🔴 وقف الخسارة المفعل (🛑): <b>${lossCount}</b>\n`;
+    msg += `🎯 نسبة النجاح (Win Rate): <b>${winRate}%</b>\n`;
+    msg += `📈 إجمالي الأرباح/الخسائر المجمعة: <b>${totalPnl > 0 ? '+' : ''}${totalPnl.toFixed(2)}%</b>\n`;
+    msg += `📊 متوسط الأرباح/الخسائر لكل صفقة: <b>${avgPnl > 0 ? '+' : ''}${avgPnl}%</b>\n\n`;
+
+    msg += `🕒 <i>آخر 5 صفقات مغلقة:</i>\n`;
+    const recent = closedTrades.slice(-5).reverse();
+    for (const t of recent) {
+      const icon = t.status === 'CLOSED_TARGET_HIT' ? '🟢 🎯' : '🔴 🛑';
+      const pnl = t.pnlPercentage !== undefined ? t.pnlPercentage : 0;
+      msg += `${icon} <b>${t.symbol}</b>: الدخول: <code>${t.entryPrice}</code> | الإغلاق: <code>${t.closePrice}</code> | العائد: <b>${pnl > 0 ? '+' : ''}${pnl}%</b>\n`;
+    }
+
+    ctx.replyWithHTML(msg);
   });
 }

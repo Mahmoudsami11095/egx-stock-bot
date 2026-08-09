@@ -7,6 +7,7 @@ import { setupCommands } from './commands';
 import { StockAnalysisResult } from '../types/stock';
 import { formatSignalCard } from './templates';
 import { logger } from '../services/logger';
+import { IntradayTrackerService } from '../services/intradayTracker';
 
 export class TelegramBotService {
   public bot: Telegraf | null = null;
@@ -14,11 +15,22 @@ export class TelegramBotService {
   constructor(
     private stateManager: StateManager,
     private dataFetcher: DataFetcherService,
-    private signalDetector: SignalDetectorService
+    private signalDetector: SignalDetectorService,
+    private intradayTracker: IntradayTrackerService = new IntradayTrackerService()
   ) {
     if (config.telegramBotToken) {
       this.bot = new Telegraf(config.telegramBotToken);
-      setupCommands(this.bot, this.stateManager, this.dataFetcher, this.signalDetector);
+      setupCommands(
+        this.bot,
+        this.stateManager,
+        this.dataFetcher,
+        this.signalDetector,
+        undefined, // goldService
+        undefined, // shariaService
+        undefined, // exportService
+        undefined, // googleSheetsService
+        this.intradayTracker
+      );
     }
   }
 
