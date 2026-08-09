@@ -1027,7 +1027,8 @@ module.exports = async (req, res) => {
   try {
     const source = (req.query && req.query.source) || 'tradingview';
     const halal = (req.query && (req.query.halal || req.query.sharia)) ? `&halal=${req.query.halal || req.query.sharia}` : '';
-    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}`);
+    const useOverridesParam = (req.query && req.query.use_overrides === 'true') ? '&use_overrides=true' : '';
+    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}${useOverridesParam}`);
     if (azureData && Array.isArray(azureData) && azureData.length > 0) {
       res.setHeader('X-Served-By', 'Azure-VM-Primary');
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
@@ -1039,7 +1040,8 @@ module.exports = async (req, res) => {
 
   try {
     const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
-    const earningsOverrides = await fetchGoogleSheetOverrides();
+    const useOverrides = req.query && req.query.use_overrides === 'true';
+    const earningsOverrides = useOverrides ? await fetchGoogleSheetOverrides() : {};
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
       fetchHalalSymbolsSet()
@@ -1057,7 +1059,7 @@ module.exports = async (req, res) => {
       if (halalOnly && !isHalal) continue;
 
       // 1. Manual override
-      const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
+      const override = useOverrides ? (earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null) : null;
 
       // 2. Automated news earnings scraper fallback for all stocks
       let autoParsed = null;

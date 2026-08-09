@@ -68,8 +68,9 @@ async function bootstrap() {
   app.get('/api/stocks', async (req, res) => {
     try {
       const source = (req.query.source as any) || 'tradingview';
+      const useOverrides = req.query.use_overrides === 'true';
       const watchlist = stateManager.getWatchlist();
-      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source);
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source, useOverrides);
       const results = [];
       for (const item of batchResults) {
         const analysis = signalDetector.analyzeStockWithIndicators(
