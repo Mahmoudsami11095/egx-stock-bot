@@ -908,7 +908,9 @@ function calculateFairValue(stock, fundamentals) {
   // Model A: Earnings Multiple (P/E)
   if (fundamentals.eps && fundamentals.eps > 0) {
     const sectorPE = 12.0;
-    fvPe = fundamentals.eps * sectorPE * momentumMultiplier * macroDiscount;
+    // High-confidence audited earnings get realistic valuation scaling
+    const effectiveMacroDiscount = (fundamentals.epsConfidence === 'HIGH') ? 0.96 : macroDiscount;
+    fvPe = fundamentals.eps * sectorPE * momentumMultiplier * effectiveMacroDiscount;
   }
 
   // Model B: Book Value Multiple (P/B)
@@ -922,9 +924,11 @@ function calculateFairValue(stock, fundamentals) {
 
   if (fvPe && fvPb) {
     // Sector-Adaptive Multi-Model Weighting:
-    // When earnings power significantly exceeds accounting book value (e.g. industrial/growth),
-    // weight 75% Earnings (P/E) + 25% Book Value (P/B) to prevent historical asset depreciation drag.
-    if (fvPe > fvPb * 1.3) {
+    // When earnings power significantly exceeds legacy book value (e.g. industrial exporters with depreciated plant assets),
+    // weight 90% Earnings (P/E) + 10% Book Value (P/B) to eliminate historical asset depreciation drag.
+    if (fvPe > fvPb * 1.5) {
+      fairValueRaw = 0.90 * fvPe + 0.10 * fvPb;
+    } else if (fvPe > fvPb * 1.2) {
       fairValueRaw = 0.75 * fvPe + 0.25 * fvPb;
     } else {
       fairValueRaw = 0.50 * fvPe + 0.50 * fvPb;
