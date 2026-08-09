@@ -92,10 +92,13 @@ export async function fetchGoogleSheetOverridesDF(): Promise<Record<string, any>
           const row = parseCSVLineDF(lines[i]);
           const symbol = (row[0] || '').replace(/"/g, '').trim().toUpperCase();
           const name = (row[1] || '').replace(/"/g, '').trim();
-          const netProfit = parseFloat((row[2] || '').replace(/"/g, '').trim());
+          const netProfitStr = (row[2] || '').replace(/"/g, '').replace(/,/g, '').trim();
+          const netProfit = parseFloat(netProfitStr);
           const periodMonths = parseInt((row[3] || '').replace(/"/g, '').trim()) || 12;
-          const totalShares = parseFloat((row[4] || '').replace(/"/g, '').trim());
-          const dps = parseFloat((row[5] || '').replace(/"/g, '').trim());
+          const totalSharesStr = (row[4] || '').replace(/"/g, '').replace(/,/g, '').trim();
+          const totalShares = parseFloat(totalSharesStr);
+          const dpsStr = (row[5] || '').replace(/"/g, '').replace(/,/g, '').trim();
+          const dps = parseFloat(dpsStr);
           const source = (row[6] || '').replace(/"/g, '').trim();
           const updatedAt = (row[7] || '').replace(/"/g, '').trim();
 
