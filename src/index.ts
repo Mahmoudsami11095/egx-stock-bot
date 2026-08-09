@@ -127,6 +127,19 @@ async function bootstrap() {
     }
   });
 
+  app.get('/api/intraday-trades', async (req, res) => {
+    try {
+      res.json({
+        success: true,
+        open: intradayTracker.getOpenTrades(),
+        closed: intradayTracker.getClosedTrades()
+      });
+    } catch (err: any) {
+      logger.error(`Error in /api/intraday-trades: ${err}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.all('/api/update-overrides', async (req, res) => {
     try {
       const updateOverridesHandler = require('../api/update-overrides.js');

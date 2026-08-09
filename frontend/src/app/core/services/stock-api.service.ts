@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { StockAnalysisResult, GoldPrices, DataSource } from '../models/stock.model';
+import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade } from '../models/stock.model';
 
 const STORAGE_KEY = 'egx_stocks_live_cache_v5';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp_v5';
@@ -75,6 +75,8 @@ export class StockApiService {
   public topBuys = signal<StockAnalysisResult[]>([]);
   public topIntradayBuys = signal<StockAnalysisResult[]>([]);
   public topIntradaySells = signal<StockAnalysisResult[]>([]);
+  public openTrades = signal<IntradayTrade[]>([]);
+  public closedTrades = signal<IntradayTrade[]>([]);
   public goldPrices = signal<GoldPrices | null>(DEFAULT_GOLD_PRICES);
   public marketRegime = signal<'BULLISH' | 'BEARISH' | 'UNKNOWN'>('BULLISH');
   public usdEgp = signal<number>(49.80);
@@ -234,10 +236,19 @@ export class StockApiService {
       const apiGoldPromise = this.http.get<GoldPrices>('/api/gold').toPromise()
         .catch(() => null);
 
-      const [results, goldData] = await Promise.all([
+      const apiIntradayPromise = this.http.get<{ success: boolean; open: IntradayTrade[]; closed: IntradayTrade[] }>('/api/intraday-trades').toPromise()
+        .catch(() => null);
+
+      const [results, goldData, intradayData] = await Promise.all([
         apiStockPromise,
-        apiGoldPromise
+        apiGoldPromise,
+        apiIntradayPromise
       ]);
+
+      if (intradayData && intradayData.success) {
+        this.openTrades.set(intradayData.open || []);
+        this.closedTrades.set(intradayData.closed || []);
+      }
 
       if (results && results.length > 0) {
         this.applyStockData(results, false);

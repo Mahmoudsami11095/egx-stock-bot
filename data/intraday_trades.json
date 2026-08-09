@@ -1,0 +1,28 @@
+[
+  {
+    "id": "MPCI_1786290414162",
+    "symbol": "MPCI",
+    "recommendationType": "STRONG_BUY",
+    "entryPrice": 100,
+    "targetPrice": 106,
+    "stopLossPrice": 97,
+    "entryTime": "2026-08-09T15:46:54.154Z",
+    "status": "CLOSED_TARGET_HIT",
+    "closePrice": 107,
+    "closeTime": "2026-08-09T15:46:54.172Z",
+    "pnlPercentage": 7
+  },
+  {
+    "id": "ABUK_1786290414206",
+    "symbol": "ABUK",
+    "recommendationType": "BUY",
+    "entryPrice": 80,
+    "targetPrice": 83.5,
+    "stopLossPrice": 78.5,
+    "entryTime": "2026-08-09T15:46:54.206Z",
+    "status": "CLOSED_STOP_LOSS_HIT",
+    "closePrice": 77.5,
+    "closeTime": "2026-08-09T15:46:54.211Z",
+    "pnlPercentage": -3.13
+  }
+]
