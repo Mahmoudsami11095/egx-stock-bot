@@ -79,7 +79,7 @@ export async function fetchGoogleSheetOverridesDF(): Promise<Record<string, any>
   }
 
   return new Promise((resolve) => {
-    const url = 'https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/gviz/tq?tqx=out:csv&gid=0';
+    const url = 'https://docs.google.com/spreadsheets/d/1EKvEu7qKYFZY6JoMfohKSXtFV6tvKxbtlvDlTYr2mJ0/gviz/tq?tqx=out:csv&gid=0';
     https.get(url, { timeout: 4000 }, (res) => {
       let body = '';
       res.on('data', c => body += c);
@@ -92,16 +92,24 @@ export async function fetchGoogleSheetOverridesDF(): Promise<Record<string, any>
           const row = parseCSVLineDF(lines[i]);
           const symbol = (row[0] || '').replace(/"/g, '').trim().toUpperCase();
           const name = (row[1] || '').replace(/"/g, '').trim();
-          const fairValueStr = (row[4] || '').replace(/"/g, '').trim();
-          const fairValue = parseFloat(fairValueStr);
+          const netProfit = parseFloat((row[2] || '').replace(/"/g, '').trim());
+          const periodMonths = parseInt((row[3] || '').replace(/"/g, '').trim()) || 12;
+          const totalShares = parseFloat((row[4] || '').replace(/"/g, '').trim());
+          const dps = parseFloat((row[5] || '').replace(/"/g, '').trim());
+          const source = (row[6] || '').replace(/"/g, '').trim();
+          const updatedAt = (row[7] || '').replace(/"/g, '').trim();
 
-          if (symbol && !isNaN(fairValue) && fairValue > 0) {
+          if (symbol && !isNaN(netProfit) && netProfit > 0) {
             overrides[symbol] = {
               ...(overrides[symbol] || {}),
               symbol,
               name: name || (overrides[symbol] && overrides[symbol].name),
-              fairValue,
-              notes: `Loaded live from Google Sheet (${symbol})`
+              netProfit,
+              periodMonths,
+              totalShares: !isNaN(totalShares) && totalShares > 0 ? totalShares : undefined,
+              dps: !isNaN(dps) ? dps : undefined,
+              source: source || 'Google Sheet Live Sync',
+              updatedAt: updatedAt || new Date().toISOString().split('T')[0]
             };
           }
         }
