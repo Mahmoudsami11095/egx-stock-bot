@@ -776,7 +776,16 @@ export class DataFetcherService {
       }
       
       // Cache empty state for a shorter time to avoid spamming the AI on missing news
-      const emptyFundamentals: ExtractedFundamentals = { netProfit: null, revenue: null, fiscalYear: null, currency: null };
+      const emptyFundamentals: ExtractedFundamentals = {
+        netProfit: null,
+        revenue: null,
+        periodMonths: null,
+        totalShares: null,
+        dps: null,
+        isCurrentPeriod: null,
+        fiscalYear: null,
+        currency: null,
+      };
       cachedFundamentals.set(stock.symbol, { data: emptyFundamentals, timestamp: now - (11 * 60 * 60 * 1000) });
       return null;
     } catch (error) {

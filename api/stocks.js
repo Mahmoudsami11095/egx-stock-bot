@@ -435,6 +435,52 @@ async function fetchGoogleSheetOverrides() {
 }
 
 // ─── AUTOMATED ARABIC HEADLINE PARSER ───────────────────────────────────────
+const COMPARISON_SPLIT_RE = /\s*(?:مقابل|مقارنة\s*بـ|مقارنة\s*مع|عن\s+العام\s+السابق|في\s+العام\s+السابق|عن\s+نفس\s+الفترة\s+من\s+العام\s+السابق)\s*/i;
+const COMPARISON_PREFIX_RE = /(?:مقابل|مقارنة\s*ب(?:ـ|)?|عن\s+العام\s+السابق|في\s+(?:العام\s+)?(?:السابق|\d{4}))\s*[:\-]?\s*$/i;
+const PROFIT_VERB_PREFIX = '(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت|أرباح|صافي\\s+أ?رباح?)';
+
+function stripComparisonSegments(title) {
+  return title.split(COMPARISON_SPLIT_RE)[0].trim();
+}
+
+function extractCurrentPeriodProfit(title) {
+  const currentSegment = stripComparisonSegments(title);
+
+  const billionPatterns = [
+    new RegExp(`${PROFIT_VERB_PREFIX}\\s+([0-9]+(?:\\.[0-9]+)?)\\s*مليار`, 'i'),
+    /([0-9]+(?:\.[0-9]+)?)\s*مليار\s*جنيه/i,
+    /([0-9]+(?:\.[0-9]+)?)\s*مليار(?!\s*(?:مقابل|في\s+\d{4}))/i,
+  ];
+
+  const millionPatterns = [
+    new RegExp(`${PROFIT_VERB_PREFIX}\\s+([0-9]+(?:\\.[0-9]+)?)\\s*مليون`, 'i'),
+    /([0-9]+(?:\.[0-9]+)?)\s*مليون\s*جنيه/i,
+    /([0-9]+(?:\.[0-9]+)?)\s*مليون(?!\s*(?:مقابل|في\s+\d{4}))/i,
+  ];
+
+  for (const pattern of billionPatterns) {
+    const match = currentSegment.match(pattern);
+    if (match) {
+      const prefix = currentSegment.slice(0, match.index ?? 0);
+      if (!COMPARISON_PREFIX_RE.test(prefix.slice(-40))) {
+        return parseFloat(match[1]) * 1_000_000_000;
+      }
+    }
+  }
+
+  for (const pattern of millionPatterns) {
+    const match = currentSegment.match(pattern);
+    if (match) {
+      const prefix = currentSegment.slice(0, match.index ?? 0);
+      if (!COMPARISON_PREFIX_RE.test(prefix.slice(-40))) {
+        return parseFloat(match[1]) * 1_000_000;
+      }
+    }
+  }
+
+  return null;
+}
+
 function parseArabicFinancialHeadline(symbol, title, pubDate) {
   if (!title) return null;
 
@@ -453,16 +499,7 @@ function parseArabicFinancialHeadline(symbol, title, pubDate) {
     periodMonths = 12;
   }
 
-  let netProfit = null;
-
-  const billionMatch = title.match(/(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت)\s+([0-9]+(?:\.[0-9]+)?)\s*مليار/);
-  const millionMatch = title.match(/(?:إلى|تسجل|بلغت|تحقق|بـ|عند|تصل|سجلت)\s+([0-9]+(?:\.[0-9]+)?)\s*مليون/);
-
-  if (billionMatch) {
-    netProfit = parseFloat(billionMatch[1]) * 1_000_000_000;
-  } else if (millionMatch) {
-    netProfit = parseFloat(millionMatch[1]) * 1_000_000;
-  }
+  const netProfit = extractCurrentPeriodProfit(title);
 
   if (!netProfit || netProfit <= 0) return null;
 
@@ -481,7 +518,7 @@ function parseArabicFinancialHeadline(symbol, title, pubDate) {
 
 function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
   return new Promise((resolve) => {
-    const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال")`;
+    const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال") when:1y`;
     const encoded = encodeURIComponent(query);
     const url = `https://news.google.com/rss/search?q=${encoded}&hl=ar&gl=EG&ceid=EG:ar`;
 
@@ -493,13 +530,18 @@ function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
       res.on('data', (c) => body += c);
       res.on('end', () => {
         try {
-          const items = body.match(/<item>[\s\S]*?<\/item>/g) || [];
-          for (const item of items) {
-            const titleMatch = item.match(/<title>(.*?)<\/title>/);
-            const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-            const title = titleMatch ? titleMatch[1] : '';
-            const pubDate = dateMatch ? dateMatch[1] : '';
+          const items = (body.match(/<item>[\s\S]*?<\/item>/g) || []).map(item => ({
+            title: (item.match(/<title>(.*?)<\/title>/) || [])[1] || '',
+            pubDate: (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '',
+          }));
 
+          items.sort((a, b) => {
+            const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+            const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+            return dateB - dateA;
+          });
+
+          for (const { title, pubDate } of items) {
             const parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
             if (parsed) {
               resolve(parsed);
