@@ -230,39 +230,42 @@ export async function syncVerifiedEarningsToSheet() {
   const overrides: Record<string, any> = {};
   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Process TradingView audited financial statements first
+  // 1. Process TradingView audited financial statements with strict confidence filtering
   for (const row of rows) {
     if (!row.s || !row.d) continue;
     const rawSym = row.s.replace('EGX:', '').toUpperCase();
     const [name, description, netIncomeTtm, totalShares, dpsTv, divYieldTv, netIncomeFy, epsTtm, epsFy] = row.d;
 
+    // Reject TradingView placeholders (100M shares, 120M profit)
     const isPlaceholderShares = totalShares === 100000000;
     const isPlaceholderProfit = (netIncomeTtm === 120000000) || (netIncomeFy === 120000000);
 
     let netProfit = (!isPlaceholderProfit && (netIncomeTtm || netIncomeFy)) ? Number(netIncomeTtm || netIncomeFy) : 0;
     const sharesCount = (!isPlaceholderShares && totalShares > 0) ? Number(totalShares) : undefined;
-    const effectiveEps = (epsTtm && !isNaN(epsTtm)) ? Number(epsTtm) : ((epsFy && !isNaN(epsFy)) ? Number(epsFy) : 0);
+    const effectiveEps = (epsTtm && !isNaN(epsTtm) && epsTtm > 0) ? Number(epsTtm) : ((epsFy && !isNaN(epsFy) && epsFy > 0) ? Number(epsFy) : 0);
 
-    // If netProfit is missing but EPS and totalShares are available, calculate netProfit = EPS * totalShares
+    // If netProfit is missing but EPS and totalShares are strictly available, netProfit = EPS * totalShares
     if ((!netProfit || netProfit <= 0) && effectiveEps > 0 && sharesCount && sharesCount > 0) {
       netProfit = Math.round(effectiveEps * sharesCount);
     }
 
-    if (rawSym && (netProfit > 0 || sharesCount || dpsTv)) {
+    // STRICT CONFIDENCE RULE:
+    // Only include in Google Sheet if we have confirmed positive Net Profit AND valid Total Shares
+    if (rawSym && netProfit > 0 && sharesCount && sharesCount > 0) {
       overrides[rawSym] = {
         symbol: rawSym,
         name: description || name || rawSym,
-        netProfit: netProfit > 0 ? netProfit : undefined,
+        netProfit: Number(netProfit),
         periodMonths: 12,
-        totalShares: sharesCount,
-        dps: (dpsTv && !isNaN(dpsTv)) ? Number(dpsTv) : 0,
+        totalShares: Number(sharesCount),
+        dps: (dpsTv && !isNaN(dpsTv) && dpsTv >= 0) ? Number(dpsTv) : 0,
         source: "TradingView Audited Financial Statement",
         updatedAt: today
       };
     }
   }
 
-  // 2. Apply hand-verified audited reports (overwrites/corrects any stale TradingView data like SKPC)
+  // 2. Apply hand-verified audited disclosures (overwrites/corrects any stale TradingView data)
   for (const [sym, data] of Object.entries(HAND_VERIFIED_AUDITED)) {
     overrides[sym] = {
       symbol: sym,
