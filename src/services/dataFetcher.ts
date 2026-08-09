@@ -102,14 +102,18 @@ export async function fetchGoogleSheetOverridesDF(): Promise<Record<string, any>
           const source = (row[6] || '').replace(/"/g, '').trim();
           const updatedAt = (row[7] || '').replace(/"/g, '').trim();
 
-          if (symbol && !isNaN(netProfit) && netProfit > 0) {
+          const isEstimated = source && /(Estimated|Baseline)/i.test(source);
+          const isPlaceholderShares = totalShares === 100000000;
+          const isPlaceholderProfit = netProfit === 120000000;
+
+          if (symbol && !isNaN(netProfit) && netProfit > 0 && !isEstimated && !(isPlaceholderShares && isPlaceholderProfit)) {
             overrides[symbol] = {
               ...(overrides[symbol] || {}),
               symbol,
               name: name || (overrides[symbol] && overrides[symbol].name),
               netProfit,
               periodMonths,
-              totalShares: !isNaN(totalShares) && totalShares > 0 ? totalShares : undefined,
+              totalShares: (!isPlaceholderShares && !isNaN(totalShares) && totalShares > 0) ? totalShares : undefined,
               dps: !isNaN(dps) ? dps : undefined,
               source: source || 'Google Sheet Live Sync',
               updatedAt: updatedAt || new Date().toISOString().split('T')[0]
@@ -147,22 +151,28 @@ function computeSmartEps(
   const now = Date.now() / 1000;
   const STALE_THRESHOLD = 180 * 24 * 3600;
 
-  // Tier 0: Manual EGX Bulletin Override
+  // Tier 0: Audited Manual Override (highest priority if real financial disclosure)
   if (override) {
-    const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
-    const shares = override.totalShares || totalShares;
-    if (shares && shares > 0) {
-      const overrideEps = annualizedNetProfit / shares;
-      const ttmEps = (epsRaw && epsRaw > 0) ? epsRaw :
-        (netIncomeTtm && totalShares && totalShares > 0 ? netIncomeTtm / totalShares : null);
-      let blendedEps = overrideEps;
-      if (ttmEps && ttmEps > 0) {
-        blendedEps = 0.70 * overrideEps + 0.30 * ttmEps;
+    const isEstimated = override.source && /(Estimated|Baseline)/i.test(override.source);
+    const isPlaceholderShares = override.totalShares === 100000000;
+    const isPlaceholderProfit = override.netProfit === 120000000;
+
+    if (!isEstimated && !(isPlaceholderShares && isPlaceholderProfit)) {
+      const annualizedNetProfit = override.netProfit * (12 / override.periodMonths);
+      const shares = (!isPlaceholderShares && override.totalShares) ? override.totalShares : totalShares;
+      if (shares && shares > 0) {
+        const overrideEps = annualizedNetProfit / shares;
+        const ttmEps = (epsRaw && epsRaw > 0) ? epsRaw :
+          (netIncomeTtm && totalShares && totalShares > 0 ? netIncomeTtm / totalShares : null);
+        let blendedEps = overrideEps;
+        if (ttmEps && ttmEps > 0) {
+          blendedEps = 0.70 * overrideEps + 0.30 * ttmEps;
+        }
+        return {
+          eps: blendedEps, source: 'OVERRIDE', confidence: 'HIGH',
+          details: `Audited Statement: ${override.source} | Annualized NI: ${(annualizedNetProfit / 1e9).toFixed(2)}B | EPS: ${overrideEps.toFixed(2)}`
+        };
       }
-      return {
-        eps: blendedEps, source: 'OVERRIDE', confidence: 'HIGH',
-        details: `EGX Bulletin: ${override.source} | Annualized NI: ${(annualizedNetProfit / 1e9).toFixed(2)}B | EPS: ${overrideEps.toFixed(2)}`
-      };
     }
   }
 
