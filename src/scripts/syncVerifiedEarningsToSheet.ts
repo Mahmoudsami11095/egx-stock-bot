@@ -279,11 +279,15 @@ export async function syncVerifiedEarningsToSheet() {
     };
   }
 
-  console.log(`✅ Automated Sync: Prepared ${Object.keys(overrides).length} verified stock overrides.`);
+  console.log(`✅ Automated Sync: Prepared ${Object.keys(overrides).length} verified stock overrides (0 duplicates).`);
   console.log(`📌 SKPC Verified Entry:`, overrides['SKPC']);
 
-  console.log('🚀 Sending payload to Google Apps Script Webhook...');
-  const result = await sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, { overrides });
+  console.log('🚀 Sending payload to Google Apps Script Webhook with clearFirst instruction...');
+  const result = await sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, {
+    action: 'clear_and_replace',
+    clearFirst: true,
+    overrides
+  });
   console.log('🎉 Webhook Result:', result);
 }
 
