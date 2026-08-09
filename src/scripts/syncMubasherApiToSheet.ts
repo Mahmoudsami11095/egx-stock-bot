@@ -109,59 +109,15 @@ async function sendOverridesToAppsScript(url: string, data: any): Promise<any> {
   }
 }
 
-function fetchTradingViewScrapedData(): Promise<any[]> {
-  return new Promise((resolve) => {
-    const postData = JSON.stringify({
-      filter: [{ left: 'name', operation: 'nempty' }],
-      options: { lang: 'en' },
-      columns: [
-        'name', 'description', 'net_income_ttm', 'total_shares_outstanding',
-        'dps_common_stock_prim_issue_fy', 'dividend_yield_recent',
-        'net_income_fy', 'earnings_per_share_basic_ttm', 'last_annual_eps'
-      ],
-      sort: { sortBy: 'volume', sortOrder: 'desc' },
-      range: [0, 350]
-    });
-
-    const options = {
-      hostname: 'scanner.tradingview.com',
-      port: 443,
-      path: '/egypt/scan',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (c) => body += c);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(body);
-          resolve(json.data || []);
-        } catch {
-          resolve([]);
-        }
-      });
-    });
-
-    req.on('error', () => resolve([]));
-    req.write(postData);
-    req.end();
-  });
-}
-
 export async function syncMubasherEarningsToSheet() {
-  console.log('⚡ Direct Mubasher API Sync: Fetching real-time EGX earnings disclosures for ALL EGX tickers...');
+  console.log('⚡ Direct Mubasher API Sync: Fetching 100% PURE Mubasher disclosures...');
   const overrides: Record<string, any> = {};
   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Ingest Mubasher API disclosures (pages 1..10) for exact reporting periods
   let mubasherCount = 0;
-  for (let page = 1; page <= 10; page++) {
+  let totalPages = 50;
+
+  for (let page = 1; page <= totalPages; page++) {
     const data = await fetchMubasherEarningsPage(page);
     if (!data || !data.rows || data.rows.length === 0) break;
 
@@ -170,14 +126,12 @@ export async function syncMubasherEarningsToSheet() {
       if (!symbol || overrides[symbol]) continue;
 
       const netProfit = typeof r.announced === 'number' ? r.announced : parseFloat(r.announced);
-      if (isNaN(netProfit) || netProfit <= 0) continue;
-
       const periodMonths = parseQuarterToMonths(r.quarter);
 
       overrides[symbol] = {
         symbol,
         name: r.name || symbol,
-        netProfit,
+        netProfit: !isNaN(netProfit) ? netProfit : 0,
         periodMonths,
         dps: 0,
         source: `Mubasher API Disclosure (${r.year} ${r.quarter})`,
@@ -187,45 +141,9 @@ export async function syncMubasherEarningsToSheet() {
     }
   }
 
-  console.log(`✅ Mubasher API: Ingested ${mubasherCount} disclosures with exact reporting periods (3M, 6M, 9M, 12M).`);
+  console.log(`✅ Pure Mubasher API: Ingested ${mubasherCount} disclosures (0 TradingView references).`);
 
-  // 2. Ingest TradingView scanner rows to ensure ALL 294 EGX tickers are present
-  const tvRows = await fetchTradingViewScrapedData();
-  for (const row of tvRows) {
-    if (!row.s || !row.d) continue;
-    const rawSym = row.s.replace('EGX:', '').toUpperCase();
-    if (overrides[rawSym]) continue; // Prefer Mubasher or hand-verified entry if already present
-
-    const [name, description, netIncomeTtm, totalShares, dpsTv, divYieldTv, netIncomeFy, epsTtm, epsFy] = row.d;
-    const isPlaceholderShares = totalShares === 100000000;
-    const isPlaceholderProfit = (netIncomeTtm === 120000000) || (netIncomeFy === 120000000);
-
-    let netProfit = (!isPlaceholderProfit && (netIncomeTtm || netIncomeFy)) ? Number(netIncomeTtm || netIncomeFy) : 0;
-    const sharesCount = (!isPlaceholderShares && totalShares > 0) ? Number(totalShares) : undefined;
-    const effectiveEps = (epsTtm && !isNaN(epsTtm) && epsTtm > 0) ? Number(epsTtm) : ((epsFy && !isNaN(epsFy) && epsFy > 0) ? Number(epsFy) : 0);
-
-    if ((!netProfit || netProfit <= 0) && effectiveEps > 0 && sharesCount && sharesCount > 0) {
-      netProfit = Math.round(effectiveEps * sharesCount);
-    }
-
-    let source = "TradingView Audited Financial Statement (12M)";
-    if (!netProfit || netProfit <= 0) {
-      source = "TradingView Market Data (No Net Profit Reported)";
-    }
-
-    overrides[rawSym] = {
-      symbol: rawSym,
-      name: description || name || rawSym,
-      netProfit: (netProfit && netProfit > 0) ? Number(netProfit) : undefined,
-      periodMonths: 12,
-      totalShares: sharesCount,
-      dps: (dpsTv && !isNaN(dpsTv) && dpsTv >= 0) ? Number(dpsTv) : 0,
-      source,
-      updatedAt: today
-    };
-  }
-
-  // 3. Merge with hand-verified ground-truth disclosures
+  // Merge with hand-verified ground-truth disclosures
   for (const [sym, data] of Object.entries(HAND_VERIFIED_AUDITED)) {
     overrides[sym] = {
       symbol: sym,
@@ -239,7 +157,7 @@ export async function syncMubasherEarningsToSheet() {
     };
   }
 
-  console.log(`🚀 Sending all ${Object.keys(overrides).length} EGX tickers with period metadata to Google Sheet...`);
+  console.log(`🚀 Sending ${Object.keys(overrides).length} pure Mubasher entries to Google Sheet Webhook...`);
   const result = await sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, {
     action: 'clear_and_replace',
     clearFirst: true,
