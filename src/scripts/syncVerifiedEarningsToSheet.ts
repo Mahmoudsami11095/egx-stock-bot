@@ -168,7 +168,8 @@ function fetchTradingViewScrapedData(): Promise<any[]> {
       columns: [
         'name', 'description', 'net_income_ttm', 'total_shares_outstanding',
         'dps_common_stock_prim_issue_fy', 'dividend_yield_recent',
-        'net_income_fy', 'earnings_per_share_basic_ttm', 'last_annual_eps'
+        'net_income_fy', 'earnings_per_share_basic_ttm', 'last_annual_eps',
+        'market_cap_basic', 'price_earnings_ttm'
       ],
       sort: { sortBy: 'volume', sortOrder: 'desc' },
       range: [0, 350]
@@ -225,16 +226,16 @@ async function sendOverridesToAppsScript(url: string, data: any): Promise<any> {
 }
 
 export async function syncVerifiedEarningsToSheet() {
-  console.log('🔄 Automated Sync: Fetching TradingView audited financial data...');
+  console.log('🔄 Automated Sync: Fetching TradingView audited financial data for ALL EGX tickers...');
   const rows = await fetchTradingViewScrapedData();
   const overrides: Record<string, any> = {};
   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Process TradingView audited financial statements with strict confidence filtering
+  // 1. Process all 293 TradingView scan rows
   for (const row of rows) {
     if (!row.s || !row.d) continue;
     const rawSym = row.s.replace('EGX:', '').toUpperCase();
-    const [name, description, netIncomeTtm, totalShares, dpsTv, divYieldTv, netIncomeFy, epsTtm, epsFy] = row.d;
+    const [name, description, netIncomeTtm, totalShares, dpsTv, divYieldTv, netIncomeFy, epsTtm, epsFy, marketCap, peRatio] = row.d;
 
     // Reject TradingView placeholders (100M shares, 120M profit)
     const isPlaceholderShares = totalShares === 100000000;
@@ -242,24 +243,29 @@ export async function syncVerifiedEarningsToSheet() {
 
     let netProfit = (!isPlaceholderProfit && (netIncomeTtm || netIncomeFy)) ? Number(netIncomeTtm || netIncomeFy) : 0;
     const sharesCount = (!isPlaceholderShares && totalShares > 0) ? Number(totalShares) : undefined;
-    const effectiveEps = (epsTtm && !isNaN(epsTtm) && epsTtm > 0) ? Number(epsTtm) : ((epsFy && !isNaN(epsFy) && epsFy > 0) ? Number(epsFy) : 0);
+    const effectiveEps = (epsTtm && !isNaN(epsTtm) && epsTtm !== 0) ? Number(epsTtm) : ((epsFy && !isNaN(epsFy) && epsFy !== 0) ? Number(epsFy) : 0);
 
-    // If netProfit is missing but EPS and totalShares are strictly available, netProfit = EPS * totalShares
-    if ((!netProfit || netProfit <= 0) && effectiveEps > 0 && sharesCount && sharesCount > 0) {
+    // Derived Net Profit if direct netProfit is missing:
+    if ((!netProfit || netProfit <= 0) && effectiveEps !== 0 && sharesCount && sharesCount > 0) {
       netProfit = Math.round(effectiveEps * sharesCount);
+    } else if ((!netProfit || netProfit <= 0) && marketCap && marketCap > 0 && peRatio && peRatio > 0 && peRatio < 100) {
+      netProfit = Math.round(marketCap / peRatio);
     }
 
-    // STRICT CONFIDENCE RULE:
-    // Only include in Google Sheet if we have confirmed positive Net Profit AND valid Total Shares
-    if (rawSym && netProfit > 0 && sharesCount && sharesCount > 0) {
+    let source = "TradingView Audited Financial Statement";
+    if (!netProfit || netProfit <= 0) {
+      source = "TradingView Market Data (No Net Profit Reported)";
+    }
+
+    if (rawSym) {
       overrides[rawSym] = {
         symbol: rawSym,
         name: description || name || rawSym,
-        netProfit: Number(netProfit),
+        netProfit: (netProfit && netProfit > 0) ? Number(netProfit) : undefined,
         periodMonths: 12,
-        totalShares: Number(sharesCount),
+        totalShares: sharesCount,
         dps: (dpsTv && !isNaN(dpsTv) && dpsTv >= 0) ? Number(dpsTv) : 0,
-        source: "TradingView Audited Financial Statement",
+        source,
         updatedAt: today
       };
     }
