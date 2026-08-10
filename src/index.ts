@@ -60,9 +60,15 @@ async function bootstrap() {
     });
   });
 
-  // Start EGX Live Scraper background engine
-  const watchlist = stateManager.getWatchlist();
-  egxLiveScraper.start(watchlist);
+  const isApiOnly = process.env.API_ONLY === 'true';
+
+  if (!isApiOnly) {
+    // Start EGX Live Scraper background engine only if not API_ONLY
+    const watchlist = stateManager.getWatchlist();
+    egxLiveScraper.start(watchlist);
+  } else {
+    logger.info('⚠️ Running in API_ONLY mode: Background Scraper, Telegram Bot, and Cron Scheduler are DISABLED to save RAM.');
+  }
 
   // REST API Endpoints for Angular SPA
   app.get('/api/stocks', async (req, res) => {
@@ -172,11 +178,13 @@ async function bootstrap() {
     logger.info(`⚡ Live WebSocket Stream Endpoint: ws://localhost:${port}/ws/live-stocks`);
   });
 
-  // 2. Start Telegram bot instance
-  await telegramBot.start();
+  if (!isApiOnly) {
+    // 2. Start Telegram bot instance
+    await telegramBot.start();
 
-  // 3. Start scheduled market monitoring
-  cronScheduler.startSchedule();
+    // 3. Start scheduled market monitoring
+    cronScheduler.startSchedule();
+  }
 
   // Graceful shutdown handling
   process.once('SIGINT', () => {
