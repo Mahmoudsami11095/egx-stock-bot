@@ -47,7 +47,11 @@ module.exports = async (req, res) => {
       overridesToSync = loadEarningsOverridesLocal();
     }
 
-    const sheetRes = await sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, { overrides: overridesToSync });
+    const sheetRes = await sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, {
+      action: 'clear_and_replace',
+      clearFirst: true,
+      overrides: overridesToSync
+    });
 
     return res.status(200).json({
       success: true,

@@ -2,7 +2,6 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { computeFairValue, inferSectorFromName } = require('../../shared/fairValueEngine');
 
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
@@ -328,7 +327,7 @@ const STOCK_ARABIC_NAMES = {
 // ─── EARNINGS OVERRIDE LOADING & GOOGLE SHEET SYNC ──────────────────────────────
 let GOOGLE_SHEET_CACHE = null;
 let GOOGLE_SHEET_CACHE_TIME = 0;
-const GOOGLE_SHEET_TTL_MS = 60 * 1000;
+const GOOGLE_SHEET_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
 
 function parseCSVLine(line) {
   const result = [];
@@ -517,7 +516,16 @@ function parseArabicFinancialHeadline(symbol, title, pubDate) {
   };
 }
 
+const RSS_CACHE = new Map();
+const RSS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
+
 function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
+  const cached = RSS_CACHE.get(symbol);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < RSS_CACHE_TTL_MS)) {
+    return Promise.resolve(cached.data);
+  }
+
   return new Promise((resolve) => {
     const query = `"${stockNameAr}" (أرباح OR أرباحها OR صافي OR "نتائج أعمال") when:1y`;
     const encoded = encodeURIComponent(query);
@@ -525,7 +533,7 @@ function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
 
     const req = https.get(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      timeout: 4000
+      timeout: 1500
     }, (res) => {
       let body = '';
       res.on('data', (c) => body += c);
@@ -542,22 +550,22 @@ function fetchAutomatedEarningsFromRss(stockNameAr, symbol) {
             return dateB - dateA;
           });
 
+          let parsed = null;
           for (const { title, pubDate } of items) {
-            const parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
-            if (parsed) {
-              resolve(parsed);
-              return;
-            }
+            parsed = parseArabicFinancialHeadline(symbol, title, pubDate);
+            if (parsed) break;
           }
-          resolve(null);
+          RSS_CACHE.set(symbol, { data: parsed, timestamp: Date.now() });
+          resolve(parsed);
         } catch (e) {
+          RSS_CACHE.set(symbol, { data: null, timestamp: Date.now() });
           resolve(null);
         }
       });
     });
 
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => { RSS_CACHE.set(symbol, { data: null, timestamp: Date.now() }); resolve(null); });
+    req.on('timeout', () => { req.destroy(); RSS_CACHE.set(symbol, { data: null, timestamp: Date.now() }); resolve(null); });
   });
 }
 
@@ -896,21 +904,68 @@ function resolveFundamentals(stock, override, autoParsed) {
 }
 
 function calculateFairValue(stock, fundamentals) {
-  const sector = stock.sector || inferSectorFromName(stock.symbol, stock.name || '');
-  return computeFairValue({
-    eps: fundamentals.eps,
-    bvps: stock.bvps,
-    dps: fundamentals.dividendPerShare,
-    currentPrice: stock.currentPrice,
-    low52: stock.fiftyTwoWeekLow || stock.currentPrice * 0.7,
-    high52: stock.fiftyTwoWeekHigh || stock.currentPrice * 1.3,
-    volRatio: stock.avgVolume > 0 ? stock.volume / stock.avgVolume : 1,
-    recommendScore: stock.recommendScore || 0,
-    sector,
-    epsConfidence: fundamentals.epsConfidence || 'LOW',
-    symbol: stock.symbol,
-    name: stock.name || '',
-  });
+  const price = stock.currentPrice;
+  const low52 = stock.fiftyTwoWeekLow || price * 0.7;
+  const high52 = stock.fiftyTwoWeekHigh || price * 1.3;
+  const macroDiscount = 0.878;
+  const clampedScore = Math.max(-1, Math.min(1, stock.recommendScore || 0));
+  const momentumMultiplier = 1 + (clampedScore * 0.05);
+
+  let fvPe = null;
+  let fvPb = null;
+
+  // Model A: Earnings Multiple (P/E)
+  if (fundamentals.eps && fundamentals.eps > 0) {
+    const sectorPE = 12.0;
+    // High-confidence audited earnings get realistic valuation scaling
+    const effectiveMacroDiscount = (fundamentals.epsConfidence === 'HIGH') ? 0.96 : macroDiscount;
+    fvPe = fundamentals.eps * sectorPE * momentumMultiplier * effectiveMacroDiscount;
+  }
+
+  // Model B: Book Value Multiple (P/B)
+  if (stock.bvps && stock.bvps > 0) {
+    const sectorPB = 2.5;
+    fvPb = stock.bvps * sectorPB * momentumMultiplier * macroDiscount;
+  }
+
+  let fairValueRaw = null;
+  let conf = 'MEDIUM';
+
+  if (fvPe && fvPb) {
+    // Sector-Adaptive Multi-Model Weighting:
+    // When earnings power significantly exceeds legacy book value (e.g. industrial exporters with depreciated plant assets),
+    // weight 90% Earnings (P/E) + 10% Book Value (P/B) to eliminate historical asset depreciation drag.
+    if (fvPe > fvPb * 1.5) {
+      fairValueRaw = 0.90 * fvPe + 0.10 * fvPb;
+    } else if (fvPe > fvPb * 1.2) {
+      fairValueRaw = 0.75 * fvPe + 0.25 * fvPb;
+    } else {
+      fairValueRaw = 0.50 * fvPe + 0.50 * fvPb;
+    }
+    conf = 'HIGH';
+  } else if (fvPe) {
+    fairValueRaw = fvPe;
+    conf = fundamentals.epsConfidence === 'HIGH' ? 'HIGH' : 'MEDIUM';
+  } else if (fvPb) {
+    fairValueRaw = fvPb;
+    conf = 'MEDIUM';
+  } else if (fundamentals.dividendPerShare && fundamentals.dividendPerShare > 0) {
+    const requiredReturn = 0.12;
+    fairValueRaw = (fundamentals.dividendPerShare / requiredReturn) * momentumMultiplier * macroDiscount;
+    conf = 'MEDIUM';
+  }
+
+  if (fairValueRaw && fairValueRaw > 0) {
+    const clamped = Math.max(price * 0.80, Math.min(price * 1.50, fairValueRaw));
+    return { fairValue: Number(clamped.toFixed(2)), confidence: conf };
+  }
+
+  const rangeMidpoint = low52 + 0.618 * (high52 - low52);
+  const volRatio = stock.avgVolume > 0 ? Math.min(stock.volume / stock.avgVolume, 2.0) : 1;
+  const scoreFactor = 1 + (clampedScore * 0.1);
+  const estVal = rangeMidpoint * (0.9 + 0.1 * volRatio) * scoreFactor * macroDiscount;
+  const clampedFallback = Math.max(price * 0.80, Math.min(price * 1.50, estVal));
+  return { fairValue: Number(clampedFallback.toFixed(2)), confidence: 'LOW' };
 }
 
 function calculateIntradaySignal(stock) {
@@ -1027,8 +1082,7 @@ module.exports = async (req, res) => {
   try {
     const source = (req.query && req.query.source) || 'tradingview';
     const halal = (req.query && (req.query.halal || req.query.sharia)) ? `&halal=${req.query.halal || req.query.sharia}` : '';
-    const useOverridesParam = (req.query && req.query.use_overrides === 'true') ? '&use_overrides=true' : '';
-    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}${useOverridesParam}`);
+    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}`);
     if (azureData && Array.isArray(azureData) && azureData.length > 0) {
       res.setHeader('X-Served-By', 'Azure-VM-Primary');
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
@@ -1040,8 +1094,7 @@ module.exports = async (req, res) => {
 
   try {
     const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
-    const useOverrides = req.query && req.query.use_overrides === 'true';
-    const earningsOverrides = useOverrides ? await fetchGoogleSheetOverrides() : {};
+    const earningsOverrides = await fetchGoogleSheetOverrides();
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
       fetchHalalSymbolsSet()
@@ -1059,7 +1112,7 @@ module.exports = async (req, res) => {
       if (halalOnly && !isHalal) continue;
 
       // 1. Manual override
-      const override = useOverrides ? (earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null) : null;
+      const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
 
       // 2. Automated news earnings scraper fallback for all stocks
       let autoParsed = null;
@@ -1077,7 +1130,6 @@ module.exports = async (req, res) => {
       }
 
       const fundamentals = resolveFundamentals(s, override, autoParsed);
-      s.sector = s.sector || inferSectorFromName(symUpper, s.name || nameAr || '');
 
       const { fairValue, confidence } = calculateFairValue(s, fundamentals);
       const upsidePercent = Number((((fairValue - s.currentPrice) / s.currentPrice) * 100).toFixed(2));
@@ -1157,7 +1209,7 @@ module.exports = async (req, res) => {
       LOCAL_STOCKS_CACHE_TIME = Date.now();
     }
 
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=120');
     return res.status(200).json(processed);
   } catch (err) {
     console.error('Error fetching EGX stocks:', err);

@@ -2,8 +2,7 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
-import { StockMeta } from '../constants/stocks';
-import { computeFairValue, inferSectorFromName } from '../../shared/fairValueEngine';
+import { StockMeta, getSectorPE, getSectorPB, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
 import { logger } from './logger';
 import { NewsScraperService } from './newsScraperService';
 import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
@@ -282,6 +281,74 @@ export interface BatchStockResult {
   };
 }
 
+/**
+ * Shared fair value computation — single source of truth.
+ * Uses EPS × dynamic sector PE when available, otherwise a volume-weighted
+ * Fibonacci structural estimate. Includes FX devaluation adjustment for
+ * export/import-sensitive sectors. Clamped to [0.80×, 1.50×] current price
+ * for intraday safety.
+ */
+function computeFairValue(
+  eps: number | null | undefined,
+  currentPrice: number,
+  low52: number,
+  high52: number,
+  volRatio: number,
+  recommendScore: number | null | undefined,
+  sector: string,
+  usdEgpRate: number = 49.5,
+  bvps?: number | null,
+  dps?: number | null
+): { fairValue: number; confidence: 'HIGH' | 'MEDIUM' | 'LOW' } {
+  const baseSectorPE = getSectorPE(sector);
+  const baseSectorPB = getSectorPB(sector);
+  const macroDiscount = getCbeMacroDiscountFactor();
+  // Clamp TradingView Recommend.All to its valid [-1, +1] range
+  const clampedScore = Math.max(-1, Math.min(1, recommendScore || 0));
+
+  // Dynamic FX devaluation adjustment for exporters vs importers
+  const fxSensitivity = getStockFxSensitivity(sector);
+  const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
+  const fxDevaluationAdjustment = 1 + (fxSensitivity * devaluationPct);
+  const consensusGrowthModifier = 1 + (clampedScore * 0.05);
+
+  let fairValue = currentPrice;
+  let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+
+  if (eps && eps > 0) {
+    // Model A: Dynamic EPS / PEG & Consensus Valuation
+    const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
+    fairValue = eps * dynamicSectorPE;
+    confidence = 'HIGH';
+  } else if (bvps && bvps > 0) {
+    // Model B: Dynamic Book Value (Graham-style) Valuation
+    const dynamicSectorPB = baseSectorPB * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
+    fairValue = bvps * dynamicSectorPB;
+    confidence = 'MEDIUM';
+  } else if (dps && dps > 0) {
+    // Model C: Dynamic Dividend Discount Model (DDM)
+    const requiredReturn = 0.12;
+    fairValue = (dps / requiredReturn) * consensusGrowthModifier * macroDiscount;
+    confidence = 'MEDIUM';
+  } else {
+    // Model D: Fibonacci structural estimate for stocks without positive fundamentals
+    const rangeMidpoint = low52 + 0.618 * (high52 - low52);
+    const volWeight = Math.min(volRatio, 2.0);
+    const scoreFactor = 1 + clampedScore * 0.1;
+    fairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount * fxDevaluationAdjustment;
+    if (scoreFactor >= 1) {
+      fairValue = Math.max(fairValue, currentPrice * scoreFactor);
+    }
+    confidence = 'LOW';
+  }
+
+  // Intraday-appropriate safety guardrails: [0.80×, 1.50×]
+  fairValue = Math.max(currentPrice * 0.80, Math.min(currentPrice * 1.50, fairValue));
+  fairValue = Number(fairValue.toFixed(2));
+
+  return { fairValue, confidence };
+}
+
 // Circuit Breaker State
 let consecutiveFailures = 0;
 let circuitOpenUntil = 0;
@@ -404,7 +471,7 @@ export class DataFetcherService {
    * with circuit breaker protection and ATR-based volatility targets.
    * Supports dynamic provider selection ('tradingview' | 'investing' | 'yahoo').
    */
-  async getBatchQuoteAndIndicators(stocks: StockMeta[], source: DataSource = 'tradingview', useOverrides: boolean = false): Promise<BatchStockResult[]> {
+  async getBatchQuoteAndIndicators(stocks: StockMeta[], source: DataSource = 'tradingview'): Promise<BatchStockResult[]> {
     if (!stocks || stocks.length === 0) return [];
     logger.info(`📊 Fetching market batch quotes using data source: [${source.toUpperCase()}]`);
 
@@ -558,7 +625,7 @@ export class DataFetcherService {
               const previousClose = currentPrice - change;
 
               // Smart EPS Engine with manual override support
-              const earningsOverrides = useOverrides ? loadEarningsOverrides() : {};
+              const earningsOverrides = loadEarningsOverrides();
               const override = earningsOverrides[stock.symbol.toUpperCase()] || null;
               const smartEpsResult = computeSmartEps(
                 epsRaw, netIncomeRaw, netIncomeFq, netIncomeFy,
@@ -636,21 +703,7 @@ export class DataFetcherService {
               // Fair value via multi-model dynamic function using effectiveEps, bvpsRaw, and effectiveDps
               const usdEgpRate = cachedUsdEgp || 49.5;
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-                computeFairValue({
-                  eps: effectiveEps,
-                  bvps: bvpsRaw,
-                  dps: effectiveDps,
-                  currentPrice,
-                  low52,
-                  high52,
-                  volRatio,
-                  recommendScore,
-                  sector: stock.sector,
-                  usdEgpRate,
-                  epsConfidence: smartEpsResult.confidence,
-                  symbol: stock.symbol,
-                  name: stock.nameEn,
-                });
+                computeFairValue(effectiveEps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate, bvpsRaw, effectiveDps);
 
               // Fetch Fundamentals via AI Scraper
               const fundamentalsRaw = await this.fetchFundamentals(stock);
@@ -770,7 +823,7 @@ export class DataFetcherService {
    * Fetches real-time quotes, technical indicators, and automated Fair Value
    * for up to 150 EGX stocks directly in a single high-performance scan query.
    */
-  async fetchFullEgxScan(limit: number = 150, useOverrides: boolean = false): Promise<BatchStockResult[]> {
+  async fetchFullEgxScan(limit: number = 150): Promise<BatchStockResult[]> {
     const postData = JSON.stringify({
       filter: [{ left: 'name', operation: 'nempty' }],
       options: { lang: 'en' },
@@ -794,15 +847,7 @@ export class DataFetcherService {
         'MACD.signal',
         'ADX',
         'ATR',
-        'dividend_yield_recent',
-        'dps_common_stock_prim_issue_fy',
-        'book_value_per_share_fq',
-        'net_income_ttm',
-        'total_shares_outstanding',
-        'net_income_fq',
-        'net_income_fy',
-        'last_annual_eps',
-        'earnings_release_date',
+        'dividend_yield_recent'
       ],
       sort: { sortBy: 'volume', sortOrder: 'desc' },
       range: [0, limit]
@@ -850,21 +895,13 @@ export class DataFetcherService {
                 sma20,
                 sma50,
                 peRatio,
-                epsRaw,
+                eps,
                 recommendScore,
                 macdVal,
                 macdSignalVal,
                 adxVal,
                 atrVal,
-                divYieldVal,
-                dpsRaw,
-                bvpsRaw,
-                netIncomeRaw,
-                totalSharesRaw,
-                netIncomeFq,
-                netIncomeFy,
-                lastAnnualEpsRaw,
-                earningsReleaseDateRaw,
+                divYieldVal
               ] = row.d;
 
               const currentPrice = Number((closePrice || 0).toFixed(2));
@@ -874,26 +911,14 @@ export class DataFetcherService {
               const previousClose = currentPrice - change;
 
               const divYield = (divYieldVal && divYieldVal > 0) ? Number(divYieldVal.toFixed(2)) : undefined;
-              const effectiveDps = dpsRaw || (divYield && currentPrice > 0 ? (currentPrice * divYield) / 100 : undefined);
-              const divPerShare = effectiveDps ? Number(Number(effectiveDps).toFixed(2)) : undefined;
-
-              const earningsOverrides = useOverrides ? loadEarningsOverrides() : {};
-              const override = earningsOverrides[rawSym] || null;
-              const smartEpsResult = computeSmartEps(
-                epsRaw, netIncomeRaw, netIncomeFq, netIncomeFy,
-                lastAnnualEpsRaw, earningsReleaseDateRaw, totalSharesRaw,
-                dpsRaw, override
-              );
-              const effectiveEps = smartEpsResult.eps ?? undefined;
-
-              const inferredSector = inferSectorFromName(rawSym, String(name || rawSym));
+              const divPerShare = (divYield && currentPrice > 0) ? Number(((currentPrice * divYield) / 100).toFixed(2)) : undefined;
 
               const stock: StockMeta = {
                 symbol: rawSym,
                 yahooSymbol: `${rawSym}.CA`,
                 nameEn: String(name || rawSym),
                 nameAr: String(name || rawSym),
-                sector: inferredSector,
+                sector: 'Halal EGX',
               };
 
               const quote: StockQuote = {
@@ -951,23 +976,9 @@ export class DataFetcherService {
                 volumeRatio: volRatio,
               };
 
-              const usdEgpRate = cachedUsdEgp || 49.5;
+              // Fair value via shared function (single source of truth)
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-                computeFairValue({
-                  eps: effectiveEps,
-                  bvps: bvpsRaw,
-                  dps: effectiveDps,
-                  currentPrice,
-                  low52,
-                  high52,
-                  volRatio,
-                  recommendScore,
-                  sector: inferredSector,
-                  usdEgpRate,
-                  epsConfidence: smartEpsResult.confidence,
-                  symbol: rawSym,
-                  name: stock.nameEn,
-                });
+                computeFairValue(eps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector);
 
               results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
             }
@@ -1057,16 +1068,7 @@ export class DataFetcherService {
           };
 
           const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-            computeFairValue({
-              currentPrice,
-              low52: currentPrice * 0.75,
-              high52: currentPrice * 1.25,
-              volRatio: 1.0,
-              recommendScore: 0,
-              sector: stock.sector,
-              symbol: stock.symbol,
-              name: stock.nameEn,
-            });
+            computeFairValue(null, currentPrice, currentPrice * 0.75, currentPrice * 1.25, 1.0, 0, stock.sector);
 
           results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
         }
@@ -1156,16 +1158,7 @@ export class DataFetcherService {
             };
 
             const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-              computeFairValue({
-                currentPrice,
-                low52: currentPrice * 0.75,
-                high52: currentPrice * 1.25,
-                volRatio: 1.0,
-                recommendScore: 0,
-                sector: stock.sector,
-                symbol: stock.symbol,
-                name: stock.nameEn,
-              });
+              computeFairValue(null, currentPrice, currentPrice * 0.75, currentPrice * 1.25, 1.0, 0, stock.sector);
 
             results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
           }
