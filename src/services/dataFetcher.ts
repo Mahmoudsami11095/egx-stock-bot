@@ -471,7 +471,7 @@ export class DataFetcherService {
    * with circuit breaker protection and ATR-based volatility targets.
    * Supports dynamic provider selection ('tradingview' | 'investing' | 'yahoo').
    */
-  async getBatchQuoteAndIndicators(stocks: StockMeta[], source: DataSource = 'tradingview'): Promise<BatchStockResult[]> {
+  async getBatchQuoteAndIndicators(stocks: StockMeta[], source: DataSource = 'tradingview', useOverrides: boolean = false): Promise<BatchStockResult[]> {
     if (!stocks || stocks.length === 0) return [];
     logger.info(`📊 Fetching market batch quotes using data source: [${source.toUpperCase()}]`);
 
@@ -625,7 +625,7 @@ export class DataFetcherService {
               const previousClose = currentPrice - change;
 
               // Smart EPS Engine with manual override support
-              const earningsOverrides = loadEarningsOverrides();
+              const earningsOverrides = useOverrides ? loadEarningsOverrides() : {};
               const override = earningsOverrides[stock.symbol.toUpperCase()] || null;
               const smartEpsResult = computeSmartEps(
                 epsRaw, netIncomeRaw, netIncomeFq, netIncomeFy,
@@ -823,7 +823,7 @@ export class DataFetcherService {
    * Fetches real-time quotes, technical indicators, and automated Fair Value
    * for up to 150 EGX stocks directly in a single high-performance scan query.
    */
-  async fetchFullEgxScan(limit: number = 150): Promise<BatchStockResult[]> {
+  async fetchFullEgxScan(limit: number = 150, useOverrides: boolean = false): Promise<BatchStockResult[]> {
     const postData = JSON.stringify({
       filter: [{ left: 'name', operation: 'nempty' }],
       options: { lang: 'en' },
