@@ -73,6 +73,9 @@ export interface StockAnalysisResult {
   intradayEntry?: number;
   intradayTarget?: number;
   intradayStopLoss?: number;
+  intradayTp1?: number;
+  intradayTp2?: number;
+  intradayTp3?: number;
 
   // Professional Strategic Recommendations
   shortTermRec?: {
@@ -138,6 +141,9 @@ export interface IntradayTrade {
   entryPrice: number;
   targetPrice: number;
   stopLossPrice: number;
+  tp1?: number;
+  tp2?: number;
+  tp3?: number;
   entryTime: string;
   closeTime?: string;
   status: 'OPEN' | 'CLOSED_TARGET_HIT' | 'CLOSED_STOP_LOSS_HIT';

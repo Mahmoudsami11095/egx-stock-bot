@@ -243,8 +243,10 @@ export class SignalDetectorService {
     const pivotPoint = (dayHigh + dayLow + price) / 3;
     const r1 = (2 * pivotPoint) - dayLow;
     const r2 = pivotPoint + (dayHigh - dayLow);
+    const r3 = pivotPoint + 2 * (dayHigh - dayLow);
     const s1 = (2 * pivotPoint) - dayHigh;
     const s2 = pivotPoint - (dayHigh - dayLow);
+    const s3 = pivotPoint - 2 * (dayHigh - dayLow);
 
     let intradayScore = 0;
     const intradayReasons: string[] = [];
@@ -301,13 +303,27 @@ export class SignalDetectorService {
 
     // 4. Targets and Stops
     const intradayEntry = Number(price.toFixed(2));
-    let intradayTarget = Number(r1.toFixed(2));
-    if (intradaySignal === 'STRONG_BUY') intradayTarget = Number(r2.toFixed(2));
-    
-    // Tight stop loss: below S1 or Pivot, max -2% risk
-    let rawStop = price > pivotPoint ? pivotPoint : s1;
-    const maxRiskPrice = price * 0.98; // max 2% loss
-    const intradayStopLoss = Number(Math.max(rawStop, maxRiskPrice).toFixed(2));
+
+    let tp1 = Number(r1.toFixed(2));
+    let tp2 = Number(r2.toFixed(2));
+    let tp3 = Number(r3.toFixed(2));
+    let sl = 0;
+
+    if (intradaySignal.includes('SELL')) {
+       tp1 = Number(s1.toFixed(2));
+       tp2 = Number(s2.toFixed(2));
+       tp3 = Number(s3.toFixed(2));
+       let rawStop = price < pivotPoint ? pivotPoint : r1;
+       const maxRiskPrice = price * 1.02; 
+       sl = Number(Math.min(rawStop, maxRiskPrice).toFixed(2));
+    } else {
+       let rawStop = price > pivotPoint ? pivotPoint : s1;
+       const maxRiskPrice = price * 0.98; // max 2% loss
+       sl = Number(Math.max(rawStop, maxRiskPrice).toFixed(2));
+    }
+
+    const intradayStopLoss = sl;
+    const intradayTarget = intradaySignal === 'STRONG_BUY' ? tp2 : tp1; // Final target defaults to tp2 for strong buy, tp1 for buy
 
     if (intradayReasons.length === 0) {
       intradayReasons.push(`حركة عرضية وضعف في الزخم اللحظي`);
@@ -392,6 +408,9 @@ export class SignalDetectorService {
       intradayEntry,
       intradayTarget,
       intradayStopLoss,
+      intradayTp1: tp1,
+      intradayTp2: tp2,
+      intradayTp3: tp3,
       shortTermRec,
       longTermRec,
     };

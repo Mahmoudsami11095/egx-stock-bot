@@ -1,38 +1,41 @@
 [
   {
-    "id": "SWDY_1786290414300",
-    "symbol": "SWDY",
-    "recommendationType": "STRONG_BUY",
-    "entryPrice": 60,
-    "targetPrice": 75,
-    "stopLossPrice": 55,
-    "entryTime": "2026-08-09T16:00:00.000Z",
-    "status": "OPEN"
-  },
-  {
-    "id": "MPCI_1786290414162",
+    "id": "MPCI_1786377446399",
     "symbol": "MPCI",
     "recommendationType": "STRONG_BUY",
     "entryPrice": 100,
     "targetPrice": 106,
     "stopLossPrice": 97,
-    "entryTime": "2026-08-09T15:46:54.154Z",
+    "entryTime": "2026-08-10T15:57:26.393Z",
     "status": "CLOSED_TARGET_HIT",
     "closePrice": 107,
-    "closeTime": "2026-08-09T15:46:54.172Z",
+    "closeTime": "2026-08-10T15:57:26.408Z",
     "pnlPercentage": 7
   },
   {
-    "id": "ABUK_1786290414206",
+    "id": "ABUK_1786377446443",
     "symbol": "ABUK",
     "recommendationType": "BUY",
     "entryPrice": 80,
     "targetPrice": 83.5,
     "stopLossPrice": 78.5,
-    "entryTime": "2026-08-09T15:46:54.206Z",
+    "entryTime": "2026-08-10T15:57:26.442Z",
     "status": "CLOSED_STOP_LOSS_HIT",
     "closePrice": 77.5,
-    "closeTime": "2026-08-09T15:46:54.211Z",
+    "closeTime": "2026-08-10T15:57:26.447Z",
     "pnlPercentage": -3.13
+  },
+  {
+    "id": "SWDY_1786377457167",
+    "symbol": "SWDY",
+    "recommendationType": "STRONG_BUY",
+    "entryPrice": 60,
+    "targetPrice": 75,
+    "stopLossPrice": 55,
+    "tp1": 65,
+    "tp2": 70,
+    "tp3": 75,
+    "entryTime": "2026-08-10T15:57:37.167Z",
+    "status": "OPEN"
   }
 ]

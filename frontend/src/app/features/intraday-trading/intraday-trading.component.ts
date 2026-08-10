@@ -176,19 +176,16 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
                 </div>
               </div>
 
-              <!-- Entry / Target / Stop Loss Grid -->
-              <div class="pt-2 border-t border-darkBorder/60 grid grid-cols-3 gap-1 text-[10px] text-gray-400">
-                <div class="text-center">
-                  <span class="block">دخول</span>
-                  <strong class="text-emeraldAccent text-xs">{{ stock.intradayEntry }}</strong>
+              <!-- Targets and Stops -->
+              <div class="pt-2 border-t border-darkBorder/60 space-y-1.5 text-[10px] text-gray-400">
+                <div class="flex justify-between items-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                  <span>دخول: <strong class="text-emeraldAccent text-xs">{{ stock.intradayEntry }}</strong></span>
+                  <span>وقف: <strong class="text-roseAccent text-xs">{{ stock.intradayStopLoss }}</strong> <span class="text-rose-400/80">({{ getPercentage(stock.intradayEntry, stock.intradayStopLoss) }}%)</span></span>
                 </div>
-                <div class="text-center">
-                  <span class="block">هدف</span>
-                  <strong class="text-cyanAccent text-xs">{{ stock.intradayTarget }}</strong>
-                </div>
-                <div class="text-center">
-                  <span class="block">وقف</span>
-                  <strong class="text-roseAccent text-xs">{{ stock.intradayStopLoss }}</strong>
+                <div class="grid grid-cols-3 gap-1 text-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                  <div><span class="block text-cyan-400/80">هدف 1</span><strong class="text-cyan-400">{{ stock.intradayTp1 || '-' }}</strong> <span class="block opacity-80">({{ getPercentage(stock.intradayEntry, stock.intradayTp1) }}%)</span></div>
+                  <div class="border-x border-darkBorder/40"><span class="block text-cyan-400/80">هدف 2</span><strong class="text-cyan-400">{{ stock.intradayTp2 || '-' }}</strong> <span class="block opacity-80">({{ getPercentage(stock.intradayEntry, stock.intradayTp2) }}%)</span></div>
+                  <div><span class="block text-cyan-400/80">هدف 3</span><strong class="text-cyan-400">{{ stock.intradayTp3 || '-' }}</strong> <span class="block opacity-80">({{ getPercentage(stock.intradayEntry, stock.intradayTp3) }}%)</span></div>
                 </div>
               </div>
 
@@ -249,19 +246,16 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
                 </div>
               </div>
 
-              <!-- Entry / Target / Stop Loss Grid -->
-              <div class="pt-2 border-t border-darkBorder/60 grid grid-cols-3 gap-1 text-[10px] text-gray-400">
-                <div class="text-center">
-                  <span class="block">دخول</span>
-                  <strong class="text-roseAccent text-xs">{{ stock.intradayEntry }}</strong>
+              <!-- Targets and Stops -->
+              <div class="pt-2 border-t border-darkBorder/60 space-y-1.5 text-[10px] text-gray-400">
+                <div class="flex justify-between items-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                  <span>دخول: <strong class="text-roseAccent text-xs">{{ stock.intradayEntry }}</strong></span>
+                  <span>وقف: <strong class="text-emeraldAccent text-xs">{{ stock.intradayStopLoss }}</strong> <span class="text-emerald-400/80">({{ getPercentage(stock.intradayEntry, stock.intradayStopLoss) }}%)</span></span>
                 </div>
-                <div class="text-center">
-                  <span class="block">هدف</span>
-                  <strong class="text-cyanAccent text-xs">{{ stock.intradayTarget }}</strong>
-                </div>
-                <div class="text-center">
-                  <span class="block">وقف</span>
-                  <strong class="text-emeraldAccent text-xs">{{ stock.intradayStopLoss }}</strong>
+                <div class="grid grid-cols-3 gap-1 text-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                  <div><span class="block text-cyan-400/80">هدف 1</span><strong class="text-cyan-400">{{ stock.intradayTp1 || '-' }}</strong> <span class="block opacity-80">({{ getPercentage(stock.intradayEntry, stock.intradayTp1) }}%)</span></div>
+                  <div class="border-x border-darkBorder/40"><span class="block text-cyan-400/80">هدف 2</span><strong class="text-cyan-400">{{ stock.intradayTp2 || '-' }}</strong> <span class="block opacity-80">({{ getPercentage(stock.intradayEntry, stock.intradayTp2) }}%)</span></div>
+                  <div><span class="block text-cyan-400/80">هدف 3</span><strong class="text-cyan-400">{{ stock.intradayTp3 || '-' }}</strong> <span class="block opacity-80">({{ getPercentage(stock.intradayEntry, stock.intradayTp3) }}%)</span></div>
                 </div>
               </div>
 
@@ -315,18 +309,16 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
                 </div>
               </div>
 
-              <div class="pt-2 border-t border-darkBorder/60 grid grid-cols-3 gap-1 text-[10px] text-gray-400">
-                <div class="text-center">
-                  <span class="block">دخول</span>
-                  <strong class="text-amberAccent text-xs">{{ stock.intradayEntry || '-' }}</strong>
+              <!-- Targets and Stops -->
+              <div class="pt-2 border-t border-darkBorder/60 space-y-1.5 text-[10px] text-gray-400">
+                <div class="flex justify-between items-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                  <span>دخول: <strong class="text-amberAccent text-xs">{{ stock.intradayEntry || '-' }}</strong></span>
+                  <span>وقف: <strong class="text-roseAccent text-xs">{{ stock.intradayStopLoss || '-' }}</strong></span>
                 </div>
-                <div class="text-center">
-                  <span class="block">هدف</span>
-                  <strong class="text-cyanAccent text-xs">{{ stock.intradayTarget || '-' }}</strong>
-                </div>
-                <div class="text-center">
-                  <span class="block">وقف</span>
-                  <strong class="text-roseAccent text-xs">{{ stock.intradayStopLoss || '-' }}</strong>
+                <div class="grid grid-cols-3 gap-1 text-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                  <div><span class="block text-cyan-400/80">هدف 1</span><strong class="text-cyan-400">{{ stock.intradayTp1 || '-' }}</strong></div>
+                  <div class="border-x border-darkBorder/40"><span class="block text-cyan-400/80">هدف 2</span><strong class="text-cyan-400">{{ stock.intradayTp2 || '-' }}</strong></div>
+                  <div><span class="block text-cyan-400/80">هدف 3</span><strong class="text-cyan-400">{{ stock.intradayTp3 || '-' }}</strong></div>
                 </div>
               </div>
             </div>
@@ -387,7 +379,11 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
             <div class="space-y-1.5">
               <div class="flex justify-between text-[10px] text-gray-400">
                 <span>وقف: <strong class="text-rose-400">{{ trade.stopLossPrice }}</strong></span>
-                <span>الهدف: <strong class="text-cyan-400">{{ trade.targetPrice }}</strong></span>
+                <div class="flex gap-2">
+                  <span *ngIf="trade.tp1" class="opacity-60">1: {{ trade.tp1 }}</span>
+                  <span *ngIf="trade.tp2" class="opacity-80">2: {{ trade.tp2 }}</span>
+                  <span>الهدف: <strong class="text-cyan-400">{{ trade.targetPrice }}</strong></span>
+                </div>
               </div>
               <!-- ProgressBar visual guide -->
               <div class="w-full bg-darkCard/80 h-2 rounded-full overflow-hidden flex relative">
@@ -536,6 +532,11 @@ export class IntradayTradingComponent {
   getLiveChangePercentForSymbol(symbol: string): number | null {
     const stock = this.apiService.stocks().find(s => s.quote.symbol.toUpperCase() === symbol.toUpperCase());
     return stock ? stock.quote.changePercent : null;
+  }
+
+  getPercentage(entry: number | undefined, target: number | undefined): string {
+    if (!entry || !target) return '0.00';
+    return (((target - entry) / entry) * 100).toFixed(2);
   }
 
   getLivePnlForOpenTrade(trade: any): number {

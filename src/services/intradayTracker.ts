@@ -128,6 +128,13 @@ export class IntradayTrackerService {
         const entryPrice = analysis.intradayEntry || currentPrice;
         const targetPrice = analysis.intradayTarget;
         const stopLossPrice = analysis.intradayStopLoss;
+        const tp1 = analysis.intradayTp1;
+        const tp2 = analysis.intradayTp2;
+        const tp3 = analysis.intradayTp3;
+
+        if (signal === 'BUY' || signal === 'STRONG_BUY') {
+            logger.info(`[DEBUG IntradayTracker] Evaluating ${symbol}: Signal=${signal}, Entry=${entryPrice}, Target=${targetPrice}, StopLoss=${stopLossPrice}`);
+        }
 
         if ((signal === 'BUY' || signal === 'STRONG_BUY') && targetPrice && stopLossPrice) {
           // Check for cooldown to avoid immediate reopening of recently closed trades for the same ticker
@@ -145,6 +152,9 @@ export class IntradayTrackerService {
               entryPrice,
               targetPrice,
               stopLossPrice,
+              tp1,
+              tp2,
+              tp3,
               entryTime: now,
               status: 'OPEN'
             };
@@ -153,6 +163,11 @@ export class IntradayTrackerService {
             updated = true;
             logger.info(`🆕 [Intraday] Opened new trade recommendation for ${symbol} @ ${entryPrice}`);
 
+            const tp1Percent = tp1 ? (((tp1 - entryPrice) / entryPrice) * 100).toFixed(2) : 0;
+            const tp2Percent = tp2 ? (((tp2 - entryPrice) / entryPrice) * 100).toFixed(2) : 0;
+            const tp3Percent = tp3 ? (((tp3 - entryPrice) / entryPrice) * 100).toFixed(2) : 0;
+            const slPercent = (((stopLossPrice - entryPrice) / entryPrice) * 100).toFixed(2);
+
             // Notify via Telegram
             const signalEmoji = signal === 'STRONG_BUY' ? '🔥 شراء قوي' : '🟢 شراء';
             const message = `
@@ -160,9 +175,14 @@ export class IntradayTrackerService {
 
 💎 سهم: <b>${symbol}</b> (${analysis.quote.nameAr || symbol})
 📊 الإشارة: <b>${signalEmoji}</b>
-💵 سعر الدخول المقترح: <code>${entryPrice} ج.m</code>
-🎯 الهدف اللحظي: <code>${targetPrice} ج.م</code>
-📉 وقف الخسارة: <code>${stopLossPrice} ج.م</code>
+💵 سعر الدخول المقترح: <code>${entryPrice} ج.م</code>
+
+🎯 <b>الأهداف:</b>
+• هدف 1: <code>${tp1} ج.م</code> (+${tp1Percent}%)
+• هدف 2: <code>${tp2} ج.م</code> (+${tp2Percent}%)
+• هدف 3: <code>${tp3} ج.م</code> (+${tp3Percent}%)
+
+📉 وقف الخسارة: <code>${stopLossPrice} ج.م</code> (${slPercent}%)
 ⚖️ نسبة العائد للمخاطرة: <b>${analysis.riskRewardRatio || 'N/A'}</b>
 💼 النسبة المقترحة من المحفظة: <b>${analysis.positionSizePercent}%</b>
 
