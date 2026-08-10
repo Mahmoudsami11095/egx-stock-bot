@@ -375,18 +375,20 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
               </div>
             </div>
 
-            <!-- Target / Stop loss progress bar -->
-            <div class="space-y-1.5">
-              <div class="flex justify-between text-[10px] text-gray-400">
-                <span>وقف: <strong class="text-rose-400">{{ trade.stopLossPrice }}</strong></span>
-                <div class="flex gap-2">
-                  <span *ngIf="trade.tp1" class="opacity-60">1: {{ trade.tp1 }}</span>
-                  <span *ngIf="trade.tp2" class="opacity-80">2: {{ trade.tp2 }}</span>
-                  <span>الهدف: <strong class="text-cyan-400">{{ trade.targetPrice }}</strong></span>
-                </div>
+            <!-- Targets / Stop loss detail -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center text-[10px] text-gray-400 bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                <span>دخول: <strong class="text-white">{{ trade.entryPrice }}</strong></span>
+                <span>وقف: <strong class="text-rose-400">{{ trade.stopLossPrice }}</strong> <span class="text-rose-400/80">({{ getPercentage(trade.entryPrice, trade.stopLossPrice) }}%)</span></span>
               </div>
+              <div class="grid grid-cols-3 gap-1 text-[10px] text-center bg-darkCard/50 p-1.5 rounded-lg border border-darkBorder/40">
+                <div><span class="block text-cyan-400/80">هدف 1</span><strong class="text-cyan-400">{{ trade.tp1 || '-' }}</strong> <span class="block opacity-80 text-gray-400">({{ getPercentage(trade.entryPrice, trade.tp1) }}%)</span></div>
+                <div class="border-x border-darkBorder/40"><span class="block text-cyan-400/80">هدف 2</span><strong class="text-cyan-400">{{ trade.tp2 || '-' }}</strong> <span class="block opacity-80 text-gray-400">({{ getPercentage(trade.entryPrice, trade.tp2) }}%)</span></div>
+                <div><span class="block text-cyan-400/80">هدف 3</span><strong class="text-cyan-400">{{ trade.tp3 || '-' }}</strong> <span class="block opacity-80 text-gray-400">({{ getPercentage(trade.entryPrice, trade.tp3) }}%)</span></div>
+              </div>
+              
               <!-- ProgressBar visual guide -->
-              <div class="w-full bg-darkCard/80 h-2 rounded-full overflow-hidden flex relative">
+              <div class="w-full bg-darkCard/80 h-2 rounded-full overflow-hidden flex relative mt-2">
                 <div class="bg-rose-500/60 h-full" style="width: 33%"></div>
                 <div class="bg-darkBorder h-full" style="width: 34%"></div>
                 <div class="bg-emerald-500/60 h-full" style="width: 33%"></div>
