@@ -1010,10 +1010,17 @@ function calculateIntradaySignal(stock) {
   const atrVal = stock.atrVal || price * 0.02;
   const isBuy = score >= 0;
   const intradayEntry = Number(price.toFixed(2));
-  const intradayTarget = Number((price + (isBuy ? 1 : -1) * Math.max(atrVal * 1.5, price * 0.02)).toFixed(2));
-  const intradayStopLoss = Number((price + (isBuy ? -1 : 1) * Math.max(atrVal, price * 0.015)).toFixed(2));
+  
+  const step = Math.max(atrVal, price * 0.015);
+  const dir = isBuy ? 1 : -1;
+  const intradayTp1 = Number((price + dir * step).toFixed(2));
+  const intradayTp2 = Number((price + dir * step * 1.5).toFixed(2));
+  const intradayTp3 = Number((price + dir * step * 2).toFixed(2));
+  
+  const intradayTarget = intradaySignal.includes('STRONG') ? intradayTp2 : intradayTp1;
+  const intradayStopLoss = Number((price - dir * Math.max(atrVal, price * 0.015)).toFixed(2));
 
-  return { intradaySignal, intradayScore: score, intradayReasons: reasons, intradayEntry, intradayTarget, intradayStopLoss };
+  return { intradaySignal, intradayScore: score, intradayReasons: reasons, intradayEntry, intradayTarget, intradayStopLoss, intradayTp1, intradayTp2, intradayTp3 };
 }
 
 function calculateSignal(stock, fairValue, fairValueUpsidePercent) {
