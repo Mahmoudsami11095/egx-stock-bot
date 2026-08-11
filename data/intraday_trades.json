@@ -583,7 +583,10 @@
     "tp2": 16.71,
     "tp3": 16.97,
     "entryTime": "2026-08-11T09:40:46.839Z",
-    "status": "OPEN"
+    "status": "CLOSED_STOP_LOSS_HIT",
+    "closePrice": 16.42,
+    "closeTime": "2026-08-11T09:50:03.573Z",
+    "pnlPercentage": -0.36
   },
   {
     "id": "ARCC_1786441246861",
@@ -703,6 +706,45 @@
     "tp2": 12.33,
     "tp3": 14.22,
     "entryTime": "2026-08-11T09:40:46.839Z",
+    "status": "OPEN"
+  },
+  {
+    "id": "CCRS_1786441803578",
+    "symbol": "CCRS",
+    "recommendationType": "BUY",
+    "entryPrice": 2.55,
+    "targetPrice": 2.58,
+    "stopLossPrice": 2.52,
+    "tp1": 2.58,
+    "tp2": 2.6,
+    "tp3": 2.68,
+    "entryTime": "2026-08-11T09:50:03.573Z",
+    "status": "OPEN"
+  },
+  {
+    "id": "LUTS_1786441803578",
+    "symbol": "LUTS",
+    "recommendationType": "STRONG_BUY",
+    "entryPrice": 0.92,
+    "targetPrice": 0.99,
+    "stopLossPrice": 0.9,
+    "tp1": 0.96,
+    "tp2": 0.99,
+    "tp3": 1.1,
+    "entryTime": "2026-08-11T09:50:03.573Z",
+    "status": "OPEN"
+  },
+  {
+    "id": "KRDI_1786441803580",
+    "symbol": "KRDI",
+    "recommendationType": "STRONG_BUY",
+    "entryPrice": 0.42,
+    "targetPrice": 0.43,
+    "stopLossPrice": 0.42,
+    "tp1": 0.42,
+    "tp2": 0.43,
+    "tp3": 0.44,
+    "entryTime": "2026-08-11T09:50:03.573Z",
     "status": "OPEN"
   }
 ]
