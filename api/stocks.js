@@ -3,6 +3,10 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+var LOCAL_STOCKS_CACHE = null;
+var LOCAL_STOCKS_CACHE_TIME = 0;
+const CACHE_TTL_MS = 60 * 1000;
+
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
     const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 4000 }, (res) => {
@@ -1064,9 +1068,7 @@ function calculateSignal(stock, fairValue, fairValueUpsidePercent) {
   };
 }
 
-let LOCAL_STOCKS_CACHE = null;
-let LOCAL_STOCKS_CACHE_TIME = 0;
-const CACHE_TTL_MS = 60 * 1000;
+
 
 /**
  * Runs an async function over an array with a bounded concurrency limit.
