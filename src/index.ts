@@ -33,9 +33,28 @@ async function bootstrap() {
   // 1. Create HTTP & WebSocket Server for Angular SPA & Live Tick Feed
   const app = express();
   const server = http.createServer(app);
-  const wss = new WebSocketServer({ server, path: '/ws/live-stocks' });
+  const wss = new WebSocketServer({ noServer: true });
   const port = process.env.PORT || 5000;
   const angularDistPath = path.join(process.cwd(), 'frontend', 'dist', 'frontend', 'browser');
+
+  server.on('upgrade', (request, socket, head) => {
+    try {
+      const url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
+      if (url.pathname === '/ws/live-stocks' || url.pathname === '/ws/live-stocks/') {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit('connection', ws, request);
+        });
+      } else {
+        socket.destroy();
+      }
+    } catch (e) {
+      socket.destroy();
+    }
+  });
+
+  app.get('/ws/live-stocks', (req, res) => {
+    res.status(200).send('EGX WebSocket Server is Active. Upgrade to WebSocket protocol (ws:// or wss://) to stream live prices.');
+  });
 
   wss.on('connection', (ws: WebSocket) => {
     logger.info('🔌 New WebSocket client connected for live EGX updates.');
