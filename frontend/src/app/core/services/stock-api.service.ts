@@ -97,13 +97,29 @@ export class StockApiService {
     this.connectWebSocket();
   }
 
+  private wsRetryCount = 0;
+  private readonly maxWsRetries = 2;
+
   private connectWebSocket(): void {
     if (typeof window === 'undefined') return;
+
+    // Vercel Serverless hosting does not support persistent WebSocket connections
+    if (window.location.hostname.includes('vercel.app')) {
+      return;
+    }
+
+    if (this.wsRetryCount >= this.maxWsRetries) {
+      return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/live-stocks`;
 
     try {
       const ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        this.wsRetryCount = 0;
+      };
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
@@ -116,8 +132,13 @@ export class StockApiService {
       };
 
       ws.onclose = () => {
-        // Retry connection in 5 seconds
-        setTimeout(() => this.connectWebSocket(), 5000);
+        this.wsRetryCount++;
+        if (this.wsRetryCount < this.maxWsRetries) {
+          setTimeout(() => this.connectWebSocket(), 10000);
+        }
+      };
+      ws.onerror = () => {
+        try { ws.close(); } catch (e) {}
       };
     } catch (err) {
       console.warn('WebSocket connection error:', err);
