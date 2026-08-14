@@ -354,6 +354,35 @@ let consecutiveFailures = 0;
 let circuitOpenUntil = 0;
 let lastSuccessfulResponse: BatchStockResult[] | null = null;
 
+// AI Extraction Circuit Breaker (prevents cascading Gemini/News failures from stalling batch scans)
+let aiConsecutiveFailures = 0;
+let aiCircuitOpenUntil = 0;
+
+/**
+ * Runs an async function over an array with a bounded concurrency limit.
+ * Prevents N simultaneous outbound HTTP/AI calls from overwhelming providers.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(concurrency, items.length));
+  const workers = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 // Market Regime Cache
 let cachedMarketRegime: MarketRegime = 'UNKNOWN';
 let cachedUsdEgp: number = 0;
@@ -571,6 +600,18 @@ export class DataFetcherService {
             const json = JSON.parse(body);
             const results: BatchStockResult[] = [];
 
+            // Load earnings overrides ONCE per batch (not per stock)
+            const earningsOverrides = loadEarningsOverrides();
+
+            // First pass: parse all rows into intermediate results (no awaits)
+            const parsedRows: Array<{
+              stock: StockMeta;
+              quote: StockQuote;
+              indicators: TechnicalIndicators;
+              automatedFairValue: number;
+              fairValueConfidence: 'HIGH' | 'MEDIUM' | 'LOW';
+            }> = [];
+
             for (const row of json.data || []) {
               const tvSymbol = row.s;
               const stock: StockMeta = tickerMap.get(tvSymbol) || {
@@ -624,8 +665,7 @@ export class DataFetcherService {
               const change = (currentPrice * (changePercent || 0)) / 100;
               const previousClose = currentPrice - change;
 
-              // Smart EPS Engine with manual override support
-              const earningsOverrides = loadEarningsOverrides();
+              // Smart EPS Engine with manual override support (overrides loaded once per batch)
               const override = earningsOverrides[stock.symbol.toUpperCase()] || null;
               const smartEpsResult = computeSmartEps(
                 epsRaw, netIncomeRaw, netIncomeFq, netIncomeFy,
@@ -705,11 +745,48 @@ export class DataFetcherService {
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
                 computeFairValue(effectiveEps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate, bvpsRaw, effectiveDps);
 
-              // Fetch Fundamentals via AI Scraper
-              const fundamentalsRaw = await this.fetchFundamentals(stock);
-              const fundamentals = fundamentalsRaw ? { ...fundamentalsRaw, lastUpdated: Date.now() } : undefined;
+              parsedRows.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
+            }
 
-              results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence, fundamentals });
+            // Second pass: fetch fundamentals in parallel with bounded concurrency (max 8 at a time)
+            // This replaces the previous sequential await-per-stock bottleneck.
+            const aiCircuitOpen = Date.now() < aiCircuitOpenUntil;
+            if (aiCircuitOpen) {
+              logger.warn(`⚡ AI Extraction Circuit Breaker OPEN until ${new Date(aiCircuitOpenUntil).toISOString()}. Skipping fundamentals enrichment.`);
+            }
+
+            const fundamentalsList = await mapWithConcurrency(
+              parsedRows,
+              8,
+              async (row) => {
+                if (aiCircuitOpen) return null;
+                try {
+                  const fundamentalsRaw = await this.fetchFundamentals(row.stock);
+                  if (fundamentalsRaw) {
+                    return { ...fundamentalsRaw, lastUpdated: Date.now() };
+                  }
+                  return null;
+                } catch (err) {
+                  aiConsecutiveFailures++;
+                  if (aiConsecutiveFailures >= 3) {
+                    aiCircuitOpenUntil = Date.now() + 300_000; // 5 min AI circuit breaker
+                    logger.warn(`🔴 AI Extraction Circuit Breaker OPENED after ${aiConsecutiveFailures} consecutive failures.`);
+                  }
+                  return null;
+                }
+              }
+            );
+
+            // Reset AI circuit breaker on successful batch
+            if (!aiCircuitOpen && fundamentalsList.some(f => f !== null)) {
+              aiConsecutiveFailures = 0;
+            }
+
+            for (let i = 0; i < parsedRows.length; i++) {
+              results.push({
+                ...parsedRows[i],
+                fundamentals: fundamentalsList[i] || undefined
+              });
             }
 
             // Circuit breaker success: reset failures, cache results

@@ -21,13 +21,10 @@ export class SignalDetectorService {
 
   private logSignalHistory(analysis: StockAnalysisResult): void {
     if (process.env.VERCEL) return;
+    // Fire-and-forget async write to avoid blocking the event loop during batch scans
     try {
-      let history: any[] = [];
-      if (fs.existsSync(this.historyFilePath)) {
-        const raw = fs.readFileSync(this.historyFilePath, 'utf8');
-        history = JSON.parse(raw);
-      }
-      history.push({
+      const historyFilePath = this.historyFilePath;
+      const entry = {
         symbol: analysis.quote.symbol,
         timestamp: new Date().toISOString(),
         signalType: analysis.signalType,
@@ -40,10 +37,24 @@ export class SignalDetectorService {
         suggestedStopLoss: analysis.suggestedStopLoss,
         positionSizePercent: analysis.positionSizePercent,
         riskRewardRatio: analysis.riskRewardRatio,
+      };
+
+      // Use setImmediate to defer the synchronous file I/O out of the hot path
+      setImmediate(() => {
+        try {
+          let history: any[] = [];
+          if (fs.existsSync(historyFilePath)) {
+            const raw = fs.readFileSync(historyFilePath, 'utf8');
+            history = JSON.parse(raw);
+          }
+          history.push(entry);
+          // Keep last 500 signals
+          if (history.length > 500) history = history.slice(-500);
+          fs.writeFileSync(historyFilePath, JSON.stringify(history, null, 2), 'utf8');
+        } catch (_) {
+          // Gracefully ignore filesystem write errors on read-only serverless hosts
+        }
       });
-      // Keep last 500 signals
-      if (history.length > 500) history = history.slice(-500);
-      fs.writeFileSync(this.historyFilePath, JSON.stringify(history, null, 2), 'utf8');
     } catch (_) {
       // Gracefully ignore filesystem write errors on read-only serverless hosts
     }

@@ -25,7 +25,7 @@ export class EgxLiveScraperService extends EventEmitter {
   private cache: Map<string, EgxLiveScraperQuote> = new Map();
   private pollingTimer: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
-  private pollingIntervalMs: number = 4000; // 4 seconds intraday high frequency
+  private pollingIntervalMs: number = 10000; // 10 seconds intraday high frequency (reduced from 4s to avoid TradingView rate limiting)
 
   private userAgents: string[] = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

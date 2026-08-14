@@ -50,14 +50,25 @@ async function bootstrap() {
     });
   });
 
-  // Broadcast price ticks to all connected clients
-  egxLiveScraper.on('priceTick', (update) => {
+  // Broadcast price ticks to all connected clients and check live intraday trade closures
+  egxLiveScraper.on('priceTick', async (update) => {
     const payload = JSON.stringify({ type: 'TICK', data: update });
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(payload);
       }
     });
+
+    if (intradayTracker.getOpenTrades().length > 0) {
+      try {
+        await intradayTracker.checkTradeClosures(
+          [{ symbol: update.symbol, price: update.price, high: update.high, low: update.low }],
+          telegramBot
+        );
+      } catch (err) {
+        logger.error(`Error in live priceTick intraday trade closure check: ${err}`);
+      }
+    }
   });
 
   // Start EGX Live Scraper background engine
@@ -70,7 +81,7 @@ async function bootstrap() {
       const source = (req.query.source as any) || 'tradingview';
       const useOverrides = req.query.use_overrides === 'true';
       const watchlist = stateManager.getWatchlist();
-      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source, useOverrides);
+      const batchResults = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source);
       const results = [];
       for (const item of batchResults) {
         const analysis = signalDetector.analyzeStockWithIndicators(

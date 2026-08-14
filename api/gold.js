@@ -1,6 +1,8 @@
 const https = require('https');
 
 let lastLiveCache = null;
+let GOLD_CACHE_TIME = 0;
+const GOLD_CACHE_TTL_MS = 30000; // 30 seconds cache
 
 function fetchHttpsJson(url, options = {}) {
   return new Promise((resolve) => {
@@ -310,8 +312,18 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Serve cached gold data within TTL to avoid redundant external API calls
+  const now = Date.now();
+  if (lastLiveCache && (now - GOLD_CACHE_TIME < GOLD_CACHE_TTL_MS)) {
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
+    return res.status(200).json({ ...lastLiveCache, isCached: true });
+  }
+
   try {
     const goldPrices = await fetchLiveGoldPrices();
+    if (goldPrices) {
+      GOLD_CACHE_TIME = Date.now();
+    }
     if (goldPrices) {
       res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
       return res.status(200).json(goldPrices);

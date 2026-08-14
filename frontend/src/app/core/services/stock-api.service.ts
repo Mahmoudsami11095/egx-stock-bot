@@ -206,7 +206,14 @@ export class StockApiService {
     this.isUsingCache.set(fromCache);
   }
 
-  public async loadMarketData(): Promise<void> {
+  public async loadMarketData(force: boolean = false): Promise<void> {
+    // Cooldown: skip redundant refreshes unless forced (e.g. after overrides update)
+    const now = Date.now();
+    if (!force && now - this.lastRefreshTime < this.REFRESH_COOLDOWN_MS) {
+      return;
+    }
+    this.lastRefreshTime = now;
+
     this.loading.set(true);
     const source = this.selectedSource();
 
@@ -281,11 +288,15 @@ export class StockApiService {
 
   public updatingOverrides = signal(false);
 
+  // Refresh cooldown to prevent hammering the backend with redundant requests
+  private lastRefreshTime = 0;
+  private readonly REFRESH_COOLDOWN_MS = 30000; // 30 seconds minimum between refreshes
+
   public async updateOverrides(): Promise<{ success: boolean; updatedCount?: number }> {
     this.updatingOverrides.set(true);
     try {
       const res = await this.http.get<{ success: boolean; updatedCount?: number }>('/api/update-overrides').toPromise();
-      await this.loadMarketData();
+      await this.loadMarketData(true); // Force refresh after overrides update
       return res || { success: true };
     } catch (e) {
       console.error('Failed to update overrides:', e);
