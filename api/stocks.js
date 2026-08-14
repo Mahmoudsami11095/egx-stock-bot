@@ -16,7 +16,7 @@ function fetchFromAzureVM(reqPath) {
         try { req.destroy(); } catch (e) {}
         resolve(null);
       }
-    }, 2500);
+    }, 1500);
 
     const req = http.get(`http://20.91.240.54:5000${reqPath}`, (res) => {
       if (res.statusCode !== 200) {
@@ -629,9 +629,9 @@ async function fetchHalalSymbolsSet() {
 function fetchTradingViewScan() {
   return new Promise((resolve) => {
     // Hard timeout to prevent hanging requests when TradingView is slow/unresponsive
-    const timeoutMs = 10000;
+    const timeoutMs = 3500;
     const timer = setTimeout(() => {
-      console.warn('TradingView scan timed out after 10s');
+      console.warn('TradingView scan timed out after 3.5s');
       resolve([]);
     }, timeoutMs);
     const postData = JSON.stringify({
