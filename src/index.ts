@@ -34,7 +34,7 @@ async function bootstrap() {
   const app = express();
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws/live-stocks' });
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 5000;
   const angularDistPath = path.join(process.cwd(), 'frontend', 'dist', 'frontend', 'browser');
 
   wss.on('connection', (ws: WebSocket) => {

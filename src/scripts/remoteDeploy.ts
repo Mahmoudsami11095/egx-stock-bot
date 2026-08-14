@@ -12,8 +12,8 @@ conn.on('ready', () => {
   console.log('✅ SSH Connection established successfully on Port 2222!');
   
   const commands = [
-    'echo azureuserSami@11095 | sudo -S ufw allow 3000/tcp',
-    'echo azureuserSami@11095 | sudo -S fuser -k 3000/tcp || true',
+    'echo azureuserSami@11095 | sudo -S ufw allow 5000/tcp',
+    'echo azureuserSami@11095 | sudo -S fuser -k 5000/tcp || true',
     'echo azureuserSami@11095 | sudo -S pm2 delete egx-stock-bot || true',
     'echo azureuserSami@11095 | sudo -S bash -c "cd /root/egx-stock-bot && git clean -fd && git reset --hard HEAD && git pull && npm install --legacy-peer-deps && npm run build:backend && pm2 start dist/index.js --name egx-stock-bot && pm2 save && pm2 status"'
   ].join(' && ');

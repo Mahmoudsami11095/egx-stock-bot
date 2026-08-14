@@ -5,7 +5,7 @@ const path = require('path');
 
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
-    const req = http.get(`http://20.91.240.54:3000${reqPath}`, { timeout: 4000 }, (res) => {
+    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 4000 }, (res) => {
       if (res.statusCode !== 200) return resolve(null);
       let body = '';
       res.on('data', c => body += c);

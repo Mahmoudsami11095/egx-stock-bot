@@ -5,7 +5,7 @@ import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade } from '../m
 const STORAGE_KEY = 'egx_stocks_live_cache_v5';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp_v5';
 const GOLD_STORAGE_KEY = 'egx_gold_live_cache_v4';
-const PRIMARY_AZURE_API = 'http://20.91.240.54:3000';
+const PRIMARY_AZURE_API = 'http://20.91.240.54:5000';
 
 const generate1YearFallbackCharts = () => {
   const dates: string[] = [];
