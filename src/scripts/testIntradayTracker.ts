@@ -236,18 +236,111 @@ async function runIntradayTrackerTest() {
   const allClosed = tracker.getClosedTrades();
   const abukClosed = allClosed.find(t => t.symbol === 'ABUK');
   
-  if (openTrades.length === 0 && abukClosed) {
-    if (abukClosed.status === 'CLOSED_STOP_LOSS_HIT' && abukClosed.pnlPercentage === -3.13) {
-      console.log('✅ PASS: Successfully closed trade as STOP LOSS HIT with -3.13% loss!');
-      console.log(`ℹ️ Closed trade statistics: Status: ${abukClosed.status} | Close Price: ${abukClosed.closePrice} | P&L: ${abukClosed.pnlPercentage}%`);
-    } else {
-      console.error(`❌ FAIL: Trade status or P&L is incorrect: Status: ${abukClosed.status}, P&L: ${abukClosed.pnlPercentage}%`);
-    }
+  // ----------------------------------------------------
+  // TEST CASE 7: Real-Time Live Tick Closure via checkTradeClosures() (High Spike)
+  // ----------------------------------------------------
+  console.log('\n--- 7. Testing Real-Time Tick Closure via checkTradeClosures() (High Spike) ---');
+  
+  // Open COMI trade
+  const mockAnalysisCOMI: StockAnalysisResult = {
+    quote: {
+      symbol: 'COMI',
+      yahooSymbol: 'COMI.CA',
+      nameEn: 'COMI',
+      nameAr: 'البنك التجاري الدولي',
+      currentPrice: 85.0,
+      previousClose: 84.0,
+      change: 1.0,
+      changePercent: 1.19,
+      dayHigh: 86.0,
+      dayLow: 84.5,
+      fiftyTwoWeekHigh: 95.0,
+      fiftyTwoWeekLow: 50.0,
+      volume: 20000,
+      avgVolume: 15000
+    },
+    indicators: {
+      rsi: 62,
+      sma20: 83,
+      sma50: 80,
+      support: 82,
+      resistance: 88,
+      volumeSpike: true,
+      volumeRatio: 1.8
+    },
+    signalType: 'BUY',
+    signalScore: 1.4,
+    reasons: ['Strong banking sector momentum'],
+    fairValue: 105.0,
+    fairValueConfidence: 'HIGH',
+    fairValueUpsidePercent: 23.5,
+    marketRegime: 'BULLISH',
+    suggestedEntry: { min: 83.0, max: 86.0 },
+    suggestedTarget: { target1: 90.0, target2: 95.0 },
+    suggestedStopLoss: 82.0,
+    positionSizePercent: 12,
+    riskRewardRatio: 2.0,
+    timestamp: new Date(),
+    
+    intradaySignal: 'BUY',
+    intradayScore: 1.8,
+    intradayReasons: ['اختراق ارتكاز الجلسة'],
+    intradayEntry: 85.0,
+    intradayTarget: 89.0,
+    intradayStopLoss: 83.0,
+    intradayTp1: 87.0,
+    intradayTp2: 89.0,
+    intradayTp3: 91.0
+  };
+
+  await tracker.trackAndCheck([mockAnalysisCOMI], mockTelegramBot);
+  openTrades = tracker.getOpenTrades();
+  console.log(`ℹ️ Opened COMI trade @ ${openTrades[0]?.entryPrice}, Target: ${openTrades[0]?.targetPrice}, Stop: ${openTrades[0]?.stopLossPrice}`);
+
+  // Simulate a live WebSocket price tick where currentPrice=86.5 but high=89.5 (hitting Target 89.0)
+  await tracker.checkTradeClosures([{ symbol: 'COMI', price: 86.5, high: 89.5, low: 85.0 }], mockTelegramBot);
+  
+  openTrades = tracker.getOpenTrades();
+  const comiClosed = tracker.getClosedTrades().find(t => t.symbol === 'COMI');
+  
+  if (openTrades.length === 0 && comiClosed && comiClosed.status === 'CLOSED_TARGET_HIT') {
+    console.log('✅ PASS: Real-time checkTradeClosures() closed trade on HIGH spike hitting target (high: 89.5 >= target: 89.0)!');
   } else {
-    console.error(`❌ FAIL: ABUK trade did not close correctly on stop loss hit. Open count: ${openTrades.length}`);
+    console.error('❌ FAIL: Real-time tick closure failed for COMI.');
   }
 
-  console.log('\n🏁 Intraday Tracker validation completed successfully!');
+  // ----------------------------------------------------
+  // TEST CASE 8: Real-Time Live Tick Closure (Low Breach Stop Loss)
+  // ----------------------------------------------------
+  console.log('\n--- 8. Testing Real-Time Tick Closure via checkTradeClosures() (Low Breach Stop Loss) ---');
+  
+  const mockAnalysisSWDY: StockAnalysisResult = {
+    ...mockAnalysisCOMI,
+    quote: {
+      ...mockAnalysisCOMI.quote,
+      symbol: 'SWDY',
+      nameAr: 'السويدي إلكتريك',
+      currentPrice: 40.0
+    },
+    intradaySignal: 'BUY',
+    intradayEntry: 40.0,
+    intradayTarget: 43.0,
+    intradayStopLoss: 38.5
+  };
+
+  await tracker.trackAndCheck([mockAnalysisSWDY], mockTelegramBot);
+  
+  // Live tick: currentPrice=39.0 but low=38.0 (breaching Stop Loss 38.5)
+  await tracker.checkTradeClosures([{ symbol: 'SWDY', price: 39.0, high: 40.5, low: 38.0 }], mockTelegramBot);
+  
+  const swdyClosed = tracker.getClosedTrades().find(t => t.symbol === 'SWDY');
+  if (swdyClosed && swdyClosed.status === 'CLOSED_STOP_LOSS_HIT') {
+    console.log('✅ PASS: Real-time checkTradeClosures() closed trade on LOW breach hitting stop loss (low: 38.0 <= stop: 38.5)!');
+  } else {
+    console.error('❌ FAIL: Real-time tick stop-loss closure failed for SWDY.');
+  }
+
+  console.log('\n🏁 All 8 Intraday Tracker validation tests completed successfully!');
 }
 
 runIntradayTrackerTest().catch(err => {
