@@ -350,21 +350,11 @@ function parseCSVLine(line) {
 
 function loadEarningsOverridesLocal() {
   try {
-    const data = require('../data/earnings_overrides.json');
-    if (data && data.overrides) return { ...data.overrides };
-  } catch (e) {}
-
-  try {
-    const data = require('./data/earnings_overrides.json');
-    if (data && data.overrides) return { ...data.overrides };
-  } catch (e) {}
-
-  try {
     const locations = [
-      path.join(__dirname, '..', 'data', 'earnings_overrides.json'),
-      path.join(__dirname, 'data', 'earnings_overrides.json'),
       path.join(process.cwd(), 'data', 'earnings_overrides.json'),
-      path.join(process.cwd(), 'frontend', 'data', 'earnings_overrides.json')
+      path.join(process.cwd(), 'frontend', 'data', 'earnings_overrides.json'),
+      path.join(__dirname, '..', 'data', 'earnings_overrides.json'),
+      path.join(__dirname, 'data', 'earnings_overrides.json')
     ];
     for (const loc of locations) {
       if (fs.existsSync(loc)) {
