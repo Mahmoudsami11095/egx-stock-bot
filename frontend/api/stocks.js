@@ -9,16 +9,34 @@ const CACHE_TTL_MS = 60 * 1000;
 
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
-    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 4000 }, (res) => {
-      if (res.statusCode !== 200) return resolve(null);
+    let completed = false;
+    const timer = setTimeout(() => {
+      if (!completed) {
+        completed = true;
+        try { req.destroy(); } catch (e) {}
+        resolve(null);
+      }
+    }, 2500);
+
+    const req = http.get(`http://20.91.240.54:5000${reqPath}`, (res) => {
+      if (res.statusCode !== 200) {
+        if (!completed) { completed = true; clearTimeout(timer); resolve(null); }
+        return;
+      }
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
-        try { resolve(JSON.parse(body)); } catch (e) { resolve(null); }
+        if (!completed) {
+          completed = true;
+          clearTimeout(timer);
+          try { resolve(JSON.parse(body)); } catch (e) { resolve(null); }
+        }
       });
     });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
+
+    req.on('error', () => {
+      if (!completed) { completed = true; clearTimeout(timer); resolve(null); }
+    });
   });
 }
 
