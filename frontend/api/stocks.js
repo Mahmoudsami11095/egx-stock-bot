@@ -1261,6 +1261,7 @@ module.exports = async (req, res) => {
     }
 
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=120');
+    res.setHeader('X-Data-Timestamp', (LOCAL_STOCKS_CACHE_TIME || Date.now()).toString());
     return res.status(200).json(processed);
   } catch (err) {
     console.error('Error fetching EGX stocks:', err);

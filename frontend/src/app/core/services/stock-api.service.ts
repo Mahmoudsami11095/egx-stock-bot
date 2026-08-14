@@ -225,6 +225,7 @@ export class StockApiService {
       // Clean HTTPS Proxy Call to /api/stocks (Server-to-Server Azure VM Primary -> Vercel Fallback)
       const apiStockPromise = this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}${rssQuery}`, { observe: 'response' }).toPromise()
         .then(res => {
+          let dataTs: Date | null = null;
           if (res && res.headers) {
             const servedBy = res.headers.get('X-Served-By');
             if (servedBy && servedBy.includes('Azure')) {
@@ -234,14 +235,21 @@ export class StockApiService {
               this.activeBackend.set('AZURE');
               this.serverFallbackNotice.set(null);
             }
+            const headerTs = res.headers.get('X-Data-Timestamp');
+            if (headerTs) {
+              const parsed = parseInt(headerTs, 10);
+              if (!isNaN(parsed) && parsed > 0) {
+                dataTs = new Date(parsed);
+              }
+            }
           }
-          return (res && res.body) ? res.body : [];
+          return { data: (res && res.body) ? res.body : [], timestamp: dataTs };
         })
         .catch(err => {
           console.warn('Backend fetch warning:', err);
           this.activeBackend.set('VERCEL_FALLBACK');
           this.serverFallbackNotice.set('⚠️ تعذر الاتصال بالسيرفر الرئيسي — تم استخدام كاش المتصفح أو الباك إند الاحتياطي.');
-          return [];
+          return { data: [], timestamp: null };
         });
 
       const apiGoldPromise = this.http.get<GoldPrices>('/api/gold').toPromise()
@@ -250,7 +258,7 @@ export class StockApiService {
       const apiIntradayPromise = this.http.get<{ success: boolean; open: IntradayTrade[]; closed: IntradayTrade[] }>('/api/intraday-trades').toPromise()
         .catch(() => null);
 
-      const [results, goldData, intradayData] = await Promise.all([
+      const [stockRes, goldData, intradayData] = await Promise.all([
         apiStockPromise,
         apiGoldPromise,
         apiIntradayPromise
@@ -261,14 +269,15 @@ export class StockApiService {
         this.closedTrades.set(intradayData.closed || []);
       }
 
+      const results = stockRes.data;
       if (results && results.length > 0) {
         this.applyStockData(results, false);
-        const now = new Date();
-        this.lastUpdated.set(now);
+        const updateDate = stockRes.timestamp || new Date();
+        this.lastUpdated.set(updateDate);
 
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
-          localStorage.setItem(STORAGE_TIME_KEY, now.getTime().toString());
+          localStorage.setItem(STORAGE_TIME_KEY, updateDate.getTime().toString());
         } catch (storageErr) {
           console.warn('Could not persist stocks into localStorage cache', storageErr);
         }

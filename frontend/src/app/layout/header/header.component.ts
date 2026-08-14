@@ -40,7 +40,7 @@ import { StockApiService } from '../../core/services/stock-api.service';
               </select>
             </div>
 
-            <span>تحديث: <strong class="text-gray-200">{{ apiService.lastUpdated() | date:'shortTime' }}</strong></span>
+            <span class="inline-flex items-center gap-1">تحديث: <strong dir="ltr" class="inline-block text-gray-200">{{ apiService.lastUpdated() | date:'shortTime' }}</strong></span>
             <button (click)="apiService.loadMarketData(true, false)" title="تحديث سريع لحظي (Fast Refresh)" class="hover:text-emeraldAccent transition-colors cursor-pointer">
               <i class="pi pi-refresh" [class.animate-spin]="apiService.loading() && !apiService.isDeepScanning()"></i>
             </button>
