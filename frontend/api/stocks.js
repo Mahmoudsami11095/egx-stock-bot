@@ -1093,6 +1093,7 @@ async function mapWithConcurrency(items, concurrency, fn) {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Served-By, X-Data-Timestamp');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
