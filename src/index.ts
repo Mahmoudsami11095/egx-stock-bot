@@ -183,22 +183,28 @@ async function bootstrap() {
     logger.info(`⚡ Live WebSocket Stream Endpoint: ws://localhost:${port}/ws/live-stocks`);
   });
 
-  // 2. Start Telegram bot instance
-  await telegramBot.start();
+  const disableBot = process.env.DISABLE_TELEGRAM_BOT === 'true';
 
-  // 3. Start scheduled market monitoring
+  if (!disableBot) {
+    // 2. Start Telegram bot instance
+    await telegramBot.start();
+  } else {
+    logger.info('⚠️ Telegram Bot polling is DISABLED via DISABLE_TELEGRAM_BOT=true to save RAM.');
+  }
+
+  // 3. Start scheduled market monitoring (Website automation requires this to run)
   cronScheduler.startSchedule();
 
   // Graceful shutdown handling
   process.once('SIGINT', () => {
     logger.info('Stopping application...');
-    telegramBot.stop('SIGINT');
+    if (!disableBot) telegramBot.stop('SIGINT');
     process.exit(0);
   });
 
   process.once('SIGTERM', () => {
     logger.info('Stopping application...');
-    telegramBot.stop('SIGTERM');
+    if (!disableBot) telegramBot.stop('SIGTERM');
     process.exit(0);
   });
 }
