@@ -5,7 +5,7 @@ const path = require('path');
 
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
-    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 3500 }, (res) => {
+    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 1500 }, (res) => {
       if (res.statusCode !== 200) return resolve(null);
       let body = '';
       res.on('data', c => body += c);
@@ -1066,9 +1066,29 @@ function calculateSignal(stock, fairValue, fairValueUpsidePercent) {
   };
 }
 
-let LOCAL_STOCKS_CACHE = null;
 let LOCAL_STOCKS_CACHE_TIME = 0;
 const CACHE_TTL_MS = 60 * 1000;
+
+/**
+ * Runs an async function over an array with a bounded concurrency limit.
+ * Prevents N simultaneous outbound HTTP calls from overwhelming providers.
+ */
+async function mapWithConcurrency(items, concurrency, fn) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(concurrency, items.length));
+  const workers = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1089,7 +1109,8 @@ module.exports = async (req, res) => {
   try {
     const source = (req.query && req.query.source) || 'tradingview';
     const halal = (req.query && (req.query.halal || req.query.sharia)) ? `&halal=${req.query.halal || req.query.sharia}` : '';
-    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}`);
+    const rssQuery = (req.query && req.query.rss) ? `&rss=${req.query.rss}` : '';
+    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}${rssQuery}`);
     if (azureData && Array.isArray(azureData) && azureData.length > 0) {
       res.setHeader('X-Served-By', 'Azure-VM-Primary');
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
@@ -1101,6 +1122,7 @@ module.exports = async (req, res) => {
 
   try {
     const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
+    const includeRss = req.query && (req.query.rss === 'true' || req.query.rss === '1');
     const earningsOverrides = await fetchGoogleSheetOverrides();
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
@@ -1109,6 +1131,8 @@ module.exports = async (req, res) => {
 
     const processed = [];
 
+    // First pass: prepare stock metadata and determine which need RSS fetching
+    const stockMetaList = [];
     for (const s of stocks) {
       const symUpper = s.symbol.toUpperCase();
       const rawUpper = (s.rawSym || '').toUpperCase();
@@ -1121,8 +1145,7 @@ module.exports = async (req, res) => {
       // 1. Manual override
       const override = earningsOverrides[symUpper] || earningsOverrides[rawUpper] || null;
 
-      // 2. Automated news earnings scraper fallback for all stocks
-      let autoParsed = null;
+      // 2. Determine Arabic name for RSS scraping
       let nameAr = STOCK_ARABIC_NAMES[symUpper] || STOCK_ARABIC_NAMES[rawUpper];
       if (!nameAr && s.name) {
         // Strip English ticker parens e.g. "القاهرة للدواجن (POUL)" -> "القاهرة للدواجن"
@@ -1132,9 +1155,30 @@ module.exports = async (req, res) => {
         }
       }
 
-      if (!override && nameAr) {
-        autoParsed = await fetchAutomatedEarningsFromRss(nameAr, symUpper);
-      }
+      stockMetaList.push({ s, symUpper, rawUpper, isHalal, override, nameAr });
+    }
+
+    // Second pass: fetch RSS in parallel ONLY if requested (Deep Scan mode)
+    // Default fast refresh skips RSS scraping to guarantee instant (< 1s) performance
+    const rssResults = includeRss
+      ? await mapWithConcurrency(
+          stockMetaList,
+          10,
+          async (meta) => {
+            if (meta.override || !meta.nameAr) return null;
+            try {
+              return await fetchAutomatedEarningsFromRss(meta.nameAr, meta.symUpper);
+            } catch (e) {
+              return null;
+            }
+          }
+        )
+      : new Array(stockMetaList.length).fill(null);
+
+    // Third pass: process all stocks with pre-fetched RSS data
+    for (let i = 0; i < stockMetaList.length; i++) {
+      const { s, symUpper, rawUpper, isHalal, override, nameAr } = stockMetaList[i];
+      const autoParsed = rssResults[i];
 
       const fundamentals = resolveFundamentals(s, override, autoParsed);
 

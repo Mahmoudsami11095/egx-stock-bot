@@ -206,8 +206,10 @@ export class StockApiService {
     this.isUsingCache.set(fromCache);
   }
 
-  public async loadMarketData(force: boolean = false): Promise<void> {
-    // Cooldown: skip redundant refreshes unless forced (e.g. after overrides update)
+  public isDeepScanning = signal<boolean>(false);
+
+  public async loadMarketData(force: boolean = false, includeRss: boolean = false): Promise<void> {
+    // Cooldown: skip redundant refreshes unless forced (e.g. after overrides update or manual refresh)
     const now = Date.now();
     if (!force && now - this.lastRefreshTime < this.REFRESH_COOLDOWN_MS) {
       return;
@@ -215,11 +217,13 @@ export class StockApiService {
     this.lastRefreshTime = now;
 
     this.loading.set(true);
+    if (includeRss) this.isDeepScanning.set(true);
     const source = this.selectedSource();
+    const rssQuery = includeRss ? '&rss=true' : '';
 
     try {
       // Clean HTTPS Proxy Call to /api/stocks (Server-to-Server Azure VM Primary -> Vercel Fallback)
-      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}`, { observe: 'response' }).toPromise()
+      const apiStockPromise = this.http.get<StockAnalysisResult[]>(`/api/stocks?source=${source}${rssQuery}`, { observe: 'response' }).toPromise()
         .then(res => {
           if (res && res.headers) {
             const servedBy = res.headers.get('X-Served-By');
@@ -283,7 +287,12 @@ export class StockApiService {
       console.warn('Market data fetch error:', backendErr);
     } finally {
       this.loading.set(false);
+      this.isDeepScanning.set(false);
     }
+  }
+
+  public async loadDeepMarketData(): Promise<void> {
+    return this.loadMarketData(true, true);
   }
 
   public updatingOverrides = signal(false);

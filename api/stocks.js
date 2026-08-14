@@ -5,7 +5,7 @@ const path = require('path');
 
 function fetchFromAzureVM(reqPath) {
   return new Promise((resolve) => {
-    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 8000 }, (res) => {
+    const req = http.get(`http://20.91.240.54:5000${reqPath}`, { timeout: 1500 }, (res) => {
       if (res.statusCode !== 200) return resolve(null);
       let body = '';
       res.on('data', c => body += c);
@@ -1118,7 +1118,8 @@ module.exports = async (req, res) => {
   try {
     const source = (req.query && req.query.source) || 'tradingview';
     const halal = (req.query && (req.query.halal || req.query.sharia)) ? `&halal=${req.query.halal || req.query.sharia}` : '';
-    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}`);
+    const rssQuery = (req.query && req.query.rss) ? `&rss=${req.query.rss}` : '';
+    const azureData = await fetchFromAzureVM(`/api/stocks?source=${source}${halal}${rssQuery}`);
     if (azureData && Array.isArray(azureData) && azureData.length > 0) {
       res.setHeader('X-Served-By', 'Azure-VM-Primary');
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
@@ -1130,6 +1131,7 @@ module.exports = async (req, res) => {
 
   try {
     const halalOnly = req.query && (req.query.halal === 'true' || req.query.sharia === 'true' || req.query.halal === '1');
+    const includeRss = req.query && (req.query.rss === 'true' || req.query.rss === '1');
     const earningsOverrides = await fetchGoogleSheetOverrides();
     const [stocks, halalSet] = await Promise.all([
       fetchTradingViewScan(),
@@ -1165,20 +1167,22 @@ module.exports = async (req, res) => {
       stockMetaList.push({ s, symUpper, rawUpper, isHalal, override, nameAr });
     }
 
-    // Second pass: fetch RSS in parallel with bounded concurrency (max 10 at a time)
-    // This replaces the previous sequential await-per-stock bottleneck.
-    const rssResults = await mapWithConcurrency(
-      stockMetaList,
-      10,
-      async (meta) => {
-        if (meta.override || !meta.nameAr) return null;
-        try {
-          return await fetchAutomatedEarningsFromRss(meta.nameAr, meta.symUpper);
-        } catch (e) {
-          return null;
-        }
-      }
-    );
+    // Second pass: fetch RSS in parallel ONLY if requested (Deep Scan mode)
+    // Default fast refresh skips RSS scraping to guarantee instant (< 1s) performance
+    const rssResults = includeRss
+      ? await mapWithConcurrency(
+          stockMetaList,
+          10,
+          async (meta) => {
+            if (meta.override || !meta.nameAr) return null;
+            try {
+              return await fetchAutomatedEarningsFromRss(meta.nameAr, meta.symUpper);
+            } catch (e) {
+              return null;
+            }
+          }
+        )
+      : new Array(stockMetaList.length).fill(null);
 
     // Third pass: process all stocks with pre-fetched RSS data
     for (let i = 0; i < stockMetaList.length; i++) {

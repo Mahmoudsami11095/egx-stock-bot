@@ -67,11 +67,22 @@ module.exports = async (req, res) => {
       overridesToSync = loadEarningsOverridesLocal();
     }
 
-    const sheetRes = await sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, { overrides: overridesToSync });
+    // 4.5-second timeout safeguard to prevent Vercel Serverless Function 504 Gateway Timeouts
+    const syncPromise = sendOverridesToAppsScript(EARNINGS_APPS_SCRIPT_URL, {
+      action: 'clear_and_replace',
+      clearFirst: true,
+      overrides: overridesToSync
+    });
+
+    const timeoutPromise = new Promise((resolve) =>
+      setTimeout(() => resolve({ status: 'dispatched_async' }), 4500)
+    );
+
+    const sheetRes = await Promise.race([syncPromise, timeoutPromise]);
 
     return res.status(200).json({
       success: true,
-      message: `🎉 Successfully synced ${Object.keys(overridesToSync).length} stock earnings overrides to Google Sheet online!`,
+      message: `🎉 Successfully initiated sync of ${Object.keys(overridesToSync).length} stock earnings overrides to Google Sheet!`,
       updatedCount: Object.keys(overridesToSync).length,
       sheetUrl: 'https://docs.google.com/spreadsheets/d/1EKvEu7qKYFZY6JoMfohKSXtFV6tvKxbtlvDlTYr2mJ0/edit?usp=sharing',
       webhookResult: sheetRes

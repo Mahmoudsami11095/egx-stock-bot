@@ -32,16 +32,34 @@ import { StockAnalysisResult, SignalType } from '../../core/models/stock.model';
             {{ apiService.activeBackend() === 'AZURE' ? '🟢 Azure VM (الرئيسي)' : '⚠️ Vercel (الاحتياطي)' }}
           </span>
 
+          <!-- Fast Refresh Button -->
+          <button (click)="apiService.loadMarketData(true, false)"
+                  [disabled]="apiService.loading()"
+                  title="تحديث الأسعار والقيم العادلة لحظياً في أقل من ثانية"
+                  class="bg-emerald-600 hover:bg-emerald-500 text-black font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 cursor-pointer">
+            <i [class]="apiService.loading() && !apiService.isDeepScanning() ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'"></i>
+            ⚡ تحديث سريع
+          </button>
+
+          <!-- Deep News Scan Button -->
+          <button (click)="apiService.loadDeepMarketData()"
+                  [disabled]="apiService.loading()"
+                  title="فحص عميق لعناوين الأخبار القوائم المالية المعلنة حديثاً"
+                  class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer">
+            <i [class]="apiService.isDeepScanning() ? 'pi pi-spin pi-spinner text-amber-400' : 'pi pi-search text-amber-400'"></i>
+            📰 فحص الأخبار (Deep Scan)
+          </button>
+
           <button (click)="handleUpdateOverrides()"
                   [disabled]="apiService.updatingOverrides()"
-                  class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 cursor-pointer">
+                  class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 cursor-pointer">
             <i [class]="apiService.updatingOverrides() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
-            {{ apiService.updatingOverrides() ? 'جاري تحديث البيانات...' : '🔄 تحديث earnings_overrides.json' }}
+            {{ apiService.updatingOverrides() ? 'جاري مزامنة الشيت...' : '🔄 مزامنة Google Sheet' }}
           </button>
           <a href="https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/edit?gid=0#gid=0"
              target="_blank" rel="noopener"
-             class="bg-emerald-600 hover:bg-emerald-500 text-black font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all">
-            <i class="pi pi-external-link"></i> فتح Google Sheet أونلاين
+             class="bg-darkCard hover:bg-darkBorder text-emerald-400 font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-emerald-500/30 transition-all">
+            <i class="pi pi-external-link"></i> Google Sheet
           </a>
         </div>
       </div>

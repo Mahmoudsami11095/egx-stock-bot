@@ -12,7 +12,7 @@ function fetchHttpsJson(url, options = {}) {
         'Accept': 'application/json, text/plain, */*',
         ...options.headers
       },
-      timeout: 8000
+      timeout: options.timeout || 8000
     }, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
@@ -154,8 +154,8 @@ async function fetchBackupProvider() {
 async function fetch1YearChartSeries(latestGoldUsd, latestUsdEgp) {
   try {
     const [goldHist, egpHist] = await Promise.all([
-      fetchHttpsJson('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=1y&interval=1d'),
-      fetchHttpsJson('https://query1.finance.yahoo.com/v8/finance/chart/USDEGP=X?range=1y&interval=1d')
+      fetchHttpsJson('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=1y&interval=1d', { timeout: 1500 }),
+      fetchHttpsJson('https://query1.finance.yahoo.com/v8/finance/chart/USDEGP=X?range=1y&interval=1d', { timeout: 1500 })
     ]);
 
     const goldTimestamps = goldHist?.chart?.result?.[0]?.timestamp || [];

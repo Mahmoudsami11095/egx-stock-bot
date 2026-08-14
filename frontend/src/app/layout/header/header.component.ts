@@ -41,8 +41,12 @@ import { StockApiService } from '../../core/services/stock-api.service';
             </div>
 
             <span>تحديث: <strong class="text-gray-200">{{ apiService.lastUpdated() | date:'shortTime' }}</strong></span>
-            <button (click)="apiService.loadMarketData()" class="hover:text-emeraldAccent transition-colors">
-              <i class="pi pi-refresh" [class.animate-spin]="apiService.loading()"></i>
+            <button (click)="apiService.loadMarketData(true, false)" title="تحديث سريع لحظي (Fast Refresh)" class="hover:text-emeraldAccent transition-colors cursor-pointer">
+              <i class="pi pi-refresh" [class.animate-spin]="apiService.loading() && !apiService.isDeepScanning()"></i>
+            </button>
+            <button (click)="apiService.loadDeepMarketData()" title="فحص عميق للأخبار والنتائج المالية المعلنة (Deep News Scan)" class="hover:text-amber-300 transition-colors flex items-center gap-1 text-[11px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-lg border border-amber-500/30 cursor-pointer">
+              <i [class]="apiService.isDeepScanning() ? 'pi pi-spin pi-spinner text-amber-400' : 'pi pi-search text-amber-400'"></i>
+              <span class="hidden sm:inline">فحص الأخبار</span>
             </button>
           </div>
         </div>
