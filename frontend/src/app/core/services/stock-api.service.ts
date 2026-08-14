@@ -103,22 +103,18 @@ export class StockApiService {
   private connectWebSocket(): void {
     if (typeof window === 'undefined') return;
 
-    // Vercel Serverless hosting does not support persistent WebSocket connections
-    if (window.location.hostname.includes('vercel.app')) {
-      return;
-    }
-
     if (this.wsRetryCount >= this.maxWsRetries) {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/live-stocks`;
+    // Connect via secure Cloudflare Tunnel endpoint directly to Azure VM WebSocket engine
+    const wsUrl = 'wss://local-stem-obviously-calcium.trycloudflare.com/ws/live-stocks';
 
     try {
       const ws = new WebSocket(wsUrl);
       ws.onopen = () => {
         this.wsRetryCount = 0;
+        console.log('⚡ Live WebSocket connected to Azure backend via Cloudflare Secure Tunnel!');
       };
       ws.onmessage = (event) => {
         try {
