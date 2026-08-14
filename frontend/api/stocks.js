@@ -1091,13 +1091,14 @@ async function mapWithConcurrency(items, concurrency, fn) {
 }
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Expose-Headers', 'X-Served-By, X-Data-Timestamp');
+  try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Served-By, X-Data-Timestamp');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
 
   const now = Date.now();
   if (LOCAL_STOCKS_CACHE && (now - LOCAL_STOCKS_CACHE_TIME < CACHE_TTL_MS)) {
@@ -1272,5 +1273,9 @@ module.exports = async (req, res) => {
       return res.status(200).json(LOCAL_STOCKS_CACHE);
     }
     return res.status(200).json([]);
+  }
+  } catch (fatalErr) {
+    console.error('Fatal Handler Error:', fatalErr);
+    return res.status(200).json({ error: fatalErr.message || String(fatalErr) });
   }
 };
