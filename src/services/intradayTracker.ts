@@ -62,6 +62,103 @@ export class IntradayTrackerService {
     this.saveTrades();
   }
 
+  public async checkTradeClosures(
+    updates: { symbol: string; price: number; high?: number; low?: number; nameAr?: string }[],
+    telegramBot: TelegramBotService
+  ): Promise<void> {
+    let updated = false;
+
+    for (const update of updates) {
+      const openTrade = this.getOpenTradeBySymbol(update.symbol);
+      if (!openTrade) continue;
+
+      const closed = await this.evaluateAndCloseTrade(
+        openTrade,
+        update.price,
+        update.high ?? update.price,
+        update.low ?? update.price,
+        telegramBot,
+        update.nameAr
+      );
+
+      if (closed) updated = true;
+    }
+
+    if (updated) {
+      this.saveTrades();
+    }
+  }
+
+  private async evaluateAndCloseTrade(
+    openTrade: IntradayTrade,
+    currentPrice: number,
+    high: number,
+    low: number,
+    telegramBot: TelegramBotService,
+    nameAr?: string
+  ): Promise<boolean> {
+    const symbol = openTrade.symbol;
+    const now = new Date().toISOString();
+    const highPrice = Math.max(currentPrice, high);
+    const lowPrice = Math.min(currentPrice, low);
+
+    let targetHit = highPrice >= openTrade.targetPrice;
+    let stopLossHit = lowPrice <= openTrade.stopLossPrice;
+
+    if (targetHit && stopLossHit) {
+      const distToTarget = Math.abs(openTrade.targetPrice - openTrade.entryPrice);
+      const distToStop = Math.abs(openTrade.entryPrice - openTrade.stopLossPrice);
+      if (distToStop <= distToTarget) {
+        targetHit = false;
+      } else {
+        stopLossHit = false;
+      }
+    }
+
+    if (!targetHit && !stopLossHit) return false;
+
+    openTrade.closePrice = currentPrice;
+    openTrade.closeTime = now;
+    openTrade.pnlPercentage = Number((((currentPrice - openTrade.entryPrice) / openTrade.entryPrice) * 100).toFixed(2));
+    const displayName = nameAr || symbol;
+
+    if (targetHit) {
+      openTrade.status = 'CLOSED_TARGET_HIT';
+      logger.info(`🎯 [Intraday] Target Hit for ${symbol}: High ${highPrice} >= Target ${openTrade.targetPrice}`);
+
+      const message = `
+🎯 <b>تم تحقيق الهدف اللحظي لـ ${symbol}!</b> 🟢
+
+💰 سهم: <b>${symbol}</b> (${displayName})
+💵 سعر الدخول: <code>${openTrade.entryPrice} ج.م</code>
+🚀 سعر الإغلاق: <code>${currentPrice} ج.م</code>
+🎯 الهدف المحقق: <code>${openTrade.targetPrice} ج.م</code>
+📉 وقف الخسارة: <code>${openTrade.stopLossPrice} ج.م</code>
+📊 نسبة الربح: <b>+${openTrade.pnlPercentage}%</b> 📈
+⏰ وقت التوصية: <i>${new Date(openTrade.entryTime).toLocaleString('ar-EG')}</i>
+`.trim();
+      await telegramBot.broadcastRawMessage(message);
+    } else {
+      openTrade.status = 'CLOSED_STOP_LOSS_HIT';
+      logger.info(`🚨 [Intraday] Stop Loss Hit for ${symbol}: Low ${lowPrice} <= Stop Loss ${openTrade.stopLossPrice}`);
+
+      const message = `
+🚨 <b>تم تفعيل وقف الخسارة اللحظي لـ ${symbol}!</b> 🔴
+
+📉 سهم: <b>${symbol}</b> (${displayName})
+💵 سعر الدخول: <code>${openTrade.entryPrice} ج.م</code>
+💔 سعر الإغلاق: <code>${currentPrice} ج.م</code>
+🎯 الهدف المفقود: <code>${openTrade.targetPrice} ج.م</code>
+📉 وقف الخسارة: <code>${openTrade.stopLossPrice} ج.م</code>
+📊 نسبة الخسارة: <b>${openTrade.pnlPercentage}%</b> 📉
+⏰ وقت التوصية: <i>${new Date(openTrade.entryTime).toLocaleString('ar-EG')}</i>
+`.trim();
+      await telegramBot.broadcastRawMessage(message);
+    }
+
+    return true;
+  }
+
   public async trackAndCheck(
     analyses: StockAnalysisResult[],
     telegramBot: TelegramBotService
@@ -72,56 +169,20 @@ export class IntradayTrackerService {
     for (const analysis of analyses) {
       const symbol = analysis.quote.symbol;
       const currentPrice = analysis.quote.currentPrice;
+      const dayHigh = analysis.quote.dayHigh || currentPrice;
+      const dayLow = analysis.quote.dayLow || currentPrice;
       const openTrade = this.getOpenTradeBySymbol(symbol);
 
       if (openTrade) {
-        // Track the current price against open trade levels
-        const targetHit = currentPrice >= openTrade.targetPrice;
-        const stopLossHit = currentPrice <= openTrade.stopLossPrice;
-
-        if (targetHit || stopLossHit) {
-          openTrade.closePrice = currentPrice;
-          openTrade.closeTime = now;
-          openTrade.pnlPercentage = Number((((currentPrice - openTrade.entryPrice) / openTrade.entryPrice) * 100).toFixed(2));
-          
-          if (targetHit) {
-            openTrade.status = 'CLOSED_TARGET_HIT';
-            updated = true;
-            logger.info(`🎯 [Intraday] Target Hit for ${symbol}: Price ${currentPrice} >= Target ${openTrade.targetPrice}`);
-
-            // Notify via Telegram
-            const message = `
-🎯 <b>تم تحقيق الهدف اللحظي لـ ${symbol}!</b> 🟢
-
-💰 سهم: <b>${symbol}</b> (${analysis.quote.nameAr || symbol})
-💵 سعر الدخول: <code>${openTrade.entryPrice} ج.م</code>
-🚀 سعر الإغلاق: <code>${currentPrice} ج.م</code>
-🎯 الهدف المحقق: <code>${openTrade.targetPrice} ج.م</code>
-📉 وقف الخسارة: <code>${openTrade.stopLossPrice} ج.م</code>
-📊 نسبة الربح: <b>+${openTrade.pnlPercentage}%</b> 📈
-⏰ وقت التوصية: <i>${new Date(openTrade.entryTime).toLocaleString('ar-EG')}</i>
-`.trim();
-            await telegramBot.broadcastRawMessage(message);
-          } else {
-            openTrade.status = 'CLOSED_STOP_LOSS_HIT';
-            updated = true;
-            logger.info(`🚨 [Intraday] Stop Loss Hit for ${symbol}: Price ${currentPrice} <= Stop Loss ${openTrade.stopLossPrice}`);
-
-            // Notify via Telegram
-            const message = `
-🚨 <b>تم تفعيل وقف الخسارة اللحظي لـ ${symbol}!</b> 🔴
-
-📉 سهم: <b>${symbol}</b> (${analysis.quote.nameAr || symbol})
-💵 سعر الدخول: <code>${openTrade.entryPrice} ج.م</code>
-💔 سعر الإغلاق: <code>${currentPrice} ج.م</code>
-🎯 الهدف المفقود: <code>${openTrade.targetPrice} ج.م</code>
-📉 وقف الخسارة: <code>${openTrade.stopLossPrice} ج.م</code>
-📊 نسبة الخسارة: <b>${openTrade.pnlPercentage}%</b> 📉
-⏰ وقت التوصية: <i>${new Date(openTrade.entryTime).toLocaleString('ar-EG')}</i>
-`.trim();
-            await telegramBot.broadcastRawMessage(message);
-          }
-        }
+        const closed = await this.evaluateAndCloseTrade(
+          openTrade,
+          currentPrice,
+          dayHigh,
+          dayLow,
+          telegramBot,
+          analysis.quote.nameAr
+        );
+        if (closed) updated = true;
       } else {
         // No open trade, check if we should create a new recommendation
         const signal = analysis.intradaySignal;
@@ -133,15 +194,15 @@ export class IntradayTrackerService {
         const tp3 = analysis.intradayTp3;
 
         if (signal === 'BUY' || signal === 'STRONG_BUY') {
-            logger.info(`[DEBUG IntradayTracker] Evaluating ${symbol}: Signal=${signal}, Entry=${entryPrice}, Target=${targetPrice}, StopLoss=${stopLossPrice}`);
+          logger.info(`[DEBUG IntradayTracker] Evaluating ${symbol}: Signal=${signal}, Entry=${entryPrice}, Target=${targetPrice}, StopLoss=${stopLossPrice}`);
         }
 
         if ((signal === 'BUY' || signal === 'STRONG_BUY') && targetPrice && stopLossPrice) {
-          // Check for cooldown to avoid immediate reopening of recently closed trades for the same ticker
+          // Check for cooldown to avoid immediate reopening of recently closed trades for the same ticker (30 min)
           const recentClosedTrades = this.trades.filter(
             (t) => t.symbol.toUpperCase() === symbol.toUpperCase() && 
                    t.status !== 'OPEN' && 
-                   (Date.now() - new Date(t.closeTime || '').getTime() < 4 * 60 * 60 * 1000) // 4 hours cooldown
+                   (Date.now() - new Date(t.closeTime || '').getTime() < 30 * 60 * 1000) // 30 minutes cooldown
           );
 
           if (recentClosedTrades.length === 0) {
