@@ -1275,6 +1275,11 @@ module.exports = async (req, res) => {
     return res.status(200).json(processed);
   } catch (err) {
     console.error('Error fetching EGX stocks:', err);
-    return res.status(500).json({ error: 'Failed to fetch EGX stocks' });
+    if (LOCAL_STOCKS_CACHE && LOCAL_STOCKS_CACHE.length > 0) {
+      res.setHeader('X-Served-By', 'Vercel-MemoryCache-Fallback');
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+      return res.status(200).json(LOCAL_STOCKS_CACHE);
+    }
+    return res.status(200).json([]);
   }
 };
