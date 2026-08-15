@@ -109,14 +109,18 @@ function fetchEgxBeta() {
         'Accept': 'application/json, text/plain, */*',
         'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
       },
-      timeout: 3500
+      timeout: 2500
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
         try {
-          const json = JSON.parse(body);
-          resolve(json.data?.data || json.data || []);
+          if (body.includes('Request Rejected')) {
+            resolve([]);
+          } else {
+            const json = JSON.parse(body);
+            resolve(json.data?.data || json.data || []);
+          }
         } catch (e) {
           resolve([]);
         }
@@ -209,11 +213,11 @@ module.exports = async (req, res) => {
 
       const tvPrice = tvInfo ? tvInfo.price : basePrice;
       const mubPrice = mubInfo ? mubInfo.price : basePrice;
-      const egxPrice = egxInfo ? egxInfo.price : basePrice;
+      const egxPrice = (egxInfo && egxInfo.price > 0) ? egxInfo.price : mubPrice;
       const invPrice = tvPrice;
       const yahPrice = mubPrice;
 
-      const priceList = [tvPrice, mubPrice, egxPrice, invPrice, yahPrice].filter(p => p > 0);
+      const priceList = [egxPrice, tvPrice, mubPrice, invPrice, yahPrice].filter(p => p > 0);
       const sumPrices = priceList.reduce((a, b) => a + b, 0);
       const avgPrice = Number((sumPrices / priceList.length).toFixed(2));
 
@@ -228,7 +232,7 @@ module.exports = async (req, res) => {
 
       const tvVol = tvInfo ? tvInfo.volume : 0;
       const mubVol = mubInfo ? mubInfo.volume : 0;
-      const egxVol = egxInfo ? egxInfo.volume : 0;
+      const egxVol = egxInfo ? egxInfo.volume : mubVol;
       const maxVol = Math.max(tvVol, mubVol, egxVol);
       const highestVolSource = maxVol === egxVol && egxVol > 0 ? 'egx' : (tvVol >= mubVol ? 'tradingview' : 'mubasher');
 
@@ -251,11 +255,11 @@ module.exports = async (req, res) => {
         sources: {
           egx: {
             price: egxPrice,
-            change: egxInfo ? egxInfo.change : (tvInfo ? tvInfo.change : 0),
-            changePercent: egxInfo ? egxInfo.changePercent : (tvInfo ? tvInfo.changePercent : 0),
+            change: egxInfo ? egxInfo.change : (mubInfo ? mubInfo.change : (tvInfo ? tvInfo.change : 0)),
+            changePercent: egxInfo ? egxInfo.changePercent : (mubInfo ? mubInfo.changePercent : (tvInfo ? tvInfo.changePercent : 0)),
             volume: egxVol,
-            dayHigh: egxInfo ? egxInfo.dayHigh : basePrice,
-            dayLow: egxInfo ? egxInfo.dayLow : basePrice
+            dayHigh: egxInfo ? egxInfo.dayHigh : (mubInfo ? mubInfo.dayHigh : basePrice),
+            dayLow: egxInfo ? egxInfo.dayLow : (mubInfo ? mubInfo.dayLow : basePrice)
           },
           tradingview: {
             price: tvPrice,
@@ -297,7 +301,7 @@ module.exports = async (req, res) => {
     results.sort((a, b) => b.maxVolume - a.maxVolume);
 
     res.setHeader('X-Served-By', 'Vercel-Standalone-PriceCompare');
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
+    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=10');
     return res.status(200).json(results);
   } catch (err) {
     console.error('Error in price-compare serverless API:', err);

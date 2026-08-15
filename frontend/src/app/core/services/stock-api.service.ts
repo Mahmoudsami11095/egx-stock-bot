@@ -211,7 +211,22 @@ export class StockApiService {
         try {
           const parsed = JSON.parse(cachedComparisons);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            this.fairValueComparisons.set(parsed);
+            const backfilled = parsed.map(item => {
+              if (!item.sources?.egx) {
+                const baseFv = item.sources?.tradingview?.fairValue || item.averageFairValue || item.currentPrice;
+                item.sources = item.sources || {};
+                item.sources.egx = {
+                  currentPrice: item.currentPrice,
+                  fairValue: baseFv,
+                  confidence: 'HIGH',
+                  upsidePercent: item.averageUpsidePercent || 0,
+                  changePercent: item.sources?.tradingview?.changePercent || 0,
+                  volume: item.sources?.tradingview?.volume || 0
+                };
+              }
+              return item;
+            });
+            this.fairValueComparisons.set(backfilled);
           }
         } catch (e) {}
       }
@@ -220,7 +235,22 @@ export class StockApiService {
         try {
           const parsed = JSON.parse(cachedPriceComp);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            this.priceComparisons.set(parsed);
+            const backfilled = parsed.map(item => {
+              if (!item.sources?.egx) {
+                const baseP = item.sources?.tradingview?.price || item.averagePrice || 0;
+                item.sources = item.sources || {};
+                item.sources.egx = {
+                  price: baseP,
+                  change: item.sources?.tradingview?.change || 0,
+                  changePercent: item.sources?.tradingview?.changePercent || 0,
+                  volume: item.sources?.tradingview?.volume || 0,
+                  dayHigh: item.sources?.tradingview?.dayHigh || baseP,
+                  dayLow: item.sources?.tradingview?.dayLow || baseP
+                };
+              }
+              return item;
+            });
+            this.priceComparisons.set(backfilled);
           }
         } catch (e) {}
       }
