@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade, FairValueComparisonResult } from '../models/stock.model';
+import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade, FairValueComparisonResult, PriceComparisonResult } from '../models/stock.model';
 
 const STORAGE_KEY = 'egx_stocks_live_cache_v5';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp_v5';
@@ -87,6 +87,9 @@ export class StockApiService {
   public fairValueComparisons = signal<FairValueComparisonResult[]>([]);
   public comparisonLoading = signal<boolean>(false);
   public comparisonLastUpdated = signal<Date | null>(null);
+  public priceComparisons = signal<PriceComparisonResult[]>([]);
+  public priceComparisonLoading = signal<boolean>(false);
+  public priceComparisonLastUpdated = signal<Date | null>(null);
   public activeBackend = signal<'AZURE' | 'VERCEL_FALLBACK'>('AZURE');
   public serverFallbackNotice = signal<string | null>(null);
 
@@ -209,6 +212,15 @@ export class StockApiService {
           const parsed = JSON.parse(cachedComparisons);
           if (Array.isArray(parsed) && parsed.length > 0) {
             this.fairValueComparisons.set(parsed);
+          }
+        } catch (e) {}
+      }
+      const cachedPriceComp = localStorage.getItem('egx_price_comparisons_cache');
+      if (cachedPriceComp) {
+        try {
+          const parsed = JSON.parse(cachedPriceComp);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.priceComparisons.set(parsed);
           }
         } catch (e) {}
       }
@@ -521,6 +533,91 @@ export class StockApiService {
       } catch (e) {}
     } finally {
       this.comparisonLoading.set(false);
+    }
+  }
+
+  public async loadPriceComparisons(force: boolean = false): Promise<void> {
+    this.priceComparisonLoading.set(true);
+    try {
+      const res = await this.http.get<PriceComparisonResult[]>('/api/price-compare').toPromise();
+      if (res && Array.isArray(res) && res.length > 0) {
+        const sorted = [...res].sort((a, b) => b.maxVolume - a.maxVolume);
+        this.priceComparisons.set(sorted);
+        this.priceComparisonLastUpdated.set(new Date());
+        try {
+          localStorage.setItem('egx_price_comparisons_cache', JSON.stringify(sorted));
+        } catch (e) {}
+      } else {
+        const currentStocks = this.stocks();
+        if (currentStocks && currentStocks.length > 0) {
+          const fallbackData: PriceComparisonResult[] = currentStocks.map(s => {
+            const p = s.quote.currentPrice;
+            const change = s.quote.change;
+            const changePct = s.quote.changePercent;
+            const vol = s.quote.volume;
+            const high = s.quote.dayHigh;
+            const low = s.quote.dayLow;
+
+            return {
+              symbol: s.quote.symbol,
+              nameEn: s.quote.nameEn,
+              nameAr: s.quote.nameAr,
+              sector: s.quote.sector || 'General',
+              isHalal: s.isHalal,
+              shariaTier: s.shariaTier,
+              averagePrice: p,
+              medianPrice: p,
+              minPrice: p,
+              maxPrice: p,
+              priceSpreadPercent: 0,
+              alignmentStatus: 'SYNCED',
+              highestVolumeSource: 'tradingview',
+              maxVolume: vol,
+              sources: {
+                tradingview: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
+                mubasher: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
+                investing: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
+                yahoo: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low }
+              }
+            };
+          });
+          this.priceComparisons.set(fallbackData.sort((a, b) => b.maxVolume - a.maxVolume));
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching price comparisons:', err);
+      try {
+        const cached = localStorage.getItem('egx_price_comparisons_cache');
+        if (cached) {
+          this.priceComparisons.set(JSON.parse(cached));
+        } else if (this.stocks().length > 0) {
+          const fallbackData: PriceComparisonResult[] = this.stocks().map(s => ({
+            symbol: s.quote.symbol,
+            nameEn: s.quote.nameEn,
+            nameAr: s.quote.nameAr,
+            sector: s.quote.sector || 'General',
+            isHalal: s.isHalal,
+            shariaTier: s.shariaTier,
+            averagePrice: s.quote.currentPrice,
+            medianPrice: s.quote.currentPrice,
+            minPrice: s.quote.currentPrice,
+            maxPrice: s.quote.currentPrice,
+            priceSpreadPercent: 0,
+            alignmentStatus: 'SYNCED',
+            highestVolumeSource: 'tradingview',
+            maxVolume: s.quote.volume,
+            sources: {
+              tradingview: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow },
+              mubasher: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow },
+              investing: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow },
+              yahoo: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow }
+            }
+          }));
+          this.priceComparisons.set(fallbackData.sort((a, b) => b.maxVolume - a.maxVolume));
+        }
+      } catch (e) {}
+    } finally {
+      this.priceComparisonLoading.set(false);
     }
   }
 }

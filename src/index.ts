@@ -14,6 +14,7 @@ import { IntradayTrackerService } from './services/intradayTracker';
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { EgxLiveScraperService } from './services/egxLiveScraperService';
+import { DataSource } from './types/stock';
 
 async function bootstrap() {
   logger.info('=====================================================');
@@ -268,6 +269,103 @@ async function bootstrap() {
       res.json(finalResults);
     } catch (err: any) {
       logger.error(`Error in /api/fair-value-compare: ${err}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/price-compare', async (req, res) => {
+    try {
+      const watchlist = stateManager.getWatchlist();
+      const sources: DataSource[] = ['tradingview', 'mubasher', 'investing', 'yahoo'];
+
+      const fetchTasks = sources.map(async (source) => {
+        try {
+          const results = await dataFetcher.getBatchQuoteAndIndicators(watchlist, source);
+          return { source, results, success: true };
+        } catch (err: any) {
+          logger.warn(`Source [${source}] failed during price-compare: ${err?.message || err}`);
+          return { source, results: [], success: false };
+        }
+      });
+
+      const sourceOutputs = await Promise.all(fetchTasks);
+      const comparisonMap = new Map<string, any>();
+
+      for (const stock of watchlist) {
+        const shariaInfo = shariaService.getShariaInfo(stock.symbol);
+        comparisonMap.set(stock.symbol, {
+          symbol: stock.symbol,
+          nameEn: stock.nameEn,
+          nameAr: stock.nameAr,
+          sector: stock.sector,
+          yahooSymbol: stock.yahooSymbol,
+          isHalal: shariaInfo.isHalal,
+          shariaTier: shariaInfo.tier,
+          sources: {} as Record<string, any>,
+          prices: [] as number[],
+          averagePrice: 0,
+          medianPrice: 0,
+          minPrice: 0,
+          maxPrice: 0,
+          priceSpreadPercent: 0,
+          alignmentStatus: 'SYNCED',
+          highestVolumeSource: 'tradingview',
+          maxVolume: 0
+        });
+      }
+
+      for (const { source, results } of sourceOutputs) {
+        for (const item of results) {
+          const entry = comparisonMap.get(item.stock.symbol);
+          if (!entry) continue;
+
+          const p = item.quote.currentPrice;
+          const vol = item.quote.volume || 0;
+
+          entry.sources[source] = {
+            price: p,
+            change: item.quote.change || 0,
+            changePercent: item.quote.changePercent || 0,
+            volume: vol,
+            dayHigh: item.quote.dayHigh || p,
+            dayLow: item.quote.dayLow || p
+          };
+
+          if (p > 0) {
+            entry.prices.push(p);
+          }
+          if (vol > entry.maxVolume) {
+            entry.maxVolume = vol;
+            entry.highestVolumeSource = source;
+          }
+        }
+      }
+
+      const finalResults = Array.from(comparisonMap.values()).map((item) => {
+        const vals: number[] = item.prices;
+        if (vals.length > 0) {
+          const sum = vals.reduce((a, b) => a + b, 0);
+          const avg = Number((sum / vals.length).toFixed(2));
+          item.averagePrice = avg;
+
+          const sorted = [...vals].sort((a, b) => a - b);
+          const mid = Math.floor(sorted.length / 2);
+          item.medianPrice = sorted.length % 2 !== 0 ? sorted[mid] : Number(((sorted[mid - 1] + sorted[mid]) / 2).toFixed(2));
+          item.minPrice = sorted[0];
+          item.maxPrice = sorted[sorted.length - 1];
+
+          item.priceSpreadPercent = avg > 0 ? Number((((item.maxPrice - item.minPrice) / avg) * 100).toFixed(2)) : 0;
+          if (item.priceSpreadPercent > 1.5) item.alignmentStatus = 'DIVERGENT';
+          else if (item.priceSpreadPercent > 0.5) item.alignmentStatus = 'MINOR_LAG';
+          else item.alignmentStatus = 'SYNCED';
+        }
+        return item;
+      });
+
+      finalResults.sort((a, b) => b.maxVolume - a.maxVolume);
+      res.json(finalResults);
+    } catch (err: any) {
+      logger.error(`Error in /api/price-compare: ${err}`);
       res.status(500).json({ error: err.message });
     }
   });

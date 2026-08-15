@@ -184,3 +184,34 @@ export interface FairValueComparisonResult {
   consensusStatus: ConsensusStatus;
   highestDiscrepancySource: string | null;
 }
+
+export interface SourcePriceData {
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  dayHigh?: number;
+  dayLow?: number;
+  open?: number;
+}
+
+export type PriceAlignmentStatus = 'SYNCED' | 'MINOR_LAG' | 'DIVERGENT';
+
+export interface PriceComparisonResult {
+  symbol: string;
+  nameEn: string;
+  nameAr: string;
+  sector: string;
+  yahooSymbol?: string;
+  isHalal?: boolean;
+  shariaTier?: ShariaTier;
+  sources: Record<string, SourcePriceData>;
+  averagePrice: number;
+  medianPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  priceSpreadPercent: number;
+  alignmentStatus: PriceAlignmentStatus;
+  highestVolumeSource: string;
+  maxVolume: number;
+}

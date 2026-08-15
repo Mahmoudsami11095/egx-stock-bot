@@ -116,8 +116,12 @@ import { StockApiService } from '../../core/services/stock-api.service';
             ⚜️ أسعار الذهب
           </a>
           <a routerLink="/fair-value-compare" routerLinkActive="bg-purple-600 text-white font-bold"
-             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+             class="px-2.5 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white whitespace-nowrap">
             ⚖️ مقارنة القيم العادلة
+          </a>
+          <a routerLink="/price-compare" routerLinkActive="bg-teal-600 text-white font-bold"
+             class="px-2.5 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white whitespace-nowrap">
+            🏷️ مقارنة الأسعار اللحظية
           </a>
         </nav>
 
@@ -164,6 +168,10 @@ import { StockApiService } from '../../core/services/stock-api.service';
         <a routerLink="/fair-value-compare" (click)="mobileMenuOpen = false" routerLinkActive="bg-purple-600 text-white font-bold"
            class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
           ⚖️ مقارنة القيم العادلة
+        </a>
+        <a routerLink="/price-compare" (click)="mobileMenuOpen = false" routerLinkActive="bg-teal-600 text-white font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          🏷️ مقارنة الأسعار اللحظية
         </a>
       </div>
     </header>

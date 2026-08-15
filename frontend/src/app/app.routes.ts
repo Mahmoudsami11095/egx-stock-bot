@@ -26,6 +26,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/fair-price-comparator/fair-price-comparator.component').then(m => m.FairPriceComparatorComponent)
   },
   {
+    path: 'price-compare',
+    loadComponent: () => import('./features/price-comparator/price-comparator.component').then(m => m.PriceComparatorComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }
