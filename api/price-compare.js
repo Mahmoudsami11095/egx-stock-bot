@@ -54,29 +54,67 @@ const SECTOR_PE = {
   'General': 9.0
 };
 
-function computeStandaloneFV(price, eps, sector) {
-  if (!price || price <= 0) return 0;
-  const peMultiplier = SECTOR_PE[sector] || 9.0;
-  const macroDiscount = 0.82;
-  let fv = price;
-
-  if (eps && eps > 0) {
-    const rawFv = eps * peMultiplier * macroDiscount;
-    fv = Math.min(Math.max(rawFv, price * 0.75), price * 2.00);
-  } else {
-    fv = Number((price * 1.05).toFixed(2));
-  }
-  return Number(fv.toFixed(2));
+// 1. Benjamin Graham Model: sqrt(22.5 * EPS * BVPS)
+function computeGrahamFV(eps, bvps, price) {
+  if (typeof eps !== 'number' || eps <= 0) return undefined;
+  const effectiveBvps = (typeof bvps === 'number' && bvps > 0) ? bvps : (price > 0 ? price * 0.7 : undefined);
+  if (!effectiveBvps) return undefined;
+  const raw = Math.sqrt(22.5 * eps * effectiveBvps);
+  if (isNaN(raw) || raw <= 0) return undefined;
+  return Number(raw.toFixed(2));
 }
 
-// 1. Direct Fetch: TradingView Scanner
+// 2. Sector P/E Model: EPS * Sector_PE * Macro_Discount
+function computeSectorPeFV(eps, sector, price) {
+  if (typeof eps !== 'number' || eps <= 0) return undefined;
+  const peMultiplier = SECTOR_PE[sector] || 9.0;
+  const macroDiscount = 0.82; // 18% CBE discount
+  const raw = eps * peMultiplier * macroDiscount;
+  if (isNaN(raw) || raw <= 0) return undefined;
+  return Number(raw.toFixed(2));
+}
+
+// 3. Peter Lynch Model: EPS * (Growth + Dividend Yield)
+function computeLynchFV(eps, dy, price) {
+  if (typeof eps !== 'number' || eps <= 0) return undefined;
+  const dividendYield = (typeof dy === 'number' && dy > 0) ? dy : 0;
+  const multiplier = Math.min(10.0 + dividendYield, 25.0);
+  const raw = eps * multiplier;
+  if (isNaN(raw) || raw <= 0) return undefined;
+  return Number(raw.toFixed(2));
+}
+
+// 4. P/B & ROE Model: BVPS * (ROE / Cost_of_Equity)
+function computePbRoeFV(bvps, roe, price) {
+  const effectiveBvps = (typeof bvps === 'number' && bvps > 0) ? bvps : (price > 0 ? price * 0.7 : undefined);
+  if (!effectiveBvps) return undefined;
+  const effectiveRoe = (typeof roe === 'number' && roe > 0) ? roe : 15.0;
+  const costOfEquity = 20.0; // Benchmark 20% required return in Egypt
+  const justifiedPb = Math.min(Math.max(effectiveRoe / costOfEquity, 0.6), 3.5);
+  const raw = effectiveBvps * justifiedPb;
+  if (isNaN(raw) || raw <= 0) return undefined;
+  return Number(raw.toFixed(2));
+}
+
+// 5. Consensus Multi-Model Weighted Average
+function computeConsensusFV(grahamFv, peFv, lynchFv, pbFv, price) {
+  const validModels = [grahamFv, peFv, lynchFv, pbFv].filter(v => typeof v === 'number' && v > 0);
+  if (validModels.length > 0) {
+    const sum = validModels.reduce((a, b) => a + b, 0);
+    return Number((sum / validModels.length).toFixed(2));
+  }
+  return price > 0 ? Number((price * 1.05).toFixed(2)) : undefined;
+}
+
+// Fetch TradingView with rich fundamental metrics
 function fetchTradingView() {
   return new Promise((resolve) => {
     const postData = JSON.stringify({
       symbols: { tickers: [] },
       columns: [
         'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector',
-        'earnings_per_share_basic_ttm', 'price_earnings_ttm'
+        'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_book_ratio', 'book_value_per_share',
+        'dividend_yield_recent', 'return_on_equity'
       ]
     });
 
@@ -112,7 +150,7 @@ function fetchTradingView() {
   });
 }
 
-// 2. Direct Fetch: Mubasher EGX API
+// Fetch Mubasher EGX API
 function fetchMubasher() {
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/stocks/prices?country=eg', {
@@ -139,7 +177,7 @@ function fetchMubasher() {
   });
 }
 
-// 3. Direct Fetch: EGX Beta Market Watch
+// Fetch EGX Beta Market Watch
 function fetchEgxBeta() {
   return new Promise((resolve) => {
     const req = https.get('https://beta.egx.com.eg/api/market/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
@@ -189,12 +227,16 @@ module.exports = async (req, res) => {
 
     const allSymbolsMap = new Map();
 
-    // Map 1: TradingView Data (Strict - only if returned by TradingView)
+    // Map 1: TradingView Data (Strict)
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
       const sym = item.s.replace('EGX:', '').toUpperCase();
-      const [name, desc, close, changePercent, changeAbs, volume, high, low, open, sector, eps, pe] = item.d;
+      const [
+        name, desc, close, changePercent, changeAbs, volume, high, low, open, sector,
+        eps, pe, pb, bvps, dy, roe
+      ] = item.d;
+
       if (typeof close === 'number' && close > 0) {
         tvMap.set(sym, {
           price: Number(close.toFixed(2)),
@@ -206,6 +248,10 @@ module.exports = async (req, res) => {
           open: Number((open || close).toFixed(2)),
           eps: (typeof eps === 'number' && !isNaN(eps)) ? Number(eps.toFixed(2)) : undefined,
           pe: (typeof pe === 'number' && !isNaN(pe) && pe > 0) ? Number(pe.toFixed(2)) : undefined,
+          pb: (typeof pb === 'number' && !isNaN(pb) && pb > 0) ? Number(pb.toFixed(2)) : undefined,
+          bvps: (typeof bvps === 'number' && !isNaN(bvps) && bvps > 0) ? Number(bvps.toFixed(2)) : (pb && pb > 0 ? Number((close / pb).toFixed(2)) : undefined),
+          dy: (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : undefined,
+          roe: (typeof roe === 'number' && !isNaN(roe)) ? Number(roe.toFixed(2)) : undefined,
           nameEn: desc || name || sym,
           sector: sector || 'General'
         });
@@ -221,7 +267,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Map 2: Mubasher Data (Strict - only if returned by Mubasher)
+    // Map 2: Mubasher Data (Strict)
     const mubMap = new Map();
     for (const item of mubData) {
       const code = (item.code || item.symbol || '').toUpperCase();
@@ -258,7 +304,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Map 3: EGX Beta Data (Strict - only if returned by EGX Beta)
+    // Map 3: EGX Beta Data (Strict)
     const egxMap = new Map();
     for (const item of egxData) {
       const code = (item.reuters || item.isin || item.symbol || item.code || '').replace('.CA', '').toUpperCase();
@@ -306,18 +352,24 @@ module.exports = async (req, res) => {
       const mubInfo = mubMap.get(sym);
       const egxInfo = egxMap.get(sym);
 
-      // Build strictly genuine sources object with ZERO fallbacks
       const sources = {};
       const validPrices = [];
-      const validFairValues = [];
+      const validConsensusFv = [];
+      const validGrahamFv = [];
+      const validPeFv = [];
+      const validLynchFv = [];
+      const validPbFv = [];
       const validUpsides = [];
-      const validPeRatios = [];
-      const validEps = [];
 
-      // 1. EGX Source (Only if EGX returned data)
+      // 1. EGX Source (Strict)
       if (egxInfo) {
-        const fv = computeStandaloneFV(egxInfo.price, tvInfo?.eps, sector);
-        const upside = egxInfo.price > 0 ? Number((((fv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
+        const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, egxInfo.price);
+        const peFv = computeSectorPeFV(tvInfo?.eps, sector, egxInfo.price);
+        const lynch = computeLynchFV(tvInfo?.eps, tvInfo?.dy, egxInfo.price);
+        const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, egxInfo.price);
+        const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, egxInfo.price);
+        const upside = (consensusFv && egxInfo.price > 0) ? Number((((consensusFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
+
         sources.egx = {
           price: egxInfo.price,
           change: egxInfo.change,
@@ -325,20 +377,37 @@ module.exports = async (req, res) => {
           volume: egxInfo.volume,
           dayHigh: egxInfo.dayHigh,
           dayLow: egxInfo.dayLow,
-          fairValue: fv,
+          fairValue: consensusFv,
+          fairValueGraham: graham,
+          fairValuePE: peFv,
+          fairValueLynch: lynch,
+          fairValuePB: pbFv,
           upsidePercent: upside,
           peRatio: tvInfo?.pe,
-          eps: tvInfo?.eps
+          eps: tvInfo?.eps,
+          pbRatio: tvInfo?.pb,
+          bvps: tvInfo?.bvps,
+          roe: tvInfo?.roe,
+          dividendYield: tvInfo?.dy
         };
         validPrices.push(egxInfo.price);
-        validFairValues.push(fv);
+        if (consensusFv) validConsensusFv.push(consensusFv);
+        if (graham) validGrahamFv.push(graham);
+        if (peFv) validPeFv.push(peFv);
+        if (lynch) validLynchFv.push(lynch);
+        if (pbFv) validPbFv.push(pbFv);
         validUpsides.push(upside);
       }
 
-      // 2. TradingView Source (Only if TradingView returned data)
+      // 2. TradingView Source (Strict)
       if (tvInfo) {
-        const fv = computeStandaloneFV(tvInfo.price, tvInfo.eps, sector);
-        const upside = tvInfo.price > 0 ? Number((((fv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
+        const graham = computeGrahamFV(tvInfo.eps, tvInfo.bvps, tvInfo.price);
+        const peFv = computeSectorPeFV(tvInfo.eps, sector, tvInfo.price);
+        const lynch = computeLynchFV(tvInfo.eps, tvInfo.dy, tvInfo.price);
+        const pbFv = computePbRoeFV(tvInfo.bvps, tvInfo.roe, tvInfo.price);
+        const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, tvInfo.price);
+        const upside = (consensusFv && tvInfo.price > 0) ? Number((((consensusFv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
+
         sources.tradingview = {
           price: tvInfo.price,
           change: tvInfo.change,
@@ -346,22 +415,37 @@ module.exports = async (req, res) => {
           volume: tvInfo.volume,
           dayHigh: tvInfo.dayHigh,
           dayLow: tvInfo.dayLow,
-          fairValue: fv,
+          fairValue: consensusFv,
+          fairValueGraham: graham,
+          fairValuePE: peFv,
+          fairValueLynch: lynch,
+          fairValuePB: pbFv,
           upsidePercent: upside,
           peRatio: tvInfo.pe,
-          eps: tvInfo.eps
+          eps: tvInfo.eps,
+          pbRatio: tvInfo.pb,
+          bvps: tvInfo.bvps,
+          roe: tvInfo.roe,
+          dividendYield: tvInfo.dy
         };
         validPrices.push(tvInfo.price);
-        validFairValues.push(fv);
+        if (consensusFv) validConsensusFv.push(consensusFv);
+        if (graham) validGrahamFv.push(graham);
+        if (peFv) validPeFv.push(peFv);
+        if (lynch) validLynchFv.push(lynch);
+        if (pbFv) validPbFv.push(pbFv);
         validUpsides.push(upside);
-        if (tvInfo.pe) validPeRatios.push(tvInfo.pe);
-        if (tvInfo.eps) validEps.push(tvInfo.eps);
       }
 
-      // 3. Mubasher Source (Only if Mubasher returned data)
+      // 3. Mubasher Source (Strict)
       if (mubInfo) {
-        const fv = computeStandaloneFV(mubInfo.price, tvInfo?.eps, sector);
-        const upside = mubInfo.price > 0 ? Number((((fv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
+        const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, mubInfo.price);
+        const peFv = computeSectorPeFV(tvInfo?.eps, sector, mubInfo.price);
+        const lynch = computeLynchFV(tvInfo?.eps, tvInfo?.dy, mubInfo.price);
+        const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, mubInfo.price);
+        const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, mubInfo.price);
+        const upside = (consensusFv && mubInfo.price > 0) ? Number((((consensusFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
+
         sources.mubasher = {
           price: mubInfo.price,
           change: mubInfo.change,
@@ -369,28 +453,31 @@ module.exports = async (req, res) => {
           volume: mubInfo.volume,
           dayHigh: mubInfo.dayHigh,
           dayLow: mubInfo.dayLow,
-          fairValue: fv,
+          fairValue: consensusFv,
+          fairValueGraham: graham,
+          fairValuePE: peFv,
+          fairValueLynch: lynch,
+          fairValuePB: pbFv,
           upsidePercent: upside,
           peRatio: tvInfo?.pe,
-          eps: tvInfo?.eps
+          eps: tvInfo?.eps,
+          pbRatio: tvInfo?.pb,
+          bvps: tvInfo?.bvps,
+          roe: tvInfo?.roe,
+          dividendYield: tvInfo?.dy
         };
         validPrices.push(mubInfo.price);
-        validFairValues.push(fv);
+        if (consensusFv) validConsensusFv.push(consensusFv);
+        if (graham) validGrahamFv.push(graham);
+        if (peFv) validPeFv.push(peFv);
+        if (lynch) validLynchFv.push(lynch);
+        if (pbFv) validPbFv.push(pbFv);
         validUpsides.push(upside);
       }
-
-      // 4. Investing.com (Strict: only if genuine independent data exists)
-      // Since no separate direct Investing feed is connected in this request, do not synthesize mock data
-      // sources.investing remains undefined
-
-      // 5. Yahoo Finance (Strict: only if genuine independent data exists)
-      // Since no separate direct Yahoo feed is connected in this request, do not synthesize mock data
-      // sources.yahoo remains undefined
 
       // If no valid source returned price for this stock, skip
       if (validPrices.length === 0) continue;
 
-      // Compute Consensus and Spread STRICTLY across only genuine responding sources
       const sumPrices = validPrices.reduce((a, b) => a + b, 0);
       const avgPrice = Number((sumPrices / validPrices.length).toFixed(2));
 
@@ -413,10 +500,12 @@ module.exports = async (req, res) => {
       if (sources.egx && sources.egx.volume === maxVol && maxVol > 0) highestVolSource = 'egx';
       else if (sources.mubasher && sources.mubasher.volume === maxVol && maxVol > 0) highestVolSource = 'mubasher';
 
-      const avgFv = validFairValues.length > 0 ? Number((validFairValues.reduce((a, b) => a + b, 0) / validFairValues.length).toFixed(2)) : avgPrice;
+      const avgConsensusFv = validConsensusFv.length > 0 ? Number((validConsensusFv.reduce((a, b) => a + b, 0) / validConsensusFv.length).toFixed(2)) : avgPrice;
+      const avgGrahamFv = validGrahamFv.length > 0 ? Number((validGrahamFv.reduce((a, b) => a + b, 0) / validGrahamFv.length).toFixed(2)) : undefined;
+      const avgPeFv = validPeFv.length > 0 ? Number((validPeFv.reduce((a, b) => a + b, 0) / validPeFv.length).toFixed(2)) : undefined;
+      const avgLynchFv = validLynchFv.length > 0 ? Number((validLynchFv.reduce((a, b) => a + b, 0) / validLynchFv.length).toFixed(2)) : undefined;
+      const avgPbFv = validPbFv.length > 0 ? Number((validPbFv.reduce((a, b) => a + b, 0) / validPbFv.length).toFixed(2)) : undefined;
       const avgUpside = validUpsides.length > 0 ? Number((validUpsides.reduce((a, b) => a + b, 0) / validUpsides.length).toFixed(2)) : 0;
-      const avgPe = validPeRatios.length > 0 ? Number((validPeRatios.reduce((a, b) => a + b, 0) / validPeRatios.length).toFixed(2)) : undefined;
-      const avgEps = validEps.length > 0 ? Number((validEps.reduce((a, b) => a + b, 0) / validEps.length).toFixed(2)) : undefined;
 
       results.push({
         symbol: sym,
@@ -434,10 +523,14 @@ module.exports = async (req, res) => {
         alignmentStatus,
         highestVolumeSource: highestVolSource,
         maxVolume: maxVol,
-        averageFairValue: avgFv,
+        averageFairValue: avgConsensusFv,
+        averageFairValueGraham: avgGrahamFv,
+        averageFairValuePE: avgPeFv,
+        averageFairValueLynch: avgLynchFv,
+        averageFairValuePB: avgPbFv,
         averageUpsidePercent: avgUpside,
-        averagePeRatio: avgPe,
-        averageEps: avgEps,
+        averagePeRatio: tvInfo?.pe,
+        averageEps: tvInfo?.eps,
         sources
       });
     }
@@ -445,11 +538,11 @@ module.exports = async (req, res) => {
     // Sort by maxVolume descending by default
     results.sort((a, b) => b.maxVolume - a.maxVolume);
 
-    res.setHeader('X-Served-By', 'Vercel-ZeroFallback-UniversalPriceCompare');
+    res.setHeader('X-Served-By', 'Vercel-MultiModel-FairValuePriceCompare');
     res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=10');
     return res.status(200).json(results);
   } catch (err) {
-    console.error('Error in zero-fallback price-compare API:', err);
+    console.error('Error in multi-model price-compare API:', err);
     return res.status(500).json({ error: err.message });
   }
 };

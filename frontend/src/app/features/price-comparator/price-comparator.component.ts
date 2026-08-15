@@ -11,9 +11,10 @@ export interface MetricDefinition {
   id: ComparatorMetricType;
   label: string;
   shortLabel: string;
+  category: 'MARKET' | 'FAIR_VALUE' | 'FUNDAMENTALS';
   icon: string;
   unit: string;
-  description: string;
+  formulaDescription: string;
 }
 
 @Component({
@@ -27,10 +28,10 @@ export interface MetricDefinition {
         <div>
           <h2 class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
             <span>{{ activeMetricInfo().icon }}</span>
-            <span>مقارنة البيانات والمؤشرات عبر مصادر البيانات المتعددة</span>
+            <span>مقارنة البيانات ونماذج القيمة العادلة متعددة المصادر</span>
           </h2>
           <p class="text-xs sm:text-sm text-gray-400">
-            مقارنة لحظية متزامنة بين 5 مصادر (🏛️ البورصة المصرية EGX ،🌐 TradingView ،📊 مباشر مصر Mubasher ،📈 Investing.com ،💹 Yahoo Finance) لجميع أسهم السوق ({{ apiService.priceComparisons().length || 297 }} سهم)
+            مقارنة لحظية عبر 5 مصادر (🏛️ البورصة المصرية EGX ،🌐 TradingView ،📊 مباشر مصر Mubasher ،📈 Investing.com ،💹 Yahoo Finance) لجميع أسهم السوق ({{ apiService.priceComparisons().length || 297 }} سهم)
           </p>
         </div>
 
@@ -38,7 +39,7 @@ export interface MetricDefinition {
           <!-- Refresh Button -->
           <button (click)="loadData(true)"
                   [disabled]="apiService.priceComparisonLoading()"
-                  title="إعادة فحص وتحديث البيانات من جميع المصادر لحظياً"
+                  title="إعادة فحص وتحديث البيانات ونماذج التقييم لحظياً"
                   class="bg-emerald-600 hover:bg-emerald-500 text-black font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 cursor-pointer">
             <i [class]="apiService.priceComparisonLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
             <span>{{ apiService.priceComparisonLoading() ? 'جاري الفحص...' : '⚡ تحديث شامل للبيانات' }}</span>
@@ -60,29 +61,51 @@ export interface MetricDefinition {
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-gray-300 flex items-center gap-1.5">
               <i class="pi pi-sliders-h text-emeraldAccent"></i>
-              <span>اختر الخاصية / المؤشر المطلوب مقارنته:</span>
+              <span>اختر نموذج التقييم أو المؤشر المطلوب مقارنته:</span>
             </span>
           </div>
 
-          <!-- Feature Dropdown -->
-          <div class="w-full sm:w-auto min-w-[280px]">
+          <!-- Feature Dropdown with Categorized Groups -->
+          <div class="w-full sm:w-auto min-w-[340px]">
             <select [ngModel]="selectedMetric()"
                     (ngModelChange)="selectedMetric.set($event)"
                     class="w-full bg-darkBg border-2 border-emerald-500/40 hover:border-emerald-500 rounded-xl px-3.5 py-2 text-xs font-black text-emerald-300 focus:outline-none focus:border-emeraldAccent transition-colors cursor-pointer">
-              <option *ngFor="let m of metricList" [value]="m.id">
-                {{ m.icon }} {{ m.label }}
-              </option>
+              <optgroup label="⚖️ نماذج حساب القيمة العادلة (Fair Value Models)">
+                <option value="FAIR_VALUE">⚖️ متوسط القيمة العادلة المرجح (Consensus Multi-Model)</option>
+                <option value="FAIR_VALUE_GRAHAM">📐 نموذج بنيامين جراهام (Graham: √(22.5×EPS×BVPS))</option>
+                <option value="FAIR_VALUE_PE">📊 نموذج مضاعف الربحية القطاعي (Sector P/E Model)</option>
+                <option value="FAIR_VALUE_LYNCH">🚀 نموذج بيتر لينش للنمو (Peter Lynch Model)</option>
+                <option value="FAIR_VALUE_PB">📚 نموذج القيمة الدفترية والعائد (P/B & ROE Model)</option>
+                <option value="UPSIDE_PERCENT">🎯 نسبة النمو المتوقع حتى القيمة العادلة (Expected Upside %)</option>
+              </optgroup>
+              <optgroup label="📈 أسعار وتداولات الجلسة (Market Live Quotes)">
+                <option value="PRICE">💵 السعر اللحظي (Last Trade Price)</option>
+                <option value="CHANGE_PERCENT">📈 نسبة التغير اليومي (Daily Change %)</option>
+                <option value="VOLUME">📊 حجم التداول (Traded Volume)</option>
+                <option value="DAY_HIGH">🔝 أعلى سعر بالجلسة (Day High)</option>
+                <option value="DAY_LOW">🔻 أدنى سعر بالجلسة (Day Low)</option>
+              </optgroup>
+              <optgroup label="💰 المؤشرات والربحية (Fundamentals)">
+                <option value="PE_RATIO">💰 مضاعف الربحية (P/E Ratio)</option>
+                <option value="EPS">🪙 ربحية السهم السنوية (EPS TTM)</option>
+              </optgroup>
             </select>
           </div>
         </div>
 
+        <!-- Formula & Description Banner for Active Metric -->
+        <div class="bg-darkBg/70 px-3.5 py-2 rounded-xl border border-darkBorder flex items-center gap-2 text-xs text-gray-300">
+          <span class="text-emeraldAccent font-bold">المعادلة المطبقة:</span>
+          <span>{{ activeMetricInfo().formulaDescription }}</span>
+        </div>
+
         <!-- Quick Switch Pill Buttons -->
         <div class="flex flex-wrap items-center gap-1.5 pt-1">
-          <span class="text-[11px] text-gray-400 font-bold ml-1">المؤشرات السريعة:</span>
-          <button *ngFor="let m of metricList"
+          <span class="text-[11px] text-gray-400 font-bold ml-1">النماذج السريعة:</span>
+          <button *ngFor="let m of quickPillMetrics"
                   (click)="selectedMetric.set(m.id)"
                   [class]="selectedMetric() === m.id ? 'bg-emerald-500 text-black font-black shadow-md shadow-emerald-500/20' : 'bg-darkBg text-gray-300 hover:bg-darkCard border border-darkBorder/80 font-bold'"
-                  class="px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer">
+                  class="px-2.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer">
             <span>{{ m.icon }}</span>
             <span>{{ m.shortLabel }}</span>
           </button>
@@ -336,7 +359,7 @@ export interface MetricDefinition {
               <!-- Actions Detail Button -->
               <td class="py-3 px-3 text-center">
                 <button (click)="openDetail(stock)"
-                        title="عرض المقارنة الشاملة لجميع المؤشرات التسعة بالتفصيل"
+                        title="عرض المقارنة الشاملة لجميع النماذج والمؤشرات بالتفصيل"
                         class="p-1.5 text-gray-300 hover:text-emeraldAccent hover:bg-emeraldAccent/10 rounded-lg transition-colors cursor-pointer">
                   <i class="pi pi-eye text-sm"></i>
                 </button>
@@ -358,11 +381,11 @@ export interface MetricDefinition {
         </p-table>
       </div>
 
-      <!-- In-Depth Multi-Metric Side-by-Side Dialog (👁️) -->
-      <p-dialog [header]="selectedStock() ? '🔍 بطاقة المقارنة الشاملة لجميع المؤشرات: ' + selectedStock()?.nameAr + ' (' + selectedStock()?.symbol + ')' : ''"
+      <!-- In-Depth Multi-Model Valuation Dialog (👁️) -->
+      <p-dialog [header]="selectedStock() ? '🔍 بطاقة المقارنة الشاملة لنماذج التقييم: ' + selectedStock()?.nameAr + ' (' + selectedStock()?.symbol + ')' : ''"
                 [(visible)]="detailModalVisible"
                 [modal]="true"
-                [style]="{width: '94vw', maxWidth: '900px'}"
+                [style]="{width: '94vw', maxWidth: '920px'}"
                 [dismissableMask]="true">
         <div *ngIf="selectedStock()" class="space-y-5 text-gray-200 py-2">
           <!-- Stock Header Banner -->
@@ -377,18 +400,18 @@ export interface MetricDefinition {
             </div>
           </div>
 
-          <!-- All 9 Metrics Side-by-Side Comparison Table -->
+          <!-- All Valuation Models & Market Matrix -->
           <div class="space-y-2">
             <h4 class="text-xs font-extrabold text-gray-300 flex items-center gap-1.5">
               <i class="pi pi-table text-emeraldAccent"></i>
-              <span>مصفوفة مقارنة كافة المؤشرات عبر المصادر الخمسة:</span>
+              <span>مصفوفة مقارنة كافة نماذج القيمة العادلة والمؤشرات:</span>
             </h4>
 
             <div class="overflow-x-auto rounded-xl border border-darkBorder">
               <table class="w-full text-xs text-right border-collapse">
                 <thead>
                   <tr class="bg-darkBg/90 text-gray-400 font-bold border-b border-darkBorder">
-                    <th class="p-2.5">المؤشر</th>
+                    <th class="p-2.5">المؤشر / نموذج التقييم</th>
                     <th class="p-2.5 text-center">🏛️ EGX</th>
                     <th class="p-2.5 text-center">🌐 TradingView</th>
                     <th class="p-2.5 text-center">📊 Mubasher</th>
@@ -434,7 +457,7 @@ export interface MetricDefinition {
 export class PriceComparatorComponent implements OnInit {
   public apiService = inject(StockApiService);
 
-  public selectedMetric = signal<ComparatorMetricType>('PRICE');
+  public selectedMetric = signal<ComparatorMetricType>('FAIR_VALUE');
   public searchQuery = signal<string>('');
   public activeFilter = signal<'ALL' | 'DIVERGENT' | 'SYNCED' | 'HALAL_ONLY'>('ALL');
   public selectedSector = signal<string>('ALL');
@@ -443,15 +466,135 @@ export class PriceComparatorComponent implements OnInit {
   public selectedStock = signal<PriceComparisonResult | null>(null);
 
   public metricList: MetricDefinition[] = [
-    { id: 'PRICE', label: 'السعر اللحظي (Last Price)', shortLabel: 'السعر اللحظي', icon: '💵', unit: 'ج.م', description: 'سعر التنفيذ الفعلي بالجنيه' },
-    { id: 'CHANGE_PERCENT', label: 'نسبة التغير (Change %)', shortLabel: 'التغير %', icon: '📈', unit: '%', description: 'نسبة التغير اليومية' },
-    { id: 'VOLUME', label: 'حجم التداول (Traded Volume)', shortLabel: 'حجم التداول', icon: '📊', unit: 'سهم', description: 'إجمالي الأسهم المتداولة بالجلسة' },
-    { id: 'FAIR_VALUE', label: 'القيمة العادلة (Fair Value)', shortLabel: 'القيمة العادلة', icon: '⚖️', unit: 'ج.م', description: 'التقييم العادل المستهدف للسهم' },
-    { id: 'UPSIDE_PERCENT', label: 'النمو المتوقع (Expected Upside %)', shortLabel: 'النمو المتوقع', icon: '🚀', unit: '%', description: 'العائد المتوقع حتى القيمة العادلة' },
-    { id: 'DAY_HIGH', label: 'أعلى سعر (Day High)', shortLabel: 'أعلى سعر', icon: '🔝', unit: 'ج.م', description: 'أعلى سعر مسجل خلال جلسة اليوم' },
-    { id: 'DAY_LOW', label: 'أدنى سعر (Day Low)', shortLabel: 'أدنى سعر', icon: '🔻', unit: 'ج.م', description: 'أدنى سعر مسجل خلال جلسة اليوم' },
-    { id: 'PE_RATIO', label: 'مضاعف الربحية (P/E Ratio)', shortLabel: 'مكرر الربحية', icon: '💰', unit: 'x', description: 'مضاعف السعر إلى الربحية' },
-    { id: 'EPS', label: 'ربحية السهم (EPS)', shortLabel: 'ربحية السهم', icon: '🪙', unit: 'ج.م', description: 'نصيب السهم السنوي من صافي الأرباح' }
+    {
+      id: 'FAIR_VALUE',
+      label: 'متوسط القيمة العادلة المرجح (Consensus)',
+      shortLabel: 'القيمة العادلة (إجماع)',
+      category: 'FAIR_VALUE',
+      icon: '⚖️',
+      unit: 'ج.م',
+      formulaDescription: 'متوسط كافة نماذج التقييم الأساسية المتاحة (جراهام + مكرر الربحية + بيتر لينش + القيمة الدفترية)'
+    },
+    {
+      id: 'FAIR_VALUE_GRAHAM',
+      label: 'القيمة العادلة: نموذج بنيامين جراهام (Graham Intrinsic)',
+      shortLabel: 'نموذج جراهام',
+      category: 'FAIR_VALUE',
+      icon: '📐',
+      unit: 'ج.م',
+      formulaDescription: '√(22.5 × ربحية السهم EPS × القيمة الدفترية للسهم BVPS) — نموذج تقييم القيمة الحقيقية الصارمة'
+    },
+    {
+      id: 'FAIR_VALUE_PE',
+      label: 'القيمة العادلة: مضاعف الربحية القطاعي (Sector P/E)',
+      shortLabel: 'مضاعف P/E القطاعي',
+      category: 'FAIR_VALUE',
+      icon: '📊',
+      unit: 'ج.م',
+      formulaDescription: 'ربحية السهم EPS × مضاعف الربحية العادل لقطاع الشركة × معامل خصم الفائدة بالمركزي المصري (0.82)'
+    },
+    {
+      id: 'FAIR_VALUE_LYNCH',
+      label: 'القيمة العادلة: نموذج بيتر لينش للنمو (Peter Lynch)',
+      shortLabel: 'نموذج بيتر لينش',
+      category: 'FAIR_VALUE',
+      icon: '🚀',
+      unit: 'ج.م',
+      formulaDescription: 'ربحية السهم EPS × (معدل نمو الأرباح المتوقع + عائد التوزيع النقدي Dividend Yield)'
+    },
+    {
+      id: 'FAIR_VALUE_PB',
+      label: 'القيمة العادلة: القيمة الدفترية وROE (P/B & ROE)',
+      shortLabel: 'الدفترية وROE',
+      category: 'FAIR_VALUE',
+      icon: '📚',
+      unit: 'ج.م',
+      formulaDescription: 'القيمة الدفترية للسهم BVPS × (العائد على حقوق الملكية ROE ÷ معدل العائد المطلوب 20%)'
+    },
+    {
+      id: 'UPSIDE_PERCENT',
+      label: 'نسبة النمو المتوقع للقيمة العادلة (Expected Upside %)',
+      shortLabel: 'النمو المتوقع %',
+      category: 'FAIR_VALUE',
+      icon: '🎯',
+      unit: '%',
+      formulaDescription: '((متوسط القيمة العادلة - سعر التداول الحالي) ÷ سعر التداول الحالي) × 100%'
+    },
+    {
+      id: 'PRICE',
+      label: 'السعر اللحظي (Last Trade Price)',
+      shortLabel: 'السعر اللحظي',
+      category: 'MARKET',
+      icon: '💵',
+      unit: 'ج.م',
+      formulaDescription: 'آخر سعر تنفيذ تم تسجيله في جلسة التداول اللحظية بالجنيه المصري'
+    },
+    {
+      id: 'CHANGE_PERCENT',
+      label: 'نسبة التغير اليومي (Daily Change %)',
+      shortLabel: 'التغير اليومي %',
+      category: 'MARKET',
+      icon: '📈',
+      unit: '%',
+      formulaDescription: 'نسبة تغير سعر الإغلاق الحالي مقارنة بإغلاق الجلسة السابقة'
+    },
+    {
+      id: 'VOLUME',
+      label: 'حجم التداول (Traded Volume)',
+      shortLabel: 'حجم التداول',
+      category: 'MARKET',
+      icon: '📊',
+      unit: 'سهم',
+      formulaDescription: 'إجمالي كمية الأسهم المنفذة والمتداولة خلال الجلسة'
+    },
+    {
+      id: 'DAY_HIGH',
+      label: 'أعلى سعر بالجلسة (Day High)',
+      shortLabel: 'أعلى سعر',
+      category: 'MARKET',
+      icon: '🔝',
+      unit: 'ج.م',
+      formulaDescription: 'أعلى نقطة سعرية وصل إليها السهم خلال جلسة اليوم'
+    },
+    {
+      id: 'DAY_LOW',
+      label: 'أدنى سعر بالجلسة (Day Low)',
+      shortLabel: 'أدنى سعر',
+      category: 'MARKET',
+      icon: '🔻',
+      unit: 'ج.م',
+      formulaDescription: 'أدنى نقطة سعرية وصل إليها السهم خلال جلسة اليوم'
+    },
+    {
+      id: 'PE_RATIO',
+      label: 'مضاعف الربحية (P/E Ratio)',
+      shortLabel: 'مكرر الربحية',
+      category: 'FUNDAMENTALS',
+      icon: '💰',
+      unit: 'x',
+      formulaDescription: 'سعر السهم السوقي ÷ ربحية السهم لآخر 12 شهراً (TTM)'
+    },
+    {
+      id: 'EPS',
+      label: 'ربحية السهم (EPS TTM)',
+      shortLabel: 'ربحية السهم',
+      category: 'FUNDAMENTALS',
+      icon: '🪙',
+      unit: 'ج.م',
+      formulaDescription: 'نصيب السهم الواحد من صافي الأرباح السنوية المحققة'
+    }
+  ];
+
+  public quickPillMetrics = [
+    this.metricList[0], // Consensus FV
+    this.metricList[1], // Graham FV
+    this.metricList[2], // Sector PE FV
+    this.metricList[3], // Peter Lynch FV
+    this.metricList[4], // PB ROE FV
+    this.metricList[5], // Upside %
+    this.metricList[6], // Price
+    this.metricList[7], // Change %
+    this.metricList[8]  // Volume
   ];
 
   public activeMetricInfo = computed(() => {
@@ -526,7 +669,6 @@ export class PriceComparatorComponent implements OnInit {
     const syncedPercent = Number(((syncedCount / list.length) * 100).toFixed(1));
     const divergentCount = list.filter(s => s.priceSpreadPercent > 1.5).length;
 
-    // Compute Market Average for the currently selected metric
     let sum = 0;
     let count = 0;
     let topStock = list[0];
@@ -578,6 +720,10 @@ export class PriceComparatorComponent implements OnInit {
     switch (metric) {
       case 'PRICE': return stock.averagePrice;
       case 'FAIR_VALUE': return stock.averageFairValue || stock.averagePrice;
+      case 'FAIR_VALUE_GRAHAM': return stock.averageFairValueGraham || null;
+      case 'FAIR_VALUE_PE': return stock.averageFairValuePE || null;
+      case 'FAIR_VALUE_LYNCH': return stock.averageFairValueLynch || null;
+      case 'FAIR_VALUE_PB': return stock.averageFairValuePB || null;
       case 'UPSIDE_PERCENT': return stock.averageUpsidePercent || 0;
       case 'VOLUME': return stock.maxVolume;
       case 'CHANGE_PERCENT': return stock.sources['tradingview']?.changePercent ?? stock.sources['egx']?.changePercent ?? 0;
@@ -594,22 +740,30 @@ export class PriceComparatorComponent implements OnInit {
     switch (metric) {
       case 'PRICE':
         return `${src.price} ج.م`;
+      case 'FAIR_VALUE':
+        return src.fairValue ? `${src.fairValue} ج.م` : '—';
+      case 'FAIR_VALUE_GRAHAM':
+        return src.fairValueGraham ? `${src.fairValueGraham} ج.م` : '—';
+      case 'FAIR_VALUE_PE':
+        return src.fairValuePE ? `${src.fairValuePE} ج.م` : '—';
+      case 'FAIR_VALUE_LYNCH':
+        return src.fairValueLynch ? `${src.fairValueLynch} ج.م` : '—';
+      case 'FAIR_VALUE_PB':
+        return src.fairValuePB ? `${src.fairValuePB} ج.م` : '—';
+      case 'UPSIDE_PERCENT':
+        return (src.upsidePercent !== undefined) ? `${src.upsidePercent >= 0 ? '+' : ''}${src.upsidePercent}%` : '—';
       case 'CHANGE_PERCENT':
         return `${src.changePercent >= 0 ? '+' : ''}${src.changePercent}%`;
       case 'VOLUME':
         return `${(src.volume || 0).toLocaleString()}`;
-      case 'FAIR_VALUE':
-        return `${src.fairValue || src.price} ج.م`;
-      case 'UPSIDE_PERCENT':
-        return `${(src.upsidePercent ?? 0) >= 0 ? '+' : ''}${src.upsidePercent ?? 0}%`;
       case 'DAY_HIGH':
-        return `${src.dayHigh || src.price} ج.م`;
+        return src.dayHigh ? `${src.dayHigh} ج.م` : '—';
       case 'DAY_LOW':
-        return `${src.dayLow || src.price} ج.م`;
+        return src.dayLow ? `${src.dayLow} ج.م` : '—';
       case 'PE_RATIO':
-        return `${src.peRatio ? src.peRatio + 'x' : '—'}`;
+        return src.peRatio ? `${src.peRatio}x` : '—';
       case 'EPS':
-        return `${src.eps ? src.eps + ' ج.م' : '—'}`;
+        return src.eps ? `${src.eps} ج.م` : '—';
       default:
         return `${src.price} ج.م`;
     }
@@ -620,9 +774,17 @@ export class PriceComparatorComponent implements OnInit {
       case 'PRICE':
         return `${stock.averagePrice} ج.م`;
       case 'FAIR_VALUE':
-        return `${stock.averageFairValue || stock.averagePrice} ج.م`;
+        return stock.averageFairValue ? `${stock.averageFairValue} ج.م` : '—';
+      case 'FAIR_VALUE_GRAHAM':
+        return stock.averageFairValueGraham ? `${stock.averageFairValueGraham} ج.م` : '—';
+      case 'FAIR_VALUE_PE':
+        return stock.averageFairValuePE ? `${stock.averageFairValuePE} ج.م` : '—';
+      case 'FAIR_VALUE_LYNCH':
+        return stock.averageFairValueLynch ? `${stock.averageFairValueLynch} ج.م` : '—';
+      case 'FAIR_VALUE_PB':
+        return stock.averageFairValuePB ? `${stock.averageFairValuePB} ج.م` : '—';
       case 'UPSIDE_PERCENT':
-        return `${(stock.averageUpsidePercent ?? 0) >= 0 ? '+' : ''}${stock.averageUpsidePercent ?? 0}%`;
+        return (stock.averageUpsidePercent !== undefined) ? `${stock.averageUpsidePercent >= 0 ? '+' : ''}${stock.averageUpsidePercent}%` : '—';
       case 'VOLUME':
         return `${stock.maxVolume.toLocaleString()} سهم`;
       case 'CHANGE_PERCENT':
@@ -633,9 +795,9 @@ export class PriceComparatorComponent implements OnInit {
       case 'DAY_LOW':
         return `${stock.sources['tradingview']?.dayLow || stock.averagePrice} ج.م`;
       case 'PE_RATIO':
-        return `${stock.averagePeRatio ? stock.averagePeRatio + 'x' : '9.0x'}`;
+        return stock.averagePeRatio ? `${stock.averagePeRatio}x` : '—';
       case 'EPS':
-        return `${stock.averageEps ? stock.averageEps + ' ج.م' : '—'}`;
+        return stock.averageEps ? `${stock.averageEps} ج.م` : '—';
       default:
         return `${stock.averagePrice} ج.م`;
     }
@@ -650,7 +812,7 @@ export class PriceComparatorComponent implements OnInit {
       const up = src.upsidePercent ?? 0;
       return up >= 15 ? 'text-emerald-300 font-black' : (up >= 0 ? 'text-emerald-400' : 'text-rose-400');
     }
-    if (metric === 'FAIR_VALUE') {
+    if (metric.startsWith('FAIR_VALUE')) {
       return 'text-emerald-400';
     }
     if (metric === 'VOLUME') {

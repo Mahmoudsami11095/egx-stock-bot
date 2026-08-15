@@ -185,7 +185,20 @@ export interface FairValueComparisonResult {
   highestDiscrepancySource: string | null;
 }
 
-export type ComparatorMetricType = 'PRICE' | 'CHANGE_PERCENT' | 'VOLUME' | 'DAY_HIGH' | 'DAY_LOW' | 'FAIR_VALUE' | 'UPSIDE_PERCENT' | 'PE_RATIO' | 'EPS';
+export type ComparatorMetricType =
+  | 'PRICE'
+  | 'CHANGE_PERCENT'
+  | 'VOLUME'
+  | 'DAY_HIGH'
+  | 'DAY_LOW'
+  | 'FAIR_VALUE'
+  | 'FAIR_VALUE_GRAHAM'
+  | 'FAIR_VALUE_PE'
+  | 'FAIR_VALUE_LYNCH'
+  | 'FAIR_VALUE_PB'
+  | 'UPSIDE_PERCENT'
+  | 'PE_RATIO'
+  | 'EPS';
 
 export interface SourcePriceData {
   price: number;
@@ -196,9 +209,17 @@ export interface SourcePriceData {
   dayLow?: number;
   open?: number;
   fairValue?: number;
+  fairValueGraham?: number;
+  fairValuePE?: number;
+  fairValueLynch?: number;
+  fairValuePB?: number;
   upsidePercent?: number;
   peRatio?: number;
   eps?: number;
+  pbRatio?: number;
+  bvps?: number;
+  roe?: number;
+  dividendYield?: number;
 }
 
 export type PriceAlignmentStatus = 'SYNCED' | 'MINOR_LAG' | 'DIVERGENT';
@@ -221,6 +242,10 @@ export interface PriceComparisonResult {
   highestVolumeSource: string;
   maxVolume: number;
   averageFairValue?: number;
+  averageFairValueGraham?: number;
+  averageFairValuePE?: number;
+  averageFairValueLynch?: number;
+  averageFairValuePB?: number;
   averageUpsidePercent?: number;
   averagePeRatio?: number;
   averageEps?: number;
