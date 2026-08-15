@@ -101,6 +101,33 @@ function fetchMubasher() {
   });
 }
 
+function fetchEgxBeta() {
+  return new Promise((resolve) => {
+    const req = https.get('https://beta.egx.com.eg/api/market/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
+      },
+      timeout: 3500
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          resolve(json.data?.data || json.data || []);
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    });
+
+    req.on('error', () => resolve([]));
+    req.on('timeout', () => { req.destroy(); resolve([]); });
+  });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -111,9 +138,10 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData] = await Promise.all([
+    const [tvData, mubData, egxData] = await Promise.all([
       fetchTradingView(),
-      fetchMubasher()
+      fetchMubasher(),
+      fetchEgxBeta()
     ]);
 
     const tvMap = new Map();
@@ -151,22 +179,41 @@ module.exports = async (req, res) => {
       }
     }
 
+    const egxMap = new Map();
+    for (const item of egxData) {
+      const code = (item.reuters || item.isin || item.symbol || item.code || '').replace('.CA', '').toUpperCase();
+      if (!code) continue;
+      const val = parseFloat(item.closePrice || item.lastPrice || item.price) || 0;
+      if (val > 0) {
+        egxMap.set(code, {
+          price: val,
+          change: parseFloat(item.change || 0) || 0,
+          changePercent: parseFloat(item.chgPer || item.changePercent || 0) || 0,
+          volume: parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10) || 0,
+          dayHigh: parseFloat(item.highPrice || item.high) || val,
+          dayLow: parseFloat(item.lowPrice || item.low) || val
+        });
+      }
+    }
+
     const results = [];
 
     for (const stock of watchlist) {
       const sym = stock.symbol.toUpperCase();
       const tvInfo = tvMap.get(sym);
       const mubInfo = mubMap.get(sym);
+      const egxInfo = egxMap.get(sym);
 
-      const basePrice = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || 0;
+      const basePrice = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || (egxInfo && egxInfo.price) || 0;
       if (basePrice <= 0) continue;
 
       const tvPrice = tvInfo ? tvInfo.price : basePrice;
       const mubPrice = mubInfo ? mubInfo.price : basePrice;
+      const egxPrice = egxInfo ? egxInfo.price : basePrice;
       const invPrice = tvPrice;
       const yahPrice = mubPrice;
 
-      const priceList = [tvPrice, mubPrice, invPrice, yahPrice].filter(p => p > 0);
+      const priceList = [tvPrice, mubPrice, egxPrice, invPrice, yahPrice].filter(p => p > 0);
       const sumPrices = priceList.reduce((a, b) => a + b, 0);
       const avgPrice = Number((sumPrices / priceList.length).toFixed(2));
 
@@ -181,8 +228,9 @@ module.exports = async (req, res) => {
 
       const tvVol = tvInfo ? tvInfo.volume : 0;
       const mubVol = mubInfo ? mubInfo.volume : 0;
-      const maxVol = Math.max(tvVol, mubVol);
-      const highestVolSource = tvVol >= mubVol ? 'tradingview' : 'mubasher';
+      const egxVol = egxInfo ? egxInfo.volume : 0;
+      const maxVol = Math.max(tvVol, mubVol, egxVol);
+      const highestVolSource = maxVol === egxVol && egxVol > 0 ? 'egx' : (tvVol >= mubVol ? 'tradingview' : 'mubasher');
 
       results.push({
         symbol: stock.symbol,
@@ -193,7 +241,7 @@ module.exports = async (req, res) => {
         isHalal: true,
         shariaTier: 'COMPLIANT',
         averagePrice: avgPrice,
-        medianPrice: Number(((sortedPrices[1] + sortedPrices[2]) / 2).toFixed(2)),
+        medianPrice: sortedPrices[Math.floor(sortedPrices.length / 2)],
         minPrice,
         maxPrice,
         priceSpreadPercent: spread,
@@ -201,6 +249,14 @@ module.exports = async (req, res) => {
         highestVolumeSource: highestVolSource,
         maxVolume: maxVol,
         sources: {
+          egx: {
+            price: egxPrice,
+            change: egxInfo ? egxInfo.change : (tvInfo ? tvInfo.change : 0),
+            changePercent: egxInfo ? egxInfo.changePercent : (tvInfo ? tvInfo.changePercent : 0),
+            volume: egxVol,
+            dayHigh: egxInfo ? egxInfo.dayHigh : basePrice,
+            dayLow: egxInfo ? egxInfo.dayLow : basePrice
+          },
           tradingview: {
             price: tvPrice,
             change: tvInfo ? tvInfo.change : 0,

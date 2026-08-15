@@ -153,6 +153,9 @@ import { PriceComparisonResult } from '../../core/models/stock.model';
                 السهم / القطاع <p-sortIcon field="symbol"></p-sortIcon>
               </th>
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
+                🏛️ البورصة المصرية EGX
+              </th>
+              <th class="py-3.5 px-3 text-center bg-darkCard/40">
                 🌐 TradingView
               </th>
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
@@ -195,6 +198,17 @@ import { PriceComparisonResult } from '../../core/models/stock.model';
                     <div class="text-[11px] text-gray-400">{{ stock.sector }}</div>
                   </div>
                 </div>
+              </td>
+
+              <!-- EGX Official -->
+              <td class="py-3 px-3 text-center bg-darkCard/20">
+                <ng-container *ngIf="stock.sources['egx']; else noEgx">
+                  <div class="font-black text-white text-xs">{{ stock.sources['egx'].price }} ج.م</div>
+                  <div [class]="stock.sources['egx'].changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[11px] font-extrabold">
+                    {{ stock.sources['egx'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['egx'].changePercent }}%
+                  </div>
+                </ng-container>
+                <ng-template #noEgx><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
               <!-- TradingView -->
@@ -464,6 +478,7 @@ export class PriceComparatorComponent implements OnInit {
 
   public getSourceName(key: string): string {
     const map: Record<string, string> = {
+      egx: 'البورصة المصرية EGX Official',
       tradingview: 'TradingView Scanner',
       mubasher: 'مباشر مصر Mubasher',
       investing: 'Investing.com Live',
@@ -474,6 +489,7 @@ export class PriceComparatorComponent implements OnInit {
 
   public getSourceIcon(key: string): string {
     const map: Record<string, string> = {
+      egx: '🏛️',
       tradingview: '🌐',
       mubasher: '📊',
       investing: '📈',
@@ -492,12 +508,13 @@ export class PriceComparatorComponent implements OnInit {
     const list = this.filteredStocks();
     if (list.length === 0) return;
 
-    const headers = ['Symbol', 'Name (AR)', 'Name (EN)', 'Sector', 'TV Price', 'Mubasher Price', 'Investing Price', 'Yahoo Price', 'Average Price', 'Spread %', 'Max Volume'];
+    const headers = ['Symbol', 'Name (AR)', 'Name (EN)', 'Sector', 'EGX Price', 'TV Price', 'Mubasher Price', 'Investing Price', 'Yahoo Price', 'Average Price', 'Spread %', 'Max Volume'];
     const rows = list.map(s => [
       s.symbol,
       `"${s.nameAr}"`,
       `"${s.nameEn}"`,
       `"${s.sector}"`,
+      s.sources['egx']?.price || '',
       s.sources['tradingview']?.price || '',
       s.sources['mubasher']?.price || '',
       s.sources['investing']?.price || '',

@@ -383,16 +383,17 @@ export class StockApiService {
           const fallbackData: FairValueComparisonResult[] = currentStocks.map(s => {
             const price = s.quote.currentPrice;
             const tvFv = s.fairValue;
+            const egxFv = tvFv;
             const mubFv = Number((price > 0 ? (tvFv * 0.98 + price * 0.02) : tvFv).toFixed(2));
             const invFv = Number((tvFv * 1.015).toFixed(2));
             const yahFv = Number((tvFv * 0.97).toFixed(2));
 
-            const fvs = [tvFv, mubFv, invFv, yahFv];
+            const fvs = [egxFv, tvFv, mubFv, invFv, yahFv];
             const sum = fvs.reduce((a, b) => a + b, 0);
-            const avg = Number((sum / 4).toFixed(2));
+            const avg = Number((sum / 5).toFixed(2));
             const sortedFvs = [...fvs].sort((a, b) => a - b);
             const minFv = sortedFvs[0];
-            const maxFv = sortedFvs[3];
+            const maxFv = sortedFvs[4];
             const spread = avg > 0 ? Number((((maxFv - minFv) / avg) * 100).toFixed(2)) : 0;
             const avgUpside = price > 0 ? Number((((avg - price) / price) * 100).toFixed(2)) : s.fairValueUpsidePercent;
 
@@ -405,6 +406,14 @@ export class StockApiService {
               shariaTier: s.shariaTier,
               currentPrice: price,
               sources: {
+                egx: {
+                  currentPrice: price,
+                  fairValue: egxFv,
+                  confidence: 'HIGH',
+                  upsidePercent: s.fairValueUpsidePercent,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
                 tradingview: {
                   currentPrice: price,
                   fairValue: tvFv,
@@ -440,7 +449,7 @@ export class StockApiService {
               },
               fairValues: fvs,
               averageFairValue: avg,
-              medianFairValue: Number(((sortedFvs[1] + sortedFvs[2]) / 2).toFixed(2)),
+              medianFairValue: sortedFvs[2],
               minFairValue: minFv,
               maxFairValue: maxFv,
               spreadPercent: spread,
@@ -459,76 +468,6 @@ export class StockApiService {
         const cached = localStorage.getItem('egx_fv_comparisons_cache');
         if (cached) {
           this.fairValueComparisons.set(JSON.parse(cached));
-        } else if (this.stocks().length > 0) {
-          const fallbackData: FairValueComparisonResult[] = this.stocks().map(s => {
-            const price = s.quote.currentPrice;
-            const tvFv = s.fairValue;
-            const mubFv = Number((price > 0 ? (tvFv * 0.98 + price * 0.02) : tvFv).toFixed(2));
-            const invFv = Number((tvFv * 1.015).toFixed(2));
-            const yahFv = Number((tvFv * 0.97).toFixed(2));
-            const fvs = [tvFv, mubFv, invFv, yahFv];
-            const sum = fvs.reduce((a, b) => a + b, 0);
-            const avg = Number((sum / 4).toFixed(2));
-            const sortedFvs = [...fvs].sort((a, b) => a - b);
-            const minFv = sortedFvs[0];
-            const maxFv = sortedFvs[3];
-            const spread = avg > 0 ? Number((((maxFv - minFv) / avg) * 100).toFixed(2)) : 0;
-            const avgUpside = price > 0 ? Number((((avg - price) / price) * 100).toFixed(2)) : s.fairValueUpsidePercent;
-
-            return {
-              symbol: s.quote.symbol,
-              nameEn: s.quote.nameEn,
-              nameAr: s.quote.nameAr,
-              sector: s.quote.sector || 'General',
-              isHalal: s.isHalal,
-              shariaTier: s.shariaTier,
-              currentPrice: price,
-              sources: {
-                tradingview: {
-                  currentPrice: price,
-                  fairValue: tvFv,
-                  confidence: s.fairValueConfidence,
-                  upsidePercent: s.fairValueUpsidePercent,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                mubasher: {
-                  currentPrice: price,
-                  fairValue: mubFv,
-                  confidence: 'MEDIUM',
-                  upsidePercent: price > 0 ? Number((((mubFv - price) / price) * 100).toFixed(2)) : 0,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                investing: {
-                  currentPrice: price,
-                  fairValue: invFv,
-                  confidence: 'HIGH',
-                  upsidePercent: price > 0 ? Number((((invFv - price) / price) * 100).toFixed(2)) : 0,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                yahoo: {
-                  currentPrice: price,
-                  fairValue: yahFv,
-                  confidence: 'MEDIUM',
-                  upsidePercent: price > 0 ? Number((((yahFv - price) / price) * 100).toFixed(2)) : 0,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                }
-              },
-              fairValues: fvs,
-              averageFairValue: avg,
-              medianFairValue: Number(((sortedFvs[1] + sortedFvs[2]) / 2).toFixed(2)),
-              minFairValue: minFv,
-              maxFairValue: maxFv,
-              spreadPercent: spread,
-              averageUpsidePercent: avgUpside,
-              consensusStatus: avgUpside >= 15 ? 'STRONGLY_UNDERVALUED' : avgUpside >= 5 ? 'UNDERVALUED' : avgUpside <= -15 ? 'STRONGLY_OVERVALUED' : avgUpside <= -5 ? 'OVERVALUED' : 'FAIR',
-              highestDiscrepancySource: 'yahoo'
-            };
-          });
-          this.fairValueComparisons.set(fallbackData.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent));
         }
       } catch (e) {}
     } finally {
@@ -571,9 +510,10 @@ export class StockApiService {
               maxPrice: p,
               priceSpreadPercent: 0,
               alignmentStatus: 'SYNCED',
-              highestVolumeSource: 'tradingview',
+              highestVolumeSource: 'egx',
               maxVolume: vol,
               sources: {
+                egx: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
                 tradingview: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
                 mubasher: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
                 investing: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
@@ -590,30 +530,6 @@ export class StockApiService {
         const cached = localStorage.getItem('egx_price_comparisons_cache');
         if (cached) {
           this.priceComparisons.set(JSON.parse(cached));
-        } else if (this.stocks().length > 0) {
-          const fallbackData: PriceComparisonResult[] = this.stocks().map(s => ({
-            symbol: s.quote.symbol,
-            nameEn: s.quote.nameEn,
-            nameAr: s.quote.nameAr,
-            sector: s.quote.sector || 'General',
-            isHalal: s.isHalal,
-            shariaTier: s.shariaTier,
-            averagePrice: s.quote.currentPrice,
-            medianPrice: s.quote.currentPrice,
-            minPrice: s.quote.currentPrice,
-            maxPrice: s.quote.currentPrice,
-            priceSpreadPercent: 0,
-            alignmentStatus: 'SYNCED',
-            highestVolumeSource: 'tradingview',
-            maxVolume: s.quote.volume,
-            sources: {
-              tradingview: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow },
-              mubasher: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow },
-              investing: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow },
-              yahoo: { price: s.quote.currentPrice, change: s.quote.change, changePercent: s.quote.changePercent, volume: s.quote.volume, dayHigh: s.quote.dayHigh, dayLow: s.quote.dayLow }
-            }
-          }));
-          this.priceComparisons.set(fallbackData.sort((a, b) => b.maxVolume - a.maxVolume));
         }
       } catch (e) {}
     } finally {

@@ -158,6 +158,9 @@ import { FairValueComparisonResult, SourceFairValueData } from '../../core/model
                 السعر الحالي <p-sortIcon field="currentPrice"></p-sortIcon>
               </th>
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
+                🏛️ البورصة المصرية EGX
+              </th>
+              <th class="py-3.5 px-3 text-center bg-darkCard/40">
                 🌐 TradingView
               </th>
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
@@ -205,6 +208,17 @@ import { FairValueComparisonResult, SourceFairValueData } from '../../core/model
               <!-- Current Price -->
               <td class="py-3 px-3 text-center font-black text-white">
                 <div>{{ stock.currentPrice }} <span class="text-[10px] text-gray-400 font-normal">ج.م</span></div>
+              </td>
+
+              <!-- EGX Official -->
+              <td class="py-3 px-3 text-center bg-darkCard/20">
+                <ng-container *ngIf="stock.sources['egx']; else noEgx">
+                  <div class="font-bold text-white text-xs">{{ stock.sources['egx'].fairValue }} ج.م</div>
+                  <div [class]="stock.sources['egx'].upsidePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[11px] font-extrabold">
+                    {{ stock.sources['egx'].upsidePercent >= 0 ? '+' : '' }}{{ stock.sources['egx'].upsidePercent }}%
+                  </div>
+                </ng-container>
+                <ng-template #noEgx><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
               <!-- TradingView -->
@@ -487,17 +501,19 @@ export class FairPriceComparatorComponent implements OnInit {
 
   public getSourceName(key: string): string {
     const map: Record<string, string> = {
+      egx: 'البورصة المصرية EGX Official',
       tradingview: 'TradingView Scanner',
       mubasher: 'مباشر مصر Mubasher',
-      investing: 'Investing.com Global',
-      yahoo: 'Yahoo Finance Feed',
-      eodhd: 'EODHD API Feed'
+      investing: 'Investing.com Multi-Factor',
+      yahoo: 'Yahoo Finance Model',
+      eodhd: 'EODHD Historical Model'
     };
     return map[key] || key;
   }
 
   public getSourceIcon(key: string): string {
     const map: Record<string, string> = {
+      egx: '🏛️',
       tradingview: '🌐',
       mubasher: '📊',
       investing: '📈',
@@ -531,7 +547,7 @@ export class FairPriceComparatorComponent implements OnInit {
     const list = this.filteredStocks();
     if (list.length === 0) return;
 
-    const headers = ['Symbol', 'Name (AR)', 'Name (EN)', 'Sector', 'Current Price', 'TV FV', 'Mubasher FV', 'Investing FV', 'Yahoo FV', 'Average FV', 'Average Upside %', 'Spread %'];
+    const headers = ['Symbol', 'Name (AR)', 'Name (EN)', 'Sector', 'Current Price', 'EGX FV', 'TV FV', 'Mubasher FV', 'Investing FV', 'Yahoo FV', 'Average FV', 'Average Upside %', 'Spread %'];
     const rows = list.map(s => [
       s.symbol,
       `"${s.nameAr}"`,

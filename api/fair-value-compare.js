@@ -1,5 +1,4 @@
 const https = require('https');
-const http = require('http');
 const path = require('path');
 const fs = require('fs');
 
@@ -143,6 +142,33 @@ function fetchMubasher() {
   });
 }
 
+function fetchEgxBeta() {
+  return new Promise((resolve) => {
+    const req = https.get('https://beta.egx.com.eg/api/market/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
+      },
+      timeout: 3500
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          resolve(json.data?.data || json.data || []);
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    });
+
+    req.on('error', () => resolve([]));
+    req.on('timeout', () => { req.destroy(); resolve([]); });
+  });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -153,12 +179,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData] = await Promise.all([
+    const [tvData, mubData, egxData] = await Promise.all([
       fetchTradingView(),
-      fetchMubasher()
+      fetchMubasher(),
+      fetchEgxBeta()
     ]);
 
-    // Build lookup maps
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
@@ -194,31 +220,51 @@ module.exports = async (req, res) => {
       }
     }
 
+    const egxMap = new Map();
+    for (const item of egxData) {
+      const code = (item.reuters || item.isin || item.symbol || item.code || '').replace('.CA', '').toUpperCase();
+      if (!code) continue;
+      const val = parseFloat(item.closePrice || item.lastPrice || item.price) || 0;
+      if (val > 0) {
+        egxMap.set(code, {
+          price: val,
+          change: parseFloat(item.change || 0) || 0,
+          changePercent: parseFloat(item.chgPer || item.changePercent || 0) || 0,
+          volume: parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10) || 0,
+          high: parseFloat(item.highPrice || item.high) || val,
+          low: parseFloat(item.lowPrice || item.low) || val
+        });
+      }
+    }
+
     const results = [];
 
     for (const stock of watchlist) {
       const sym = stock.symbol.toUpperCase();
       const tvInfo = tvMap.get(sym);
       const mubInfo = mubMap.get(sym);
+      const egxInfo = egxMap.get(sym);
 
-      const price = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || 0;
+      const price = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || (egxInfo && egxInfo.price) || 0;
       if (price <= 0) continue;
 
       const sector = stock.sector || 'General';
-      const tvFv = computeStandaloneFV(tvInfo ? tvInfo.price : price, tvInfo ? tvInfo.eps : null, sector);
-      const mubFv = computeStandaloneFV(mubInfo ? mubInfo.price : price, tvInfo ? tvInfo.eps : null, sector);
+      const eps = tvInfo ? tvInfo.eps : null;
+
+      const tvFv = computeStandaloneFV(tvInfo ? tvInfo.price : price, eps, sector);
+      const mubFv = computeStandaloneFV(mubInfo ? mubInfo.price : price, eps, sector);
+      const egxFv = computeStandaloneFV(egxInfo ? egxInfo.price : price, eps, sector);
       
-      // Investing and Yahoo models
       const invFv = Number((tvFv * 1.01).toFixed(2));
       const yahFv = Number((mubFv * 0.98).toFixed(2));
 
-      const fvValues = [tvFv, mubFv, invFv, yahFv].filter(v => v > 0);
+      const fvValues = [tvFv, mubFv, egxFv, invFv, yahFv].filter(v => v > 0);
       const sumFv = fvValues.reduce((a, b) => a + b, 0);
       const avgFv = Number((sumFv / fvValues.length).toFixed(2));
 
       const sortedFv = [...fvValues].sort((a, b) => a - b);
       const mid = Math.floor(sortedFv.length / 2);
-      const medianFv = sortedFv.length % 2 !== 0 ? sortedFv[mid] : Number(((sortedFv[mid - 1] + sortedFv[mid]) / 2).toFixed(2));
+      const medianFv = sortedFv[mid];
       const minFv = sortedFv[0];
       const maxFv = sortedFv[sortedFv.length - 1];
 
@@ -227,6 +273,7 @@ module.exports = async (req, res) => {
 
       const tvUpside = tvInfo ? Number((((tvFv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
       const mubUpside = mubInfo ? Number((((mubFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
+      const egxUpside = egxInfo ? Number((((egxFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
       const invUpside = Number((((invFv - price) / price) * 100).toFixed(2));
       const yahUpside = Number((((yahFv - price) / price) * 100).toFixed(2));
 
@@ -246,6 +293,16 @@ module.exports = async (req, res) => {
         shariaTier: 'COMPLIANT',
         currentPrice: price,
         sources: {
+          egx: {
+            currentPrice: egxInfo ? egxInfo.price : price,
+            fairValue: egxFv,
+            confidence: eps ? 'HIGH' : 'MEDIUM',
+            upsidePercent: egxUpside,
+            changePercent: egxInfo ? egxInfo.changePercent : 0,
+            volume: egxInfo ? egxInfo.volume : 0,
+            dayHigh: egxInfo ? egxInfo.dayHigh : price,
+            dayLow: egxInfo ? egxInfo.dayLow : price
+          },
           tradingview: {
             currentPrice: tvInfo ? tvInfo.price : price,
             fairValue: tvFv,
