@@ -450,6 +450,10 @@ export class DataFetcherService {
       return this.fetchInvestingBatch(stocks);
     } else if (source === 'eodhd') {
       return this.fetchEodhdBatch(stocks);
+    } else if (source === 'mubasher') {
+      return this.fetchMubasherBatch(stocks);
+    } else if (source === 'egx_beta') {
+      return this.fetchEgxBetaBatch(stocks);
     }
 
     const tickerMap = new Map<string, StockMeta>();
@@ -1224,5 +1228,154 @@ export class DataFetcherService {
     }
 
     return results.length > 0 ? results : this.getBatchQuoteAndIndicators(stocks, 'tradingview');
+  }
+
+  async fetchMubasherBatch(stocks: StockMeta[]): Promise<BatchStockResult[]> {
+    return new Promise((resolve, reject) => {
+      const url = 'https://www.mubasher.info/api/1/stocks/prices?country=eg';
+      https.get(url, (res) => {
+        let body = '';
+        res.on('data', d => body += d);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body);
+            if (!json || !json.prices) {
+              return resolve([]);
+            }
+            const results: BatchStockResult[] = [];
+            const earningsOverrides = loadEarningsOverrides();
+            for (const stock of stocks) {
+              const row = json.prices.find((p: any) => p.code === stock.symbol);
+              if (!row) continue;
+              const currentPrice = parseFloat(row.value) || 0;
+              if (currentPrice < 0.01) continue;
+              const previousClose = currentPrice - (parseFloat(row.change) || 0);
+              const volume = parseInt((row.volume || '').replace(/,/g, '')) || 0;
+              const quote: StockQuote = {
+                symbol: stock.symbol,
+                yahooSymbol: stock.yahooSymbol,
+                nameEn: stock.nameEn,
+                nameAr: stock.nameAr,
+                currentPrice,
+                previousClose,
+                change: parseFloat(row.change) || 0,
+                changePercent: parseFloat((row.changePercentage || '').replace('%', '')) || 0,
+                dayHigh: parseFloat(row.high) || currentPrice,
+                dayLow: parseFloat(row.low) || currentPrice,
+                fiftyTwoWeekHigh: currentPrice * 1.25, // Fallback
+                fiftyTwoWeekLow: currentPrice * 0.75, // Fallback
+                volume,
+                avgVolume: volume,
+              };
+              const indicators: TechnicalIndicators = {
+                rsi: 50, sma20: currentPrice, sma50: currentPrice,
+                support: currentPrice * 0.95, resistance: currentPrice * 1.05,
+                volumeSpike: false, volumeRatio: 1.0
+              };
+              const override = earningsOverrides[stock.symbol] || null;
+              const { eps } = computeSmartEps(null, null, null, null, null, null, null, null, override, null);
+              const fvResult = computeFairValue({
+                eps: eps || null,
+                bvps: null,
+                dps: null,
+                currentPrice,
+                low52: quote.fiftyTwoWeekLow,
+                high52: quote.fiftyTwoWeekHigh,
+                volRatio: 1.0,
+                recommendScore: null,
+                sector: stock.sector,
+                symbol: stock.symbol,
+                name: stock.nameEn,
+              });
+              results.push({ stock, quote, indicators, automatedFairValue: fvResult.fairValue, fairValueConfidence: fvResult.confidence });
+            }
+            resolve(results);
+          } catch (e) {
+            logger.error(`Error parsing Mubasher: ${e}`);
+            resolve([]);
+          }
+        });
+      }).on('error', (e) => {
+        logger.error(`Error fetching Mubasher: ${e}`);
+        resolve([]);
+      });
+    });
+  }
+
+  async fetchEgxBetaBatch(stocks: StockMeta[]): Promise<BatchStockResult[]> {
+    return new Promise((resolve, reject) => {
+      // NOTE: Expected to fail due to WAF unless running with valid proxy/cookies
+      const url = 'https://beta.egx.com.eg/api/market-watch?Page=1&PageSize=200&SortBy=value&SortDescending=true';
+      const options = {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*'
+        }
+      };
+      https.get(url, options, (res) => {
+        let body = '';
+        res.on('data', d => body += d);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body);
+            if (!json || !json.data || !json.data.data) {
+              return resolve([]);
+            }
+            const results: BatchStockResult[] = [];
+            const earningsOverrides = loadEarningsOverrides();
+            for (const stock of stocks) {
+              const row = json.data.data.find((p: any) => p.code === stock.symbol || p.sym === stock.symbol);
+              if (!row) continue;
+              const currentPrice = parseFloat(row.closePrice) || parseFloat(row.value) || 0;
+              if (currentPrice < 0.01) continue;
+              const quote: StockQuote = {
+                symbol: stock.symbol,
+                yahooSymbol: stock.yahooSymbol,
+                nameEn: stock.nameEn,
+                nameAr: stock.nameAr,
+                currentPrice,
+                previousClose: currentPrice,
+                change: 0,
+                changePercent: parseFloat(row.chgPer) || 0,
+                dayHigh: currentPrice,
+                dayLow: currentPrice,
+                fiftyTwoWeekHigh: currentPrice * 1.25,
+                fiftyTwoWeekLow: currentPrice * 0.75,
+                volume: 0,
+                avgVolume: 0,
+              };
+              const indicators: TechnicalIndicators = {
+                rsi: 50, sma20: currentPrice, sma50: currentPrice,
+                support: currentPrice * 0.95, resistance: currentPrice * 1.05,
+                volumeSpike: false, volumeRatio: 1.0
+              };
+              const override = earningsOverrides[stock.symbol] || null;
+              const { eps } = computeSmartEps(null, null, null, null, null, null, null, null, override, null);
+              const fvResult = computeFairValue({
+                eps: eps || null,
+                bvps: null,
+                dps: null,
+                currentPrice,
+                low52: quote.fiftyTwoWeekLow,
+                high52: quote.fiftyTwoWeekHigh,
+                volRatio: 1.0,
+                recommendScore: null,
+                sector: stock.sector,
+                symbol: stock.symbol,
+                name: stock.nameEn,
+              });
+              results.push({ stock, quote, indicators, automatedFairValue: fvResult.fairValue, fairValueConfidence: fvResult.confidence });
+            }
+            resolve(results);
+          } catch (e) {
+            logger.error(`Error parsing EGX Beta: ${e}`);
+            resolve([]);
+          }
+        });
+      }).on('error', (e) => {
+        logger.error(`Error fetching EGX Beta: ${e}`);
+        resolve([]);
+      });
+    });
   }
 }
