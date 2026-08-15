@@ -2,6 +2,7 @@ import https from 'https';import fs from 'fs';
 import path from 'path';
 import { StockQuote, Candle, TechnicalIndicators, MarketRegime, DataSource } from '../types/stock';
 import { StockMeta, getSectorPE, getSectorPB, getCbeMacroDiscountFactor, getStockFxSensitivity, BASE_USD_EGP_RATE } from '../constants/stocks';
+import { computeFairValue } from './fairValueEngine';
 import { logger } from './logger';
 import { NewsScraperService } from './newsScraperService';
 import { AiExtractionService, ExtractedFundamentals } from './aiExtractionService';
@@ -278,74 +279,6 @@ export interface BatchStockResult {
     currency: string | null;
     lastUpdated: number;
   };
-}
-
-/**
- * Shared fair value computation — single source of truth.
- * Uses EPS × dynamic sector PE when available, otherwise a volume-weighted
- * Fibonacci structural estimate. Includes FX devaluation adjustment for
- * export/import-sensitive sectors. Clamped to [0.80×, 1.50×] current price
- * for intraday safety.
- */
-function computeFairValue(
-  eps: number | null | undefined,
-  currentPrice: number,
-  low52: number,
-  high52: number,
-  volRatio: number,
-  recommendScore: number | null | undefined,
-  sector: string,
-  usdEgpRate: number = 49.5,
-  bvps?: number | null,
-  dps?: number | null
-): { fairValue: number; confidence: 'HIGH' | 'MEDIUM' | 'LOW' } {
-  const baseSectorPE = getSectorPE(sector);
-  const baseSectorPB = getSectorPB(sector);
-  const macroDiscount = getCbeMacroDiscountFactor();
-  // Clamp TradingView Recommend.All to its valid [-1, +1] range
-  const clampedScore = Math.max(-1, Math.min(1, recommendScore || 0));
-
-  // Dynamic FX devaluation adjustment for exporters vs importers
-  const fxSensitivity = getStockFxSensitivity(sector);
-  const devaluationPct = Math.max(0, (usdEgpRate - BASE_USD_EGP_RATE) / BASE_USD_EGP_RATE);
-  const fxDevaluationAdjustment = 1 + (fxSensitivity * devaluationPct);
-  const consensusGrowthModifier = 1 + (clampedScore * 0.05);
-
-  let fairValue = currentPrice;
-  let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-
-  if (eps && eps > 0) {
-    // Model A: Dynamic EPS / PEG & Consensus Valuation
-    const dynamicSectorPE = baseSectorPE * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
-    fairValue = eps * dynamicSectorPE;
-    confidence = 'HIGH';
-  } else if (bvps && bvps > 0) {
-    // Model B: Dynamic Book Value (Graham-style) Valuation
-    const dynamicSectorPB = baseSectorPB * consensusGrowthModifier * macroDiscount * fxDevaluationAdjustment;
-    fairValue = bvps * dynamicSectorPB;
-    confidence = 'MEDIUM';
-  } else if (dps && dps > 0) {
-    // Model C: Dynamic Dividend Discount Model (DDM)
-    const requiredReturn = 0.12;
-    fairValue = (dps / requiredReturn) * consensusGrowthModifier * macroDiscount;
-    confidence = 'MEDIUM';
-  } else {
-    // Model D: Fibonacci structural estimate for stocks without positive fundamentals
-    const rangeMidpoint = low52 + 0.618 * (high52 - low52);
-    const volWeight = Math.min(volRatio, 2.0);
-    const scoreFactor = 1 + clampedScore * 0.1;
-    fairValue = rangeMidpoint * (0.85 + 0.15 * volWeight) * scoreFactor * macroDiscount * fxDevaluationAdjustment;
-    if (scoreFactor >= 1) {
-      fairValue = Math.max(fairValue, currentPrice * scoreFactor);
-    }
-    confidence = 'LOW';
-  }
-
-  // Intraday-appropriate safety guardrails: [0.80×, 1.50×]
-  fairValue = Math.max(currentPrice * 0.80, Math.min(currentPrice * 1.50, fairValue));
-  fairValue = Number(fairValue.toFixed(2));
-
-  return { fairValue, confidence };
 }
 
 // Circuit Breaker State
@@ -740,10 +673,24 @@ export class DataFetcherService {
                 volumeRatio: volRatio,
               };
 
-              // Fair value via multi-model dynamic function using effectiveEps, bvpsRaw, and effectiveDps
+              // Fair value via unified multi-model engine (single source of truth)
               const usdEgpRate = cachedUsdEgp || 49.5;
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-                computeFairValue(effectiveEps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector, usdEgpRate, bvpsRaw, effectiveDps);
+                computeFairValue({
+                  eps: effectiveEps,
+                  bvps: bvpsRaw,
+                  dps: effectiveDps,
+                  currentPrice,
+                  low52,
+                  high52,
+                  volRatio,
+                  recommendScore,
+                  sector: stock.sector,
+                  usdEgpRate,
+                  epsConfidence: smartEpsResult.confidence,
+                  symbol: stock.symbol,
+                  name: stock.nameEn,
+                });
 
               parsedRows.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
             }
@@ -1053,9 +1000,22 @@ export class DataFetcherService {
                 volumeRatio: volRatio,
               };
 
-              // Fair value via shared function (single source of truth)
+              // Fair value via unified engine (single source of truth)
+              const usdEgpRate = cachedUsdEgp || 49.5;
               const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-                computeFairValue(eps, currentPrice, low52, high52, volRatio, recommendScore, stock.sector);
+                computeFairValue({
+                  eps: eps || null,
+                  dps: divPerShare || null,
+                  currentPrice,
+                  low52,
+                  high52,
+                  volRatio,
+                  recommendScore,
+                  sector: stock.sector,
+                  usdEgpRate,
+                  symbol: stock.symbol,
+                  name: stock.nameEn,
+                });
 
               results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
             }
@@ -1145,7 +1105,16 @@ export class DataFetcherService {
           };
 
           const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-            computeFairValue(null, currentPrice, currentPrice * 0.75, currentPrice * 1.25, 1.0, 0, stock.sector);
+            computeFairValue({
+              currentPrice,
+              low52: currentPrice * 0.75,
+              high52: currentPrice * 1.25,
+              volRatio: 1.0,
+              recommendScore: 0,
+              sector: stock.sector,
+              symbol: stock.symbol,
+              name: stock.nameEn,
+            });
 
           results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
         }
@@ -1235,7 +1204,16 @@ export class DataFetcherService {
             };
 
             const { fairValue: automatedFairValue, confidence: fairValueConfidence } =
-              computeFairValue(null, currentPrice, currentPrice * 0.75, currentPrice * 1.25, 1.0, 0, stock.sector);
+              computeFairValue({
+                currentPrice,
+                low52: currentPrice * 0.75,
+                high52: currentPrice * 1.25,
+                volRatio: 1.0,
+                recommendScore: 0,
+                sector: stock.sector,
+                symbol: stock.symbol,
+                name: stock.nameEn,
+              });
 
             results.push({ stock, quote, indicators, automatedFairValue, fairValueConfidence });
           }

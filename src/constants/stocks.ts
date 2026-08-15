@@ -53,6 +53,23 @@ export function getCbeMacroDiscountFactor(cbeRate: number = CBE_CORRIDOR_INTERES
   return Number(discountFactor.toFixed(3));
 }
 
+/**
+ * Effective macro discount with HIGH-confidence uplift.
+ * Applied symmetrically to both the P/E and P/B models.
+ */
+export function getEffectiveCbeMacroDiscountFactor(cbeRate: number = CBE_CORRIDOR_INTEREST_RATE): number {
+  const baseDiscount = getCbeMacroDiscountFactor(cbeRate);
+  return Number(Math.min(1, baseDiscount + 0.082).toFixed(3));
+}
+
+/**
+ * Required return for the Dividend Discount Model, derived from the CBE corridor
+ * rate so it stays consistent with the prevailing interest-rate environment.
+ */
+export function getRequiredReturn(cbeRate: number = CBE_CORRIDOR_INTEREST_RATE): number {
+  return Math.max(0.12, cbeRate * 0.60);
+}
+
 export const SECTOR_PE_MULTIPLIERS: Record<string, number> = {
   'Pharmaceuticals': 18.0,
   'Food & Beverage': 16.0,
