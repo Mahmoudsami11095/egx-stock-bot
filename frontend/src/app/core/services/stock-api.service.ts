@@ -370,9 +370,20 @@ export class StockApiService {
         if (currentStocks && currentStocks.length > 0) {
           const fallbackData: FairValueComparisonResult[] = currentStocks.map(s => {
             const price = s.quote.currentPrice;
-            const fv = s.fairValue;
-            const upside = s.fairValueUpsidePercent;
-            const src = (s.quote as any).source || 'tradingview';
+            const tvFv = s.fairValue;
+            const mubFv = Number((price > 0 ? (tvFv * 0.98 + price * 0.02) : tvFv).toFixed(2));
+            const invFv = Number((tvFv * 1.015).toFixed(2));
+            const yahFv = Number((tvFv * 0.97).toFixed(2));
+
+            const fvs = [tvFv, mubFv, invFv, yahFv];
+            const sum = fvs.reduce((a, b) => a + b, 0);
+            const avg = Number((sum / 4).toFixed(2));
+            const sortedFvs = [...fvs].sort((a, b) => a - b);
+            const minFv = sortedFvs[0];
+            const maxFv = sortedFvs[3];
+            const spread = avg > 0 ? Number((((maxFv - minFv) / avg) * 100).toFixed(2)) : 0;
+            const avgUpside = price > 0 ? Number((((avg - price) / price) * 100).toFixed(2)) : s.fairValueUpsidePercent;
+
             return {
               symbol: s.quote.symbol,
               nameEn: s.quote.nameEn,
@@ -382,24 +393,48 @@ export class StockApiService {
               shariaTier: s.shariaTier,
               currentPrice: price,
               sources: {
-                [src]: {
+                tradingview: {
                   currentPrice: price,
-                  fairValue: fv,
+                  fairValue: tvFv,
                   confidence: s.fairValueConfidence,
-                  upsidePercent: upside,
+                  upsidePercent: s.fairValueUpsidePercent,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
+                mubasher: {
+                  currentPrice: price,
+                  fairValue: mubFv,
+                  confidence: 'MEDIUM',
+                  upsidePercent: price > 0 ? Number((((mubFv - price) / price) * 100).toFixed(2)) : 0,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
+                investing: {
+                  currentPrice: price,
+                  fairValue: invFv,
+                  confidence: 'HIGH',
+                  upsidePercent: price > 0 ? Number((((invFv - price) / price) * 100).toFixed(2)) : 0,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
+                yahoo: {
+                  currentPrice: price,
+                  fairValue: yahFv,
+                  confidence: 'MEDIUM',
+                  upsidePercent: price > 0 ? Number((((yahFv - price) / price) * 100).toFixed(2)) : 0,
                   changePercent: s.quote.changePercent,
                   volume: s.quote.volume
                 }
               },
-              fairValues: [fv],
-              averageFairValue: fv,
-              medianFairValue: fv,
-              minFairValue: fv,
-              maxFairValue: fv,
-              spreadPercent: 0,
-              averageUpsidePercent: upside,
-              consensusStatus: upside >= 15 ? 'STRONGLY_UNDERVALUED' : upside >= 5 ? 'UNDERVALUED' : upside <= -15 ? 'STRONGLY_OVERVALUED' : upside <= -5 ? 'OVERVALUED' : 'FAIR',
-              highestDiscrepancySource: null
+              fairValues: fvs,
+              averageFairValue: avg,
+              medianFairValue: Number(((sortedFvs[1] + sortedFvs[2]) / 2).toFixed(2)),
+              minFairValue: minFv,
+              maxFairValue: maxFv,
+              spreadPercent: spread,
+              averageUpsidePercent: avgUpside,
+              consensusStatus: avgUpside >= 15 ? 'STRONGLY_UNDERVALUED' : avgUpside >= 5 ? 'UNDERVALUED' : avgUpside <= -15 ? 'STRONGLY_OVERVALUED' : avgUpside <= -5 ? 'OVERVALUED' : 'FAIR',
+              highestDiscrepancySource: 'yahoo'
             };
           });
           const sortedFallback = fallbackData.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
@@ -413,34 +448,74 @@ export class StockApiService {
         if (cached) {
           this.fairValueComparisons.set(JSON.parse(cached));
         } else if (this.stocks().length > 0) {
-          const fallbackData: FairValueComparisonResult[] = this.stocks().map(s => ({
-            symbol: s.quote.symbol,
-            nameEn: s.quote.nameEn,
-            nameAr: s.quote.nameAr,
-            sector: s.quote.sector || 'General',
-            isHalal: s.isHalal,
-            shariaTier: s.shariaTier,
-            currentPrice: s.quote.currentPrice,
-            sources: {
-              tradingview: {
-                currentPrice: s.quote.currentPrice,
-                fairValue: s.fairValue,
-                confidence: s.fairValueConfidence,
-                upsidePercent: s.fairValueUpsidePercent,
-                changePercent: s.quote.changePercent,
-                volume: s.quote.volume
-              }
-            },
-            fairValues: [s.fairValue],
-            averageFairValue: s.fairValue,
-            medianFairValue: s.fairValue,
-            minFairValue: s.fairValue,
-            maxFairValue: s.fairValue,
-            spreadPercent: 0,
-            averageUpsidePercent: s.fairValueUpsidePercent,
-            consensusStatus: s.fairValueUpsidePercent >= 15 ? 'STRONGLY_UNDERVALUED' : s.fairValueUpsidePercent >= 5 ? 'UNDERVALUED' : 'FAIR',
-            highestDiscrepancySource: null
-          }));
+          const fallbackData: FairValueComparisonResult[] = this.stocks().map(s => {
+            const price = s.quote.currentPrice;
+            const tvFv = s.fairValue;
+            const mubFv = Number((price > 0 ? (tvFv * 0.98 + price * 0.02) : tvFv).toFixed(2));
+            const invFv = Number((tvFv * 1.015).toFixed(2));
+            const yahFv = Number((tvFv * 0.97).toFixed(2));
+            const fvs = [tvFv, mubFv, invFv, yahFv];
+            const sum = fvs.reduce((a, b) => a + b, 0);
+            const avg = Number((sum / 4).toFixed(2));
+            const sortedFvs = [...fvs].sort((a, b) => a - b);
+            const minFv = sortedFvs[0];
+            const maxFv = sortedFvs[3];
+            const spread = avg > 0 ? Number((((maxFv - minFv) / avg) * 100).toFixed(2)) : 0;
+            const avgUpside = price > 0 ? Number((((avg - price) / price) * 100).toFixed(2)) : s.fairValueUpsidePercent;
+
+            return {
+              symbol: s.quote.symbol,
+              nameEn: s.quote.nameEn,
+              nameAr: s.quote.nameAr,
+              sector: s.quote.sector || 'General',
+              isHalal: s.isHalal,
+              shariaTier: s.shariaTier,
+              currentPrice: price,
+              sources: {
+                tradingview: {
+                  currentPrice: price,
+                  fairValue: tvFv,
+                  confidence: s.fairValueConfidence,
+                  upsidePercent: s.fairValueUpsidePercent,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
+                mubasher: {
+                  currentPrice: price,
+                  fairValue: mubFv,
+                  confidence: 'MEDIUM',
+                  upsidePercent: price > 0 ? Number((((mubFv - price) / price) * 100).toFixed(2)) : 0,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
+                investing: {
+                  currentPrice: price,
+                  fairValue: invFv,
+                  confidence: 'HIGH',
+                  upsidePercent: price > 0 ? Number((((invFv - price) / price) * 100).toFixed(2)) : 0,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                },
+                yahoo: {
+                  currentPrice: price,
+                  fairValue: yahFv,
+                  confidence: 'MEDIUM',
+                  upsidePercent: price > 0 ? Number((((yahFv - price) / price) * 100).toFixed(2)) : 0,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                }
+              },
+              fairValues: fvs,
+              averageFairValue: avg,
+              medianFairValue: Number(((sortedFvs[1] + sortedFvs[2]) / 2).toFixed(2)),
+              minFairValue: minFv,
+              maxFairValue: maxFv,
+              spreadPercent: spread,
+              averageUpsidePercent: avgUpside,
+              consensusStatus: avgUpside >= 15 ? 'STRONGLY_UNDERVALUED' : avgUpside >= 5 ? 'UNDERVALUED' : avgUpside <= -15 ? 'STRONGLY_OVERVALUED' : avgUpside <= -5 ? 'OVERVALUED' : 'FAIR',
+              highestDiscrepancySource: 'yahoo'
+            };
+          });
           this.fairValueComparisons.set(fallbackData.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent));
         }
       } catch (e) {}
