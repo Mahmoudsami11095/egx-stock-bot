@@ -397,9 +397,7 @@ export class PriceComparatorComponent implements OnInit {
   public selectedStock = signal<PriceComparisonResult | null>(null);
 
   ngOnInit(): void {
-    if (this.apiService.priceComparisons().length === 0) {
-      this.loadData();
-    }
+    this.loadData();
   }
 
   public loadData(force: boolean = false): void {

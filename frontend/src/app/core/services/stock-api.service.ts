@@ -210,23 +210,10 @@ export class StockApiService {
       if (cachedComparisons) {
         try {
           const parsed = JSON.parse(cachedComparisons);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const backfilled = parsed.map(item => {
-              if (!item.sources?.egx) {
-                const baseFv = item.sources?.tradingview?.fairValue || item.averageFairValue || item.currentPrice;
-                item.sources = item.sources || {};
-                item.sources.egx = {
-                  currentPrice: item.currentPrice,
-                  fairValue: baseFv,
-                  confidence: 'HIGH',
-                  upsidePercent: item.averageUpsidePercent || 0,
-                  changePercent: item.sources?.tradingview?.changePercent || 0,
-                  volume: item.sources?.tradingview?.volume || 0
-                };
-              }
-              return item;
-            });
-            this.fairValueComparisons.set(backfilled);
+          if (Array.isArray(parsed) && parsed.length >= 200) {
+            this.fairValueComparisons.set(parsed);
+          } else {
+            localStorage.removeItem('egx_fv_comparisons_cache');
           }
         } catch (e) {}
       }
@@ -234,23 +221,10 @@ export class StockApiService {
       if (cachedPriceComp) {
         try {
           const parsed = JSON.parse(cachedPriceComp);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const backfilled = parsed.map(item => {
-              if (!item.sources?.egx) {
-                const baseP = item.sources?.tradingview?.price || item.averagePrice || 0;
-                item.sources = item.sources || {};
-                item.sources.egx = {
-                  price: baseP,
-                  change: item.sources?.tradingview?.change || 0,
-                  changePercent: item.sources?.tradingview?.changePercent || 0,
-                  volume: item.sources?.tradingview?.volume || 0,
-                  dayHigh: item.sources?.tradingview?.dayHigh || baseP,
-                  dayLow: item.sources?.tradingview?.dayLow || baseP
-                };
-              }
-              return item;
-            });
-            this.priceComparisons.set(backfilled);
+          if (Array.isArray(parsed) && parsed.length >= 200) {
+            this.priceComparisons.set(parsed);
+          } else {
+            localStorage.removeItem('egx_price_comparisons_cache');
           }
         } catch (e) {}
       }
@@ -398,7 +372,8 @@ export class StockApiService {
   public async loadFairValueComparisons(force: boolean = false): Promise<void> {
     this.comparisonLoading.set(true);
     try {
-      const res = await this.http.get<FairValueComparisonResult[]>('/api/fair-value-compare').toPromise();
+      const ts = Date.now();
+      const res = await this.http.get<FairValueComparisonResult[]>(`/api/fair-value-compare?_ts=${ts}`).toPromise();
       if (res && Array.isArray(res) && res.length > 0) {
         const sorted = [...res].sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
         this.fairValueComparisons.set(sorted);
@@ -508,7 +483,8 @@ export class StockApiService {
   public async loadPriceComparisons(force: boolean = false): Promise<void> {
     this.priceComparisonLoading.set(true);
     try {
-      const res = await this.http.get<PriceComparisonResult[]>('/api/price-compare').toPromise();
+      const ts = Date.now();
+      const res = await this.http.get<PriceComparisonResult[]>(`/api/price-compare?_ts=${ts}`).toPromise();
       if (res && Array.isArray(res) && res.length > 0) {
         const sorted = [...res].sort((a, b) => b.maxVolume - a.maxVolume);
         this.priceComparisons.set(sorted);

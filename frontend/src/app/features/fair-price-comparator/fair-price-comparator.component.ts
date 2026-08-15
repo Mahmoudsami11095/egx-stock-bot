@@ -424,9 +424,7 @@ export class FairPriceComparatorComponent implements OnInit {
   public selectedStock = signal<FairValueComparisonResult | null>(null);
 
   ngOnInit(): void {
-    if (this.apiService.fairValueComparisons().length === 0) {
-      this.loadData();
-    }
+    this.loadData();
   }
 
   public loadData(force: boolean = false): void {
