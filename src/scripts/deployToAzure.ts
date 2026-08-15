@@ -12,15 +12,7 @@ conn.on('ready', () => {
   console.log('✅ SSH Connection established!');
 
   const commands = [
-    'echo azureuserSami@11095 | sudo -S pm2 list',
-    'echo azureuserSami@11095 | sudo -S pm2 delete all',
-    'cd /home/azureuser/egx-stock-bot',
-    'git pull origin main',
-    'npx tsc',
-    'pm2 start dist/index.js --name "egx-stock-bot"',
-    'pm2 save',
-    'sleep 3',
-    'curl -i http://127.0.0.1:5000/api/fair-value-compare | head -n 25'
+    'pm2 list'
   ].join(' && echo "\n---COMMAND-SEPARATOR---\n" && ');
 
   conn.exec(commands, (err, stream) => {
