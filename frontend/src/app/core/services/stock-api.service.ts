@@ -381,91 +381,6 @@ export class StockApiService {
         try {
           localStorage.setItem('egx_fv_comparisons_cache', JSON.stringify(sorted));
         } catch (e) {}
-      } else {
-        // Fallback: derive from current stock cache if available
-        const currentStocks = this.stocks();
-        if (currentStocks && currentStocks.length > 0) {
-          const fallbackData: FairValueComparisonResult[] = currentStocks.map(s => {
-            const price = s.quote.currentPrice;
-            const tvFv = s.fairValue;
-            const egxFv = tvFv;
-            const mubFv = Number((price > 0 ? (tvFv * 0.98 + price * 0.02) : tvFv).toFixed(2));
-            const invFv = Number((tvFv * 1.015).toFixed(2));
-            const yahFv = Number((tvFv * 0.97).toFixed(2));
-
-            const fvs = [egxFv, tvFv, mubFv, invFv, yahFv];
-            const sum = fvs.reduce((a, b) => a + b, 0);
-            const avg = Number((sum / 5).toFixed(2));
-            const sortedFvs = [...fvs].sort((a, b) => a - b);
-            const minFv = sortedFvs[0];
-            const maxFv = sortedFvs[4];
-            const spread = avg > 0 ? Number((((maxFv - minFv) / avg) * 100).toFixed(2)) : 0;
-            const avgUpside = price > 0 ? Number((((avg - price) / price) * 100).toFixed(2)) : s.fairValueUpsidePercent;
-
-            return {
-              symbol: s.quote.symbol,
-              nameEn: s.quote.nameEn,
-              nameAr: s.quote.nameAr,
-              sector: s.quote.sector || 'General',
-              isHalal: s.isHalal,
-              shariaTier: s.shariaTier,
-              currentPrice: price,
-              sources: {
-                egx: {
-                  currentPrice: price,
-                  fairValue: egxFv,
-                  confidence: 'HIGH',
-                  upsidePercent: s.fairValueUpsidePercent,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                tradingview: {
-                  currentPrice: price,
-                  fairValue: tvFv,
-                  confidence: s.fairValueConfidence,
-                  upsidePercent: s.fairValueUpsidePercent,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                mubasher: {
-                  currentPrice: price,
-                  fairValue: mubFv,
-                  confidence: 'MEDIUM',
-                  upsidePercent: price > 0 ? Number((((mubFv - price) / price) * 100).toFixed(2)) : 0,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                investing: {
-                  currentPrice: price,
-                  fairValue: invFv,
-                  confidence: 'HIGH',
-                  upsidePercent: price > 0 ? Number((((invFv - price) / price) * 100).toFixed(2)) : 0,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                },
-                yahoo: {
-                  currentPrice: price,
-                  fairValue: yahFv,
-                  confidence: 'MEDIUM',
-                  upsidePercent: price > 0 ? Number((((yahFv - price) / price) * 100).toFixed(2)) : 0,
-                  changePercent: s.quote.changePercent,
-                  volume: s.quote.volume
-                }
-              },
-              fairValues: fvs,
-              averageFairValue: avg,
-              medianFairValue: sortedFvs[2],
-              minFairValue: minFv,
-              maxFairValue: maxFv,
-              spreadPercent: spread,
-              averageUpsidePercent: avgUpside,
-              consensusStatus: avgUpside >= 15 ? 'STRONGLY_UNDERVALUED' : avgUpside >= 5 ? 'UNDERVALUED' : avgUpside <= -15 ? 'STRONGLY_OVERVALUED' : avgUpside <= -5 ? 'OVERVALUED' : 'FAIR',
-              highestDiscrepancySource: 'yahoo'
-            };
-          });
-          const sortedFallback = fallbackData.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
-          this.fairValueComparisons.set(sortedFallback);
-        }
       }
     } catch (err) {
       console.warn('Error fetching fair value comparisons:', err);
@@ -492,43 +407,6 @@ export class StockApiService {
         try {
           localStorage.setItem('egx_price_comparisons_cache', JSON.stringify(sorted));
         } catch (e) {}
-      } else {
-        const currentStocks = this.stocks();
-        if (currentStocks && currentStocks.length > 0) {
-          const fallbackData: PriceComparisonResult[] = currentStocks.map(s => {
-            const p = s.quote.currentPrice;
-            const change = s.quote.change;
-            const changePct = s.quote.changePercent;
-            const vol = s.quote.volume;
-            const high = s.quote.dayHigh;
-            const low = s.quote.dayLow;
-
-            return {
-              symbol: s.quote.symbol,
-              nameEn: s.quote.nameEn,
-              nameAr: s.quote.nameAr,
-              sector: s.quote.sector || 'General',
-              isHalal: s.isHalal,
-              shariaTier: s.shariaTier,
-              averagePrice: p,
-              medianPrice: p,
-              minPrice: p,
-              maxPrice: p,
-              priceSpreadPercent: 0,
-              alignmentStatus: 'SYNCED',
-              highestVolumeSource: 'egx',
-              maxVolume: vol,
-              sources: {
-                egx: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
-                tradingview: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
-                mubasher: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
-                investing: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low },
-                yahoo: { price: p, change, changePercent: changePct, volume: vol, dayHigh: high, dayLow: low }
-              }
-            };
-          });
-          this.priceComparisons.set(fallbackData.sort((a, b) => b.maxVolume - a.maxVolume));
-        }
       }
     } catch (err) {
       console.warn('Error fetching price comparisons:', err);

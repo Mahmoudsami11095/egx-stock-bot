@@ -69,6 +69,7 @@ function computeStandaloneFV(price, eps, sector) {
   return Number(fv.toFixed(2));
 }
 
+// 1. Direct Fetch: TradingView Scanner
 function fetchTradingView() {
   return new Promise((resolve) => {
     const postData = JSON.stringify({
@@ -90,7 +91,7 @@ function fetchTradingView() {
         'Content-Length': Buffer.byteLength(postData),
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
       },
-      timeout: 4500
+      timeout: 5000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
@@ -111,6 +112,7 @@ function fetchTradingView() {
   });
 }
 
+// 2. Direct Fetch: Mubasher EGX API
 function fetchMubasher() {
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/stocks/prices?country=eg', {
@@ -118,7 +120,7 @@ function fetchMubasher() {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
         'Accept': 'application/json'
       },
-      timeout: 4500
+      timeout: 5000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
@@ -137,6 +139,7 @@ function fetchMubasher() {
   });
 }
 
+// 3. Direct Fetch: EGX Beta Market Watch
 function fetchEgxBeta() {
   return new Promise((resolve) => {
     const req = https.get('https://beta.egx.com.eg/api/market/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
@@ -145,13 +148,13 @@ function fetchEgxBeta() {
         'Accept': 'application/json, text/plain, */*',
         'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
       },
-      timeout: 2500
+      timeout: 3000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
         try {
-          if (body.includes('Request Rejected')) {
+          if (body.includes('Request Rejected') || res.statusCode !== 200) {
             resolve([]);
           } else {
             const json = JSON.parse(body);
@@ -186,12 +189,13 @@ module.exports = async (req, res) => {
 
     const allSymbolsMap = new Map();
 
+    // Map 1: TradingView Data (Strict - only if returned by TradingView)
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
       const sym = item.s.replace('EGX:', '').toUpperCase();
       const [name, desc, close, changePercent, changeAbs, volume, high, low, open, sector, eps, pe] = item.d;
-      if (close && close > 0) {
+      if (typeof close === 'number' && close > 0) {
         tvMap.set(sym, {
           price: Number(close.toFixed(2)),
           change: Number((changeAbs || 0).toFixed(2)),
@@ -200,8 +204,8 @@ module.exports = async (req, res) => {
           dayHigh: Number((high || close).toFixed(2)),
           dayLow: Number((low || close).toFixed(2)),
           open: Number((open || close).toFixed(2)),
-          eps: eps ? Number(eps.toFixed(2)) : null,
-          pe: pe ? Number(pe.toFixed(2)) : null,
+          eps: (typeof eps === 'number' && !isNaN(eps)) ? Number(eps.toFixed(2)) : undefined,
+          pe: (typeof pe === 'number' && !isNaN(pe) && pe > 0) ? Number(pe.toFixed(2)) : undefined,
           nameEn: desc || name || sym,
           sector: sector || 'General'
         });
@@ -217,22 +221,28 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Map 2: Mubasher Data (Strict - only if returned by Mubasher)
     const mubMap = new Map();
     for (const item of mubData) {
       const code = (item.code || item.symbol || '').toUpperCase();
       if (!code) continue;
-      const val = parseFloat(item.value || item.lastPrice || item.price) || 0;
-      if (val > 0) {
-        const mubStock = {
+      const val = parseFloat(item.value || item.lastPrice || item.price);
+      if (!isNaN(val) && val > 0) {
+        const changeVal = parseFloat(item.change);
+        const changePct = parseFloat((item.changePercentage || '').replace('%', ''));
+        const volVal = parseInt(String(item.volume || '0').replace(/,/g, ''), 10);
+        const highVal = parseFloat(item.high);
+        const lowVal = parseFloat(item.low);
+
+        mubMap.set(code, {
           price: val,
-          change: parseFloat(item.change || 0) || 0,
-          changePercent: parseFloat((item.changePercentage || '').replace('%', '')) || 0,
-          volume: parseInt(String(item.volume || '0').replace(/,/g, ''), 10) || 0,
-          dayHigh: parseFloat(item.high) || val,
-          dayLow: parseFloat(item.low) || val,
+          change: !isNaN(changeVal) ? changeVal : 0,
+          changePercent: !isNaN(changePct) ? changePct : 0,
+          volume: !isNaN(volVal) ? volVal : 0,
+          dayHigh: !isNaN(highVal) ? highVal : undefined,
+          dayLow: !isNaN(lowVal) ? lowVal : undefined,
           nameAr: item.name || code
-        };
-        mubMap.set(code, mubStock);
+        });
 
         if (!allSymbolsMap.has(code)) {
           allSymbolsMap.set(code, {
@@ -248,19 +258,26 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Map 3: EGX Beta Data (Strict - only if returned by EGX Beta)
     const egxMap = new Map();
     for (const item of egxData) {
       const code = (item.reuters || item.isin || item.symbol || item.code || '').replace('.CA', '').toUpperCase();
       if (!code) continue;
-      const val = parseFloat(item.closePrice || item.lastPrice || item.price) || 0;
-      if (val > 0) {
+      const val = parseFloat(item.closePrice || item.lastPrice || item.price);
+      if (!isNaN(val) && val > 0) {
+        const changeVal = parseFloat(item.change);
+        const changePct = parseFloat(item.chgPer || item.changePercent);
+        const volVal = parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10);
+        const highVal = parseFloat(item.highPrice || item.high);
+        const lowVal = parseFloat(item.lowPrice || item.low);
+
         egxMap.set(code, {
           price: val,
-          change: parseFloat(item.change || 0) || 0,
-          changePercent: parseFloat(item.chgPer || item.changePercent || 0) || 0,
-          volume: parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10) || 0,
-          dayHigh: parseFloat(item.highPrice || item.high) || val,
-          dayLow: parseFloat(item.lowPrice || item.low) || val,
+          change: !isNaN(changeVal) ? changeVal : 0,
+          changePercent: !isNaN(changePct) ? changePct : 0,
+          volume: !isNaN(volVal) ? volVal : 0,
+          dayHigh: !isNaN(highVal) ? highVal : undefined,
+          dayLow: !isNaN(lowVal) ? lowVal : undefined,
           nameAr: item.nameA || item.name || code,
           nameEn: item.nameE || code
         });
@@ -289,53 +306,115 @@ module.exports = async (req, res) => {
       const mubInfo = mubMap.get(sym);
       const egxInfo = egxMap.get(sym);
 
-      const basePrice = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || (egxInfo && egxInfo.price) || 0;
-      if (basePrice <= 0) continue;
+      // Build strictly genuine sources object with ZERO fallbacks
+      const sources = {};
+      const validPrices = [];
+      const validFairValues = [];
+      const validUpsides = [];
+      const validPeRatios = [];
+      const validEps = [];
 
-      const epsVal = tvInfo && tvInfo.eps ? tvInfo.eps : Number((basePrice / (SECTOR_PE[sector] || 9.0)).toFixed(2));
-      const peVal = tvInfo && tvInfo.pe ? tvInfo.pe : (epsVal > 0 ? Number((basePrice / epsVal).toFixed(2)) : (SECTOR_PE[sector] || 9.0));
+      // 1. EGX Source (Only if EGX returned data)
+      if (egxInfo) {
+        const fv = computeStandaloneFV(egxInfo.price, tvInfo?.eps, sector);
+        const upside = egxInfo.price > 0 ? Number((((fv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
+        sources.egx = {
+          price: egxInfo.price,
+          change: egxInfo.change,
+          changePercent: egxInfo.changePercent,
+          volume: egxInfo.volume,
+          dayHigh: egxInfo.dayHigh,
+          dayLow: egxInfo.dayLow,
+          fairValue: fv,
+          upsidePercent: upside,
+          peRatio: tvInfo?.pe,
+          eps: tvInfo?.eps
+        };
+        validPrices.push(egxInfo.price);
+        validFairValues.push(fv);
+        validUpsides.push(upside);
+      }
 
-      const tvPrice = tvInfo ? tvInfo.price : basePrice;
-      const mubPrice = mubInfo ? mubInfo.price : basePrice;
-      const egxPrice = (egxInfo && egxInfo.price > 0) ? egxInfo.price : mubPrice;
-      const invPrice = tvPrice;
-      const yahPrice = mubPrice;
+      // 2. TradingView Source (Only if TradingView returned data)
+      if (tvInfo) {
+        const fv = computeStandaloneFV(tvInfo.price, tvInfo.eps, sector);
+        const upside = tvInfo.price > 0 ? Number((((fv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
+        sources.tradingview = {
+          price: tvInfo.price,
+          change: tvInfo.change,
+          changePercent: tvInfo.changePercent,
+          volume: tvInfo.volume,
+          dayHigh: tvInfo.dayHigh,
+          dayLow: tvInfo.dayLow,
+          fairValue: fv,
+          upsidePercent: upside,
+          peRatio: tvInfo.pe,
+          eps: tvInfo.eps
+        };
+        validPrices.push(tvInfo.price);
+        validFairValues.push(fv);
+        validUpsides.push(upside);
+        if (tvInfo.pe) validPeRatios.push(tvInfo.pe);
+        if (tvInfo.eps) validEps.push(tvInfo.eps);
+      }
 
-      // Calculate Fair Values
-      const tvFv = computeStandaloneFV(tvPrice, epsVal, sector);
-      const mubFv = computeStandaloneFV(mubPrice, epsVal, sector);
-      const egxFv = computeStandaloneFV(egxPrice, epsVal, sector);
-      const invFv = Number((tvFv * 1.01).toFixed(2));
-      const yahFv = Number((mubFv * 0.98).toFixed(2));
+      // 3. Mubasher Source (Only if Mubasher returned data)
+      if (mubInfo) {
+        const fv = computeStandaloneFV(mubInfo.price, tvInfo?.eps, sector);
+        const upside = mubInfo.price > 0 ? Number((((fv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
+        sources.mubasher = {
+          price: mubInfo.price,
+          change: mubInfo.change,
+          changePercent: mubInfo.changePercent,
+          volume: mubInfo.volume,
+          dayHigh: mubInfo.dayHigh,
+          dayLow: mubInfo.dayLow,
+          fairValue: fv,
+          upsidePercent: upside,
+          peRatio: tvInfo?.pe,
+          eps: tvInfo?.eps
+        };
+        validPrices.push(mubInfo.price);
+        validFairValues.push(fv);
+        validUpsides.push(upside);
+      }
 
-      // Calculate Upsides
-      const tvUpside = tvPrice > 0 ? Number((((tvFv - tvPrice) / tvPrice) * 100).toFixed(2)) : 0;
-      const mubUpside = mubPrice > 0 ? Number((((mubFv - mubPrice) / mubPrice) * 100).toFixed(2)) : 0;
-      const egxUpside = egxPrice > 0 ? Number((((egxFv - egxPrice) / egxPrice) * 100).toFixed(2)) : 0;
-      const invUpside = invPrice > 0 ? Number((((invFv - invPrice) / invPrice) * 100).toFixed(2)) : 0;
-      const yahUpside = yahPrice > 0 ? Number((((yahFv - yahPrice) / yahPrice) * 100).toFixed(2)) : 0;
+      // 4. Investing.com (Strict: only if genuine independent data exists)
+      // sources.investing remains undefined
 
-      const priceList = [egxPrice, tvPrice, mubPrice, invPrice, yahPrice].filter(p => p > 0);
-      const sumPrices = priceList.reduce((a, b) => a + b, 0);
-      const avgPrice = Number((sumPrices / priceList.length).toFixed(2));
+      // 5. Yahoo Finance (Strict: only if genuine independent data exists)
+      // sources.yahoo remains undefined
 
-      const sortedPrices = [...priceList].sort((a, b) => a - b);
+      // If no valid source returned price for this stock, skip
+      if (validPrices.length === 0) continue;
+
+      // Compute Consensus and Spread STRICTLY across only genuine responding sources
+      const sumPrices = validPrices.reduce((a, b) => a + b, 0);
+      const avgPrice = Number((sumPrices / validPrices.length).toFixed(2));
+
+      const sortedPrices = [...validPrices].sort((a, b) => a - b);
       const minPrice = sortedPrices[0];
       const maxPrice = sortedPrices[sortedPrices.length - 1];
-      const spread = avgPrice > 0 ? Number((((maxPrice - minPrice) / avgPrice) * 100).toFixed(2)) : 0;
+      const spread = (avgPrice > 0 && validPrices.length > 1) ? Number((((maxPrice - minPrice) / avgPrice) * 100).toFixed(2)) : 0;
 
       let alignmentStatus = 'SYNCED';
       if (spread > 1.5) alignmentStatus = 'DIVERGENT';
       else if (spread > 0.5) alignmentStatus = 'MINOR_LAG';
 
-      const tvVol = tvInfo ? tvInfo.volume : 0;
-      const mubVol = mubInfo ? mubInfo.volume : 0;
-      const egxVol = egxInfo ? egxInfo.volume : mubVol;
-      const maxVol = Math.max(tvVol, mubVol, egxVol);
-      const highestVolSource = maxVol === egxVol && egxVol > 0 ? 'egx' : (tvVol >= mubVol ? 'tradingview' : 'mubasher');
+      const maxVol = Math.max(
+        sources.egx?.volume || 0,
+        sources.tradingview?.volume || 0,
+        sources.mubasher?.volume || 0
+      );
 
-      const avgFv = Number(((tvFv + mubFv + egxFv + invFv + yahFv) / 5).toFixed(2));
-      const avgUpside = Number(((tvUpside + mubUpside + egxUpside + invUpside + yahUpside) / 5).toFixed(2));
+      let highestVolSource = 'tradingview';
+      if (sources.egx && sources.egx.volume === maxVol && maxVol > 0) highestVolSource = 'egx';
+      else if (sources.mubasher && sources.mubasher.volume === maxVol && maxVol > 0) highestVolSource = 'mubasher';
+
+      const avgFv = validFairValues.length > 0 ? Number((validFairValues.reduce((a, b) => a + b, 0) / validFairValues.length).toFixed(2)) : avgPrice;
+      const avgUpside = validUpsides.length > 0 ? Number((validUpsides.reduce((a, b) => a + b, 0) / validUpsides.length).toFixed(2)) : 0;
+      const avgPe = validPeRatios.length > 0 ? Number((validPeRatios.reduce((a, b) => a + b, 0) / validPeRatios.length).toFixed(2)) : undefined;
+      const avgEps = validEps.length > 0 ? Number((validEps.reduce((a, b) => a + b, 0) / validEps.length).toFixed(2)) : undefined;
 
       results.push({
         symbol: sym,
@@ -355,81 +434,20 @@ module.exports = async (req, res) => {
         maxVolume: maxVol,
         averageFairValue: avgFv,
         averageUpsidePercent: avgUpside,
-        averagePeRatio: peVal,
-        averageEps: epsVal,
-        sources: {
-          egx: {
-            price: egxPrice,
-            change: egxInfo ? egxInfo.change : (mubInfo ? mubInfo.change : (tvInfo ? tvInfo.change : 0)),
-            changePercent: egxInfo ? egxInfo.changePercent : (mubInfo ? mubInfo.changePercent : (tvInfo ? tvInfo.changePercent : 0)),
-            volume: egxVol,
-            dayHigh: egxInfo ? egxInfo.dayHigh : (mubInfo ? mubInfo.dayHigh : basePrice),
-            dayLow: egxInfo ? egxInfo.dayLow : (mubInfo ? mubInfo.dayLow : basePrice),
-            fairValue: egxFv,
-            upsidePercent: egxUpside,
-            peRatio: peVal,
-            eps: epsVal
-          },
-          tradingview: {
-            price: tvPrice,
-            change: tvInfo ? tvInfo.change : 0,
-            changePercent: tvInfo ? tvInfo.changePercent : 0,
-            volume: tvVol,
-            dayHigh: tvInfo ? tvInfo.dayHigh : basePrice,
-            dayLow: tvInfo ? tvInfo.dayLow : basePrice,
-            fairValue: tvFv,
-            upsidePercent: tvUpside,
-            peRatio: tvInfo?.pe || peVal,
-            eps: tvInfo?.eps || epsVal
-          },
-          mubasher: {
-            price: mubPrice,
-            change: mubInfo ? mubInfo.change : 0,
-            changePercent: mubInfo ? mubInfo.changePercent : 0,
-            volume: mubVol,
-            dayHigh: mubInfo ? mubInfo.dayHigh : basePrice,
-            dayLow: mubInfo ? mubInfo.dayLow : basePrice,
-            fairValue: mubFv,
-            upsidePercent: mubUpside,
-            peRatio: peVal,
-            eps: epsVal
-          },
-          investing: {
-            price: invPrice,
-            change: tvInfo ? tvInfo.change : 0,
-            changePercent: tvInfo ? tvInfo.changePercent : 0,
-            volume: tvVol,
-            dayHigh: tvInfo ? tvInfo.dayHigh : basePrice,
-            dayLow: tvInfo ? tvInfo.dayLow : basePrice,
-            fairValue: invFv,
-            upsidePercent: invUpside,
-            peRatio: peVal,
-            eps: epsVal
-          },
-          yahoo: {
-            price: yahPrice,
-            change: mubInfo ? mubInfo.change : 0,
-            changePercent: mubInfo ? mubInfo.changePercent : 0,
-            volume: mubVol,
-            dayHigh: mubInfo ? mubInfo.dayHigh : basePrice,
-            dayLow: mubInfo ? mubInfo.dayLow : basePrice,
-            fairValue: yahFv,
-            upsidePercent: yahUpside,
-            peRatio: peVal,
-            eps: epsVal
-          }
-        }
+        averagePeRatio: avgPe,
+        averageEps: avgEps,
+        sources
       });
     }
 
     // Sort by maxVolume descending by default
     results.sort((a, b) => b.maxVolume - a.maxVolume);
 
-    res.setHeader('X-Served-By', 'Vercel-Universal-PriceCompare');
+    res.setHeader('X-Served-By', 'Vercel-ZeroFallback-UniversalPriceCompare');
     res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=10');
     return res.status(200).json(results);
   } catch (err) {
-    console.error('Error in price-compare serverless API:', err);
+    console.error('Error in zero-fallback price-compare API:', err);
     return res.status(500).json({ error: err.message });
   }
 };

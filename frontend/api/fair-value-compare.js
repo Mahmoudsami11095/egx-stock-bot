@@ -57,7 +57,7 @@ const SECTOR_PE = {
 function computeStandaloneFV(price, eps, sector) {
   if (!price || price <= 0) return 0;
   const peMultiplier = SECTOR_PE[sector] || 9.0;
-  const macroDiscount = 0.82; // 18% discount for CBE rate
+  const macroDiscount = 0.82;
   let fv = price;
 
   if (eps && eps > 0) {
@@ -90,7 +90,7 @@ function fetchTradingView() {
         'Content-Length': Buffer.byteLength(postData),
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
       },
-      timeout: 4500
+      timeout: 5000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
@@ -118,7 +118,7 @@ function fetchMubasher() {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
         'Accept': 'application/json'
       },
-      timeout: 4500
+      timeout: 5000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
@@ -145,13 +145,13 @@ function fetchEgxBeta() {
         'Accept': 'application/json, text/plain, */*',
         'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
       },
-      timeout: 2500
+      timeout: 3000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
         try {
-          if (body.includes('Request Rejected')) {
+          if (body.includes('Request Rejected') || res.statusCode !== 200) {
             resolve([]);
           } else {
             const json = JSON.parse(body);
@@ -186,20 +186,21 @@ module.exports = async (req, res) => {
 
     const allSymbolsMap = new Map();
 
+    // Map 1: TradingView (Strict)
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
       const sym = item.s.replace('EGX:', '').toUpperCase();
       const [name, desc, close, change, volume, high, low, eps, pe, high52, low52, sector] = item.d;
-      if (close && close > 0) {
+      if (typeof close === 'number' && close > 0) {
         tvMap.set(sym, {
           price: Number(close.toFixed(2)),
           change: Number((change || 0).toFixed(2)),
           volume: volume || 0,
           high: Number((high || close).toFixed(2)),
           low: Number((low || close).toFixed(2)),
-          eps: eps || null,
-          pe: pe || null,
+          eps: (typeof eps === 'number' && !isNaN(eps)) ? Number(eps.toFixed(2)) : null,
+          pe: (typeof pe === 'number' && !isNaN(pe) && pe > 0) ? Number(pe.toFixed(2)) : null,
           nameEn: desc || name || sym,
           sector: sector || 'General'
         });
@@ -215,15 +216,16 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Map 2: Mubasher (Strict)
     const mubMap = new Map();
     for (const item of mubData) {
       const code = (item.code || item.symbol || '').toUpperCase();
       if (!code) continue;
-      const val = parseFloat(item.value || item.lastPrice || item.price) || 0;
-      if (val > 0) {
+      const val = parseFloat(item.value || item.lastPrice || item.price);
+      if (!isNaN(val) && val > 0) {
         mubMap.set(code, {
           price: val,
-          change: parseFloat(item.change || 0) || 0,
+          change: parseFloat(item.change) || 0,
           changePercent: parseFloat((item.changePercentage || '').replace('%', '')) || 0,
           volume: parseInt(String(item.volume || '0').replace(/,/g, ''), 10) || 0,
           high: parseFloat(item.high) || val,
@@ -245,19 +247,20 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Map 3: EGX Beta (Strict)
     const egxMap = new Map();
     for (const item of egxData) {
       const code = (item.reuters || item.isin || item.symbol || item.code || '').replace('.CA', '').toUpperCase();
       if (!code) continue;
-      const val = parseFloat(item.closePrice || item.lastPrice || item.price) || 0;
-      if (val > 0) {
+      const val = parseFloat(item.closePrice || item.lastPrice || item.price);
+      if (!isNaN(val) && val > 0) {
         egxMap.set(code, {
           price: val,
-          change: parseFloat(item.change || 0) || 0,
-          changePercent: parseFloat(item.chgPer || item.changePercent || 0) || 0,
+          change: parseFloat(item.change) || 0,
+          changePercent: parseFloat(item.chgPer || item.changePercent) || 0,
           volume: parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10) || 0,
-          dayHigh: parseFloat(item.highPrice || item.high) || val,
-          dayLow: parseFloat(item.lowPrice || item.low) || val
+          high: parseFloat(item.highPrice || item.high) || val,
+          low: parseFloat(item.lowPrice || item.low) || val
         });
       }
     }
@@ -275,37 +278,79 @@ module.exports = async (req, res) => {
       const mubInfo = mubMap.get(sym);
       const egxInfo = egxMap.get(sym);
 
-      const price = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || (egxInfo && egxInfo.price) || 0;
-      if (price <= 0) continue;
+      const sources = {};
+      const validFv = [];
+      const validUpsides = [];
+      const validPrices = [];
 
-      const eps = tvInfo ? tvInfo.eps : null;
+      // EGX
+      if (egxInfo) {
+        const fv = computeStandaloneFV(egxInfo.price, tvInfo?.eps, sector);
+        const upside = egxInfo.price > 0 ? Number((((fv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
+        sources.egx = {
+          currentPrice: egxInfo.price,
+          fairValue: fv,
+          confidence: tvInfo?.eps ? 'HIGH' : 'MEDIUM',
+          upsidePercent: upside,
+          changePercent: egxInfo.changePercent,
+          volume: egxInfo.volume,
+          dayHigh: egxInfo.high,
+          dayLow: egxInfo.low
+        };
+        validFv.push(fv);
+        validUpsides.push(upside);
+        validPrices.push(egxInfo.price);
+      }
 
-      const tvFv = computeStandaloneFV(tvInfo ? tvInfo.price : price, eps, sector);
-      const mubFv = computeStandaloneFV(mubInfo ? mubInfo.price : price, eps, sector);
-      const egxFv = computeStandaloneFV((egxInfo && egxInfo.price > 0) ? egxInfo.price : (mubInfo ? mubInfo.price : price), eps, sector);
-      
-      const invFv = Number((tvFv * 1.01).toFixed(2));
-      const yahFv = Number((mubFv * 0.98).toFixed(2));
+      // TradingView
+      if (tvInfo) {
+        const fv = computeStandaloneFV(tvInfo.price, tvInfo.eps, sector);
+        const upside = tvInfo.price > 0 ? Number((((fv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
+        sources.tradingview = {
+          currentPrice: tvInfo.price,
+          fairValue: fv,
+          confidence: tvInfo.eps ? 'HIGH' : 'MEDIUM',
+          upsidePercent: upside,
+          changePercent: tvInfo.change,
+          volume: tvInfo.volume,
+          dayHigh: tvInfo.high,
+          dayLow: tvInfo.low
+        };
+        validFv.push(fv);
+        validUpsides.push(upside);
+        validPrices.push(tvInfo.price);
+      }
 
-      const fvValues = [tvFv, mubFv, egxFv, invFv, yahFv].filter(v => v > 0);
-      const sumFv = fvValues.reduce((a, b) => a + b, 0);
-      const avgFv = Number((sumFv / fvValues.length).toFixed(2));
+      // Mubasher
+      if (mubInfo) {
+        const fv = computeStandaloneFV(mubInfo.price, tvInfo?.eps, sector);
+        const upside = mubInfo.price > 0 ? Number((((fv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
+        sources.mubasher = {
+          currentPrice: mubInfo.price,
+          fairValue: fv,
+          confidence: 'MEDIUM',
+          upsidePercent: upside,
+          changePercent: mubInfo.changePercent,
+          volume: mubInfo.volume,
+          dayHigh: mubInfo.high,
+          dayLow: mubInfo.low
+        };
+        validFv.push(fv);
+        validUpsides.push(upside);
+        validPrices.push(mubInfo.price);
+      }
 
-      const sortedFv = [...fvValues].sort((a, b) => a - b);
-      const mid = Math.floor(sortedFv.length / 2);
-      const medianFv = sortedFv[mid];
-      const minFv = sortedFv[0];
-      const maxFv = sortedFv[sortedFv.length - 1];
+      if (validPrices.length === 0) continue;
 
-      const spread = avgFv > 0 ? Number((((maxFv - minFv) / avgFv) * 100).toFixed(2)) : 0;
-      const avgUpside = Number((((avgFv - price) / price) * 100).toFixed(2));
+      const currentPrice = Number((validPrices.reduce((a, b) => a + b, 0) / validPrices.length).toFixed(2));
+      const avgFv = validFv.length > 0 ? Number((validFv.reduce((a, b) => a + b, 0) / validFv.length).toFixed(2)) : currentPrice;
+      const avgUpside = validUpsides.length > 0 ? Number((validUpsides.reduce((a, b) => a + b, 0) / validUpsides.length).toFixed(2)) : 0;
 
-      const tvUpside = tvInfo ? Number((((tvFv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
-      const mubUpside = mubInfo ? Number((((mubFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
-      const egxPrice = (egxInfo && egxInfo.price > 0) ? egxInfo.price : (mubInfo ? mubInfo.price : price);
-      const egxUpside = Number((((egxFv - egxPrice) / egxPrice) * 100).toFixed(2));
-      const invUpside = Number((((invFv - price) / price) * 100).toFixed(2));
-      const yahUpside = Number((((yahFv - price) / price) * 100).toFixed(2));
+      const sortedFv = [...validFv].sort((a, b) => a - b);
+      const medianFv = sortedFv[Math.floor(sortedFv.length / 2)] || avgFv;
+      const minFv = sortedFv[0] || avgFv;
+      const maxFv = sortedFv[sortedFv.length - 1] || avgFv;
+      const spread = (avgFv > 0 && validFv.length > 1) ? Number((((maxFv - minFv) / avgFv) * 100).toFixed(2)) : 0;
 
       let consensusStatus = 'FAIR';
       if (avgUpside >= 15) consensusStatus = 'STRONGLY_UNDERVALUED';
@@ -321,56 +366,9 @@ module.exports = async (req, res) => {
         yahooSymbol: `${sym}.CA`,
         isHalal: true,
         shariaTier: 'COMPLIANT',
-        currentPrice: price,
-        sources: {
-          egx: {
-            currentPrice: egxPrice,
-            fairValue: egxFv,
-            confidence: eps ? 'HIGH' : 'MEDIUM',
-            upsidePercent: egxUpside,
-            changePercent: egxInfo ? egxInfo.changePercent : (mubInfo ? mubInfo.changePercent : 0),
-            volume: egxInfo ? egxInfo.volume : (mubInfo ? mubInfo.volume : 0),
-            dayHigh: egxInfo ? egxInfo.dayHigh : price,
-            dayLow: egxInfo ? egxInfo.dayLow : price
-          },
-          tradingview: {
-            currentPrice: tvInfo ? tvInfo.price : price,
-            fairValue: tvFv,
-            confidence: tvInfo && tvInfo.eps ? 'HIGH' : 'MEDIUM',
-            upsidePercent: tvUpside,
-            changePercent: tvInfo ? tvInfo.change : 0,
-            volume: tvInfo ? tvInfo.volume : 0,
-            dayHigh: tvInfo ? tvInfo.high : price,
-            dayLow: tvInfo ? tvInfo.low : price
-          },
-          mubasher: {
-            currentPrice: mubInfo ? mubInfo.price : price,
-            fairValue: mubFv,
-            confidence: 'MEDIUM',
-            upsidePercent: mubUpside,
-            changePercent: mubInfo ? mubInfo.changePercent : 0,
-            volume: mubInfo ? mubInfo.volume : 0,
-            dayHigh: mubInfo ? mubInfo.high : price,
-            dayLow: mubInfo ? mubInfo.low : price
-          },
-          investing: {
-            currentPrice: price,
-            fairValue: invFv,
-            confidence: 'HIGH',
-            upsidePercent: invUpside,
-            changePercent: tvInfo ? tvInfo.change : 0,
-            volume: tvInfo ? tvInfo.volume : 0
-          },
-          yahoo: {
-            currentPrice: price,
-            fairValue: yahFv,
-            confidence: 'MEDIUM',
-            upsidePercent: yahUpside,
-            changePercent: mubInfo ? mubInfo.changePercent : 0,
-            volume: mubInfo ? mubInfo.volume : 0
-          }
-        },
-        fairValues: fvValues,
+        currentPrice,
+        sources,
+        fairValues: validFv,
         averageFairValue: avgFv,
         medianFairValue: medianFv,
         minFairValue: minFv,
@@ -378,18 +376,17 @@ module.exports = async (req, res) => {
         spreadPercent: spread,
         averageUpsidePercent: avgUpside,
         consensusStatus,
-        highestDiscrepancySource: 'yahoo'
+        highestDiscrepancySource: null
       });
     }
 
-    // Sort by averageUpsidePercent descending
     results.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
 
-    res.setHeader('X-Served-By', 'Vercel-FullMarket-MultiSource');
+    res.setHeader('X-Served-By', 'Vercel-ZeroFallback-FairValueCompare');
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
     return res.status(200).json(results);
   } catch (err) {
-    console.error('Error generating comparison payload:', err);
+    console.error('Error in fair-value zero-fallback handler:', err);
     return res.status(500).json({ error: err.message });
   }
 };
