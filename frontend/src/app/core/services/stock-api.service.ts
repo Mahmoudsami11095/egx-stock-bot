@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade } from '../models/stock.model';
+import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade, FairValueComparisonResult } from '../models/stock.model';
 
 const STORAGE_KEY = 'egx_stocks_live_cache_v5';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp_v5';
@@ -84,6 +84,9 @@ export class StockApiService {
   public loading = signal<boolean>(false);
   public lastUpdated = signal<Date | null>(null);
   public isUsingCache = signal<boolean>(false);
+  public fairValueComparisons = signal<FairValueComparisonResult[]>([]);
+  public comparisonLoading = signal<boolean>(false);
+  public comparisonLastUpdated = signal<Date | null>(null);
   public activeBackend = signal<'AZURE' | 'VERCEL_FALLBACK'>('AZURE');
   public serverFallbackNotice = signal<string | null>(null);
 
@@ -199,6 +202,15 @@ export class StockApiService {
           this.goldPrices.set(parsedGold);
           this.usdEgp.set(parsedGold.usdEgpRate);
         }
+      }
+      const cachedComparisons = localStorage.getItem('egx_fv_comparisons_cache');
+      if (cachedComparisons) {
+        try {
+          const parsed = JSON.parse(cachedComparisons);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.fairValueComparisons.set(parsed);
+          }
+        } catch (e) {}
       }
     } catch (e) {
       console.warn('Could not read stocks/gold from localStorage cache', e);
@@ -338,6 +350,31 @@ export class StockApiService {
       return { success: false };
     } finally {
       this.updatingOverrides.set(false);
+    }
+  }
+
+  public async loadFairValueComparisons(force: boolean = false): Promise<void> {
+    this.comparisonLoading.set(true);
+    try {
+      const res = await this.http.get<FairValueComparisonResult[]>('/api/fair-value-compare').toPromise();
+      if (res && Array.isArray(res) && res.length > 0) {
+        const sorted = [...res].sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
+        this.fairValueComparisons.set(sorted);
+        this.comparisonLastUpdated.set(new Date());
+        try {
+          localStorage.setItem('egx_fv_comparisons_cache', JSON.stringify(sorted));
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn('Error fetching fair value comparisons:', err);
+      try {
+        const cached = localStorage.getItem('egx_fv_comparisons_cache');
+        if (cached) {
+          this.fairValueComparisons.set(JSON.parse(cached));
+        }
+      } catch (e) {}
+    } finally {
+      this.comparisonLoading.set(false);
     }
   }
 }

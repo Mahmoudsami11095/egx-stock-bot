@@ -34,6 +34,7 @@ import { StockApiService } from '../../core/services/stock-api.service';
                       (ngModelChange)="apiService.setDataSource($event)"
                       class="bg-transparent text-emeraldAccent font-bold focus:outline-none cursor-pointer">
                 <option value="tradingview" class="bg-darkCard text-white">🌐 TradingView</option>
+                <option value="mubasher" class="bg-darkCard text-white">📊 مباشر مصر (Mubasher)</option>
                 <option value="eodhd" class="bg-darkCard text-white">📡 EODHD API (Live)</option>
                 <option value="investing" class="bg-darkCard text-white">📈 Investing.com</option>
                 <option value="yahoo" class="bg-darkCard text-white">💹 Yahoo Finance</option>
@@ -92,43 +93,83 @@ import { StockApiService } from '../../core/services/stock-api.service';
           </div>
         </a>
 
-        <!-- Navigation Links -->
-        <nav class="hidden md:flex items-center gap-1 bg-darkCard/60 p-1 rounded-xl border border-darkBorder/60">
+        <!-- Navigation Links (Desktop/Tablet) -->
+        <nav class="hidden lg:flex items-center gap-1 bg-darkCard/60 p-1 rounded-xl border border-darkBorder/60">
           <a routerLink="/" routerLinkActive="bg-emeraldAccent text-black font-bold" [routerLinkActiveOptions]="{exact: true}"
-             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             📊 نظرة عامة
           </a>
           <a routerLink="/screener" routerLinkActive="bg-emeraldAccent text-black font-bold"
-             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             📈 أسهم البورصة الحلال
           </a>
           <a routerLink="/intraday" routerLinkActive="bg-orange-500 text-black font-bold"
-             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             ⚡ المضاربة اليومية
           </a>
           <a routerLink="/strategies" routerLinkActive="bg-blue-500 text-white font-bold"
-             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             💼 خطط واستراتيجيات
           </a>
           <a routerLink="/gold" routerLinkActive="bg-emeraldAccent text-black font-bold"
-             class="px-4 py-2 text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
             ⚜️ أسعار الذهب
+          </a>
+          <a routerLink="/fair-value-compare" routerLinkActive="bg-purple-600 text-white font-bold"
+             class="px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white">
+            ⚖️ مقارنة القيم العادلة
           </a>
         </nav>
 
-        <!-- External Sheet Links -->
+        <!-- Right Side Actions & Mobile Hamburger -->
         <div class="flex items-center gap-2">
           <a href="https://docs.google.com/spreadsheets/d/17anSf-cjckoBaV3jhBD5IscwxONGKu79W3ekTSq8lck/edit?gid=0#gid=0"
              target="_blank" rel="noopener"
-             class="hidden sm:inline-flex items-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emeraldAccent border border-emeraldAccent/30 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
-            <i class="pi pi-file-excel text-sm"></i>
-            شيت Google Sheets أونلاين
+             class="hidden sm:inline-flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emeraldAccent border border-emeraldAccent/30 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm">
+            <i class="pi pi-file-excel text-xs"></i>
+            شيت Google
           </a>
+
+          <!-- Mobile Menu Toggle Button -->
+          <button (click)="mobileMenuOpen = !mobileMenuOpen"
+                  class="lg:hidden p-2 rounded-xl bg-darkCard border border-darkBorder text-gray-300 hover:text-white cursor-pointer"
+                  aria-label="Toggle navigation">
+            <i [class]="mobileMenuOpen ? 'pi pi-times text-lg' : 'pi pi-bars text-lg'"></i>
+          </button>
         </div>
+      </div>
+
+      <!-- Mobile Navigation Drawer / Dropdown -->
+      <div *ngIf="mobileMenuOpen" class="lg:hidden bg-darkBg/95 border-b border-darkBorder px-4 py-3 space-y-1 backdrop-blur-lg">
+        <a routerLink="/" (click)="mobileMenuOpen = false" routerLinkActive="bg-emeraldAccent text-black font-bold" [routerLinkActiveOptions]="{exact: true}"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          📊 نظرة عامة
+        </a>
+        <a routerLink="/screener" (click)="mobileMenuOpen = false" routerLinkActive="bg-emeraldAccent text-black font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          📈 أسهم البورصة الحلال
+        </a>
+        <a routerLink="/intraday" (click)="mobileMenuOpen = false" routerLinkActive="bg-orange-500 text-black font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          ⚡ المضاربة اليومية
+        </a>
+        <a routerLink="/strategies" (click)="mobileMenuOpen = false" routerLinkActive="bg-blue-500 text-white font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          💼 خطط واستراتيجيات
+        </a>
+        <a routerLink="/gold" (click)="mobileMenuOpen = false" routerLinkActive="bg-emeraldAccent text-black font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          ⚜️ أسعار الذهب
+        </a>
+        <a routerLink="/fair-value-compare" (click)="mobileMenuOpen = false" routerLinkActive="bg-purple-600 text-white font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          ⚖️ مقارنة القيم العادلة
+        </a>
       </div>
     </header>
   `
 })
 export class HeaderComponent {
   public apiService = inject(StockApiService);
+  public mobileMenuOpen = false;
 }

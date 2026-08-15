@@ -1,6 +1,6 @@
 export type SignalType = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
 export type ShariaTier = 'COMPLIANT' | 'MARGINAL' | 'NON_COMPLIANT' | 'UNDER_REVIEW';
-export type DataSource = 'tradingview' | 'investing' | 'yahoo' | 'eodhd';
+export type DataSource = 'tradingview' | 'investing' | 'yahoo' | 'eodhd' | 'mubasher' | 'egx_beta';
 
 export interface StockQuote {
   symbol: string;
@@ -149,4 +149,38 @@ export interface IntradayTrade {
   status: 'OPEN' | 'CLOSED_TARGET_HIT' | 'CLOSED_STOP_LOSS_HIT';
   closePrice?: number;
   pnlPercentage?: number;
+}
+
+export interface SourceFairValueData {
+  currentPrice: number;
+  fairValue: number;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  upsidePercent: number;
+  changePercent: number;
+  volume: number;
+  dayHigh?: number;
+  dayLow?: number;
+}
+
+export type ConsensusStatus = 'STRONGLY_UNDERVALUED' | 'UNDERVALUED' | 'FAIR' | 'OVERVALUED' | 'STRONGLY_OVERVALUED';
+
+export interface FairValueComparisonResult {
+  symbol: string;
+  nameEn: string;
+  nameAr: string;
+  sector: string;
+  yahooSymbol?: string;
+  isHalal?: boolean;
+  shariaTier?: ShariaTier;
+  currentPrice: number;
+  sources: Record<string, SourceFairValueData>;
+  fairValues: number[];
+  averageFairValue: number;
+  medianFairValue: number;
+  minFairValue: number;
+  maxFairValue: number;
+  spreadPercent: number;
+  averageUpsidePercent: number;
+  consensusStatus: ConsensusStatus;
+  highestDiscrepancySource: string | null;
 }
