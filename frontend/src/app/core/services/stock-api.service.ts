@@ -364,6 +364,47 @@ export class StockApiService {
         try {
           localStorage.setItem('egx_fv_comparisons_cache', JSON.stringify(sorted));
         } catch (e) {}
+      } else {
+        // Fallback: derive from current stock cache if available
+        const currentStocks = this.stocks();
+        if (currentStocks && currentStocks.length > 0) {
+          const fallbackData: FairValueComparisonResult[] = currentStocks.map(s => {
+            const price = s.quote.currentPrice;
+            const fv = s.fairValue;
+            const upside = s.fairValueUpsidePercent;
+            const src = (s.quote as any).source || 'tradingview';
+            return {
+              symbol: s.quote.symbol,
+              nameEn: s.quote.nameEn,
+              nameAr: s.quote.nameAr,
+              sector: s.quote.sector || 'General',
+              isHalal: s.isHalal,
+              shariaTier: s.shariaTier,
+              currentPrice: price,
+              sources: {
+                [src]: {
+                  currentPrice: price,
+                  fairValue: fv,
+                  confidence: s.fairValueConfidence,
+                  upsidePercent: upside,
+                  changePercent: s.quote.changePercent,
+                  volume: s.quote.volume
+                }
+              },
+              fairValues: [fv],
+              averageFairValue: fv,
+              medianFairValue: fv,
+              minFairValue: fv,
+              maxFairValue: fv,
+              spreadPercent: 0,
+              averageUpsidePercent: upside,
+              consensusStatus: upside >= 15 ? 'STRONGLY_UNDERVALUED' : upside >= 5 ? 'UNDERVALUED' : upside <= -15 ? 'STRONGLY_OVERVALUED' : upside <= -5 ? 'OVERVALUED' : 'FAIR',
+              highestDiscrepancySource: null
+            };
+          });
+          const sortedFallback = fallbackData.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
+          this.fairValueComparisons.set(sortedFallback);
+        }
       }
     } catch (err) {
       console.warn('Error fetching fair value comparisons:', err);
@@ -371,6 +412,36 @@ export class StockApiService {
         const cached = localStorage.getItem('egx_fv_comparisons_cache');
         if (cached) {
           this.fairValueComparisons.set(JSON.parse(cached));
+        } else if (this.stocks().length > 0) {
+          const fallbackData: FairValueComparisonResult[] = this.stocks().map(s => ({
+            symbol: s.quote.symbol,
+            nameEn: s.quote.nameEn,
+            nameAr: s.quote.nameAr,
+            sector: s.quote.sector || 'General',
+            isHalal: s.isHalal,
+            shariaTier: s.shariaTier,
+            currentPrice: s.quote.currentPrice,
+            sources: {
+              tradingview: {
+                currentPrice: s.quote.currentPrice,
+                fairValue: s.fairValue,
+                confidence: s.fairValueConfidence,
+                upsidePercent: s.fairValueUpsidePercent,
+                changePercent: s.quote.changePercent,
+                volume: s.quote.volume
+              }
+            },
+            fairValues: [s.fairValue],
+            averageFairValue: s.fairValue,
+            medianFairValue: s.fairValue,
+            minFairValue: s.fairValue,
+            maxFairValue: s.fairValue,
+            spreadPercent: 0,
+            averageUpsidePercent: s.fairValueUpsidePercent,
+            consensusStatus: s.fairValueUpsidePercent >= 15 ? 'STRONGLY_UNDERVALUED' : s.fairValueUpsidePercent >= 5 ? 'UNDERVALUED' : 'FAIR',
+            highestDiscrepancySource: null
+          }));
+          this.fairValueComparisons.set(fallbackData.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent));
         }
       } catch (e) {}
     } finally {
