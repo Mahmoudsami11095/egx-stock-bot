@@ -2,8 +2,10 @@ const https = require('https');
 const path = require('path');
 const fs = require('fs');
 
-// Load canonical stock watchlist
+// Load canonical stock watchlist for metadata mapping
 let watchlist = [];
+const watchlistMetaMap = new Map();
+
 try {
   const possiblePaths = [
     path.join(__dirname, '..', 'data', 'watchlist.json'),
@@ -19,19 +21,12 @@ try {
   }
 } catch (e) {}
 
-if (!watchlist || watchlist.length === 0) {
-  watchlist = [
-    { symbol: 'COMI', nameEn: 'CIB', nameAr: 'التجاري الدولي', sector: 'Banks', yahooSymbol: 'COMI.CA' },
-    { symbol: 'TMGH', nameEn: 'Talaat Moustafa', nameAr: 'طلعت مصطفى', sector: 'Real Estate', yahooSymbol: 'TMGH.CA' },
-    { symbol: 'SWDY', nameEn: 'Elsewedy Electric', nameAr: 'السويدى إليكتريك', sector: 'Industrial Cables & Energy', yahooSymbol: 'SWDY.CA' },
-    { symbol: 'HRHO', nameEn: 'EFG Hermes', nameAr: 'المجموعة المالية هيرميس', sector: 'Financial Services', yahooSymbol: 'HRHO.CA' },
-    { symbol: 'AMOC', nameEn: 'Alexandria Mineral Oils', nameAr: 'الإسكندرية للزيوت المعدنية', sector: 'Oil & Gas', yahooSymbol: 'AMOC.CA' },
-    { symbol: 'ORWE', nameEn: 'Oriental Weavers', nameAr: 'النساجون الشرقيون', sector: 'Textiles & Consumer Goods', yahooSymbol: 'ORWE.CA' },
-    { symbol: 'FWRY', nameEn: 'Fawry', nameAr: 'فوري لتكنولوجيا البنوك', sector: 'Technology & FinTech', yahooSymbol: 'FWRY.CA' },
-    { symbol: 'ETEL', nameEn: 'Telecom Egypt', nameAr: 'المصرية للاتصالات', sector: 'Telecommunications', yahooSymbol: 'ETEL.CA' },
-    { symbol: 'ISPH', nameEn: 'Ibn Sina Pharma', nameAr: 'ابن سينا فارما', sector: 'Pharmaceuticals', yahooSymbol: 'ISPH.CA' },
-    { symbol: 'EKHO', nameEn: 'Egypt Kuwait Holding', nameAr: 'القابضة المصرية الكويتية', sector: 'General', yahooSymbol: 'EKHO.CA' }
-  ];
+if (Array.isArray(watchlist)) {
+  for (const s of watchlist) {
+    if (s && s.symbol) {
+      watchlistMetaMap.set(s.symbol.toUpperCase(), s);
+    }
+  }
 }
 
 const SECTOR_PE = {
@@ -79,8 +74,8 @@ function fetchTradingView() {
     const postData = JSON.stringify({
       symbols: { tickers: [] },
       columns: [
-        'name', 'close', 'change', 'volume', 'high', 'low',
-        'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_52_week_high', 'price_52_week_low'
+        'name', 'description', 'close', 'change', 'volume', 'high', 'low',
+        'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_52_week_high', 'price_52_week_low', 'sector'
       ]
     });
 
@@ -130,7 +125,7 @@ function fetchMubasher() {
       res.on('end', () => {
         try {
           const json = JSON.parse(body);
-          resolve(Array.isArray(json) ? json : (json.prices || json.data || []));
+          resolve(json.prices || (Array.isArray(json) ? json : []));
         } catch (e) {
           resolve([]);
         }
@@ -150,14 +145,18 @@ function fetchEgxBeta() {
         'Accept': 'application/json, text/plain, */*',
         'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
       },
-      timeout: 3500
+      timeout: 2500
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
         try {
-          const json = JSON.parse(body);
-          resolve(json.data?.data || json.data || []);
+          if (body.includes('Request Rejected')) {
+            resolve([]);
+          } else {
+            const json = JSON.parse(body);
+            resolve(json.data?.data || json.data || []);
+          }
         } catch (e) {
           resolve([]);
         }
@@ -185,11 +184,13 @@ module.exports = async (req, res) => {
       fetchEgxBeta()
     ]);
 
+    const allSymbolsMap = new Map();
+
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
       const sym = item.s.replace('EGX:', '').toUpperCase();
-      const [name, close, change, volume, high, low, eps, pe, high52, low52] = item.d;
+      const [name, desc, close, change, volume, high, low, eps, pe, high52, low52, sector] = item.d;
       if (close && close > 0) {
         tvMap.set(sym, {
           price: Number(close.toFixed(2)),
@@ -198,8 +199,19 @@ module.exports = async (req, res) => {
           high: Number((high || close).toFixed(2)),
           low: Number((low || close).toFixed(2)),
           eps: eps || null,
-          pe: pe || null
+          pe: pe || null,
+          nameEn: desc || name || sym,
+          sector: sector || 'General'
         });
+
+        if (!allSymbolsMap.has(sym)) {
+          allSymbolsMap.set(sym, {
+            symbol: sym,
+            nameEn: desc || name || sym,
+            nameAr: sym,
+            sector: sector || 'General'
+          });
+        }
       }
     }
 
@@ -215,8 +227,21 @@ module.exports = async (req, res) => {
           changePercent: parseFloat((item.changePercentage || '').replace('%', '')) || 0,
           volume: parseInt(String(item.volume || '0').replace(/,/g, ''), 10) || 0,
           high: parseFloat(item.high) || val,
-          low: parseFloat(item.low) || val
+          low: parseFloat(item.low) || val,
+          nameAr: item.name || code
         });
+
+        if (!allSymbolsMap.has(code)) {
+          allSymbolsMap.set(code, {
+            symbol: code,
+            nameEn: code,
+            nameAr: item.name || code,
+            sector: 'General'
+          });
+        } else {
+          const entry = allSymbolsMap.get(code);
+          if (item.name) entry.nameAr = item.name;
+        }
       }
     }
 
@@ -232,15 +257,20 @@ module.exports = async (req, res) => {
           changePercent: parseFloat(item.chgPer || item.changePercent || 0) || 0,
           volume: parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10) || 0,
           high: parseFloat(item.highPrice || item.high) || val,
-          low: parseFloat(item.lowPrice || item.low) || val
+          dayLow: parseFloat(item.lowPrice || item.low) || val
         });
       }
     }
 
     const results = [];
 
-    for (const stock of watchlist) {
-      const sym = stock.symbol.toUpperCase();
+    for (const [sym, stockInfo] of allSymbolsMap.entries()) {
+      const meta = watchlistMetaMap.get(sym);
+
+      const nameAr = (meta && meta.nameAr) || (stockInfo && stockInfo.nameAr) || sym;
+      const nameEn = (meta && meta.nameEn) || (stockInfo && stockInfo.nameEn) || sym;
+      const sector = (meta && meta.sector) || (stockInfo && stockInfo.sector) || 'General';
+
       const tvInfo = tvMap.get(sym);
       const mubInfo = mubMap.get(sym);
       const egxInfo = egxMap.get(sym);
@@ -248,12 +278,11 @@ module.exports = async (req, res) => {
       const price = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || (egxInfo && egxInfo.price) || 0;
       if (price <= 0) continue;
 
-      const sector = stock.sector || 'General';
       const eps = tvInfo ? tvInfo.eps : null;
 
       const tvFv = computeStandaloneFV(tvInfo ? tvInfo.price : price, eps, sector);
       const mubFv = computeStandaloneFV(mubInfo ? mubInfo.price : price, eps, sector);
-      const egxFv = computeStandaloneFV(egxInfo ? egxInfo.price : price, eps, sector);
+      const egxFv = computeStandaloneFV((egxInfo && egxInfo.price > 0) ? egxInfo.price : (mubInfo ? mubInfo.price : price), eps, sector);
       
       const invFv = Number((tvFv * 1.01).toFixed(2));
       const yahFv = Number((mubFv * 0.98).toFixed(2));
@@ -273,7 +302,8 @@ module.exports = async (req, res) => {
 
       const tvUpside = tvInfo ? Number((((tvFv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
       const mubUpside = mubInfo ? Number((((mubFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
-      const egxUpside = egxInfo ? Number((((egxFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
+      const egxPrice = (egxInfo && egxInfo.price > 0) ? egxInfo.price : (mubInfo ? mubInfo.price : price);
+      const egxUpside = Number((((egxFv - egxPrice) / egxPrice) * 100).toFixed(2));
       const invUpside = Number((((invFv - price) / price) * 100).toFixed(2));
       const yahUpside = Number((((yahFv - price) / price) * 100).toFixed(2));
 
@@ -284,22 +314,22 @@ module.exports = async (req, res) => {
       else if (avgUpside <= -5) consensusStatus = 'OVERVALUED';
 
       results.push({
-        symbol: stock.symbol,
-        nameEn: stock.nameEn,
-        nameAr: stock.nameAr,
-        sector: stock.sector,
-        yahooSymbol: stock.yahooSymbol,
+        symbol: sym,
+        nameEn,
+        nameAr,
+        sector,
+        yahooSymbol: `${sym}.CA`,
         isHalal: true,
         shariaTier: 'COMPLIANT',
         currentPrice: price,
         sources: {
           egx: {
-            currentPrice: egxInfo ? egxInfo.price : price,
+            currentPrice: egxPrice,
             fairValue: egxFv,
             confidence: eps ? 'HIGH' : 'MEDIUM',
             upsidePercent: egxUpside,
-            changePercent: egxInfo ? egxInfo.changePercent : 0,
-            volume: egxInfo ? egxInfo.volume : 0,
+            changePercent: egxInfo ? egxInfo.changePercent : (mubInfo ? mubInfo.changePercent : 0),
+            volume: egxInfo ? egxInfo.volume : (mubInfo ? mubInfo.volume : 0),
             dayHigh: egxInfo ? egxInfo.dayHigh : price,
             dayLow: egxInfo ? egxInfo.dayLow : price
           },
@@ -355,7 +385,7 @@ module.exports = async (req, res) => {
     // Sort by averageUpsidePercent descending
     results.sort((a, b) => b.averageUpsidePercent - a.averageUpsidePercent);
 
-    res.setHeader('X-Served-By', 'Vercel-Standalone-MultiSource');
+    res.setHeader('X-Served-By', 'Vercel-FullMarket-MultiSource');
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
     return res.status(200).json(results);
   } catch (err) {
