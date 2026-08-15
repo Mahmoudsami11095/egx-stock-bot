@@ -185,6 +185,8 @@ export interface FairValueComparisonResult {
   highestDiscrepancySource: string | null;
 }
 
+export type ComparatorMetricType = 'PRICE' | 'CHANGE_PERCENT' | 'VOLUME' | 'DAY_HIGH' | 'DAY_LOW' | 'FAIR_VALUE' | 'UPSIDE_PERCENT' | 'PE_RATIO' | 'EPS';
+
 export interface SourcePriceData {
   price: number;
   change: number;
@@ -193,6 +195,10 @@ export interface SourcePriceData {
   dayHigh?: number;
   dayLow?: number;
   open?: number;
+  fairValue?: number;
+  upsidePercent?: number;
+  peRatio?: number;
+  eps?: number;
 }
 
 export type PriceAlignmentStatus = 'SYNCED' | 'MINOR_LAG' | 'DIVERGENT';
@@ -214,4 +220,8 @@ export interface PriceComparisonResult {
   alignmentStatus: PriceAlignmentStatus;
   highestVolumeSource: string;
   maxVolume: number;
+  averageFairValue?: number;
+  averageUpsidePercent?: number;
+  averagePeRatio?: number;
+  averageEps?: number;
 }

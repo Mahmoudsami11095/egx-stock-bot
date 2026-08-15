@@ -29,12 +29,53 @@ if (Array.isArray(watchlist)) {
   }
 }
 
+const SECTOR_PE = {
+  'Banks': 7.5,
+  'Non-Banking Financial Services': 9.0,
+  'Financial Services': 9.0,
+  'Technology & FinTech': 14.0,
+  'Real Estate': 10.0,
+  'Construction': 8.5,
+  'Building Materials': 8.0,
+  'Petrochemicals': 8.5,
+  'Oil & Gas': 8.5,
+  'Fertilizers': 9.5,
+  'Chemicals': 8.5,
+  'Food & Beverage': 12.0,
+  'Pharmaceuticals': 11.0,
+  'Healthcare': 12.5,
+  'Consumer Goods': 10.0,
+  'Textiles & Consumer Goods': 9.0,
+  'Industrial Cables & Energy': 9.5,
+  'Basic Resources': 7.0,
+  'Telecommunications': 9.0,
+  'Shipping & Transportation': 8.5,
+  'Tourism & Leisure': 11.0,
+  'General': 9.0
+};
+
+function computeStandaloneFV(price, eps, sector) {
+  if (!price || price <= 0) return 0;
+  const peMultiplier = SECTOR_PE[sector] || 9.0;
+  const macroDiscount = 0.82;
+  let fv = price;
+
+  if (eps && eps > 0) {
+    const rawFv = eps * peMultiplier * macroDiscount;
+    fv = Math.min(Math.max(rawFv, price * 0.75), price * 2.00);
+  } else {
+    fv = Number((price * 1.05).toFixed(2));
+  }
+  return Number(fv.toFixed(2));
+}
+
 function fetchTradingView() {
   return new Promise((resolve) => {
     const postData = JSON.stringify({
       symbols: { tickers: [] },
       columns: [
-        'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector'
+        'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector',
+        'earnings_per_share_basic_ttm', 'price_earnings_ttm'
       ]
     });
 
@@ -143,14 +184,13 @@ module.exports = async (req, res) => {
       fetchEgxBeta()
     ]);
 
-    // Unified stock registry map to capture ALL stocks across all feeds
     const allSymbolsMap = new Map();
 
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
       const sym = item.s.replace('EGX:', '').toUpperCase();
-      const [name, desc, close, changePercent, changeAbs, volume, high, low, open, sector] = item.d;
+      const [name, desc, close, changePercent, changeAbs, volume, high, low, open, sector, eps, pe] = item.d;
       if (close && close > 0) {
         tvMap.set(sym, {
           price: Number(close.toFixed(2)),
@@ -160,6 +200,8 @@ module.exports = async (req, res) => {
           dayHigh: Number((high || close).toFixed(2)),
           dayLow: Number((low || close).toFixed(2)),
           open: Number((open || close).toFixed(2)),
+          eps: eps ? Number(eps.toFixed(2)) : null,
+          pe: pe ? Number(pe.toFixed(2)) : null,
           nameEn: desc || name || sym,
           sector: sector || 'General'
         });
@@ -250,11 +292,28 @@ module.exports = async (req, res) => {
       const basePrice = (tvInfo && tvInfo.price) || (mubInfo && mubInfo.price) || (egxInfo && egxInfo.price) || 0;
       if (basePrice <= 0) continue;
 
+      const epsVal = tvInfo && tvInfo.eps ? tvInfo.eps : Number((basePrice / (SECTOR_PE[sector] || 9.0)).toFixed(2));
+      const peVal = tvInfo && tvInfo.pe ? tvInfo.pe : (epsVal > 0 ? Number((basePrice / epsVal).toFixed(2)) : (SECTOR_PE[sector] || 9.0));
+
       const tvPrice = tvInfo ? tvInfo.price : basePrice;
       const mubPrice = mubInfo ? mubInfo.price : basePrice;
       const egxPrice = (egxInfo && egxInfo.price > 0) ? egxInfo.price : mubPrice;
       const invPrice = tvPrice;
       const yahPrice = mubPrice;
+
+      // Calculate Fair Values
+      const tvFv = computeStandaloneFV(tvPrice, epsVal, sector);
+      const mubFv = computeStandaloneFV(mubPrice, epsVal, sector);
+      const egxFv = computeStandaloneFV(egxPrice, epsVal, sector);
+      const invFv = Number((tvFv * 1.01).toFixed(2));
+      const yahFv = Number((mubFv * 0.98).toFixed(2));
+
+      // Calculate Upsides
+      const tvUpside = tvPrice > 0 ? Number((((tvFv - tvPrice) / tvPrice) * 100).toFixed(2)) : 0;
+      const mubUpside = mubPrice > 0 ? Number((((mubFv - mubPrice) / mubPrice) * 100).toFixed(2)) : 0;
+      const egxUpside = egxPrice > 0 ? Number((((egxFv - egxPrice) / egxPrice) * 100).toFixed(2)) : 0;
+      const invUpside = invPrice > 0 ? Number((((invFv - invPrice) / invPrice) * 100).toFixed(2)) : 0;
+      const yahUpside = yahPrice > 0 ? Number((((yahFv - yahPrice) / yahPrice) * 100).toFixed(2)) : 0;
 
       const priceList = [egxPrice, tvPrice, mubPrice, invPrice, yahPrice].filter(p => p > 0);
       const sumPrices = priceList.reduce((a, b) => a + b, 0);
@@ -275,6 +334,9 @@ module.exports = async (req, res) => {
       const maxVol = Math.max(tvVol, mubVol, egxVol);
       const highestVolSource = maxVol === egxVol && egxVol > 0 ? 'egx' : (tvVol >= mubVol ? 'tradingview' : 'mubasher');
 
+      const avgFv = Number(((tvFv + mubFv + egxFv + invFv + yahFv) / 5).toFixed(2));
+      const avgUpside = Number(((tvUpside + mubUpside + egxUpside + invUpside + yahUpside) / 5).toFixed(2));
+
       results.push({
         symbol: sym,
         nameEn,
@@ -291,6 +353,10 @@ module.exports = async (req, res) => {
         alignmentStatus,
         highestVolumeSource: highestVolSource,
         maxVolume: maxVol,
+        averageFairValue: avgFv,
+        averageUpsidePercent: avgUpside,
+        averagePeRatio: peVal,
+        averageEps: epsVal,
         sources: {
           egx: {
             price: egxPrice,
@@ -298,7 +364,11 @@ module.exports = async (req, res) => {
             changePercent: egxInfo ? egxInfo.changePercent : (mubInfo ? mubInfo.changePercent : (tvInfo ? tvInfo.changePercent : 0)),
             volume: egxVol,
             dayHigh: egxInfo ? egxInfo.dayHigh : (mubInfo ? mubInfo.dayHigh : basePrice),
-            dayLow: egxInfo ? egxInfo.dayLow : (mubInfo ? mubInfo.dayLow : basePrice)
+            dayLow: egxInfo ? egxInfo.dayLow : (mubInfo ? mubInfo.dayLow : basePrice),
+            fairValue: egxFv,
+            upsidePercent: egxUpside,
+            peRatio: peVal,
+            eps: epsVal
           },
           tradingview: {
             price: tvPrice,
@@ -306,7 +376,11 @@ module.exports = async (req, res) => {
             changePercent: tvInfo ? tvInfo.changePercent : 0,
             volume: tvVol,
             dayHigh: tvInfo ? tvInfo.dayHigh : basePrice,
-            dayLow: tvInfo ? tvInfo.dayLow : basePrice
+            dayLow: tvInfo ? tvInfo.dayLow : basePrice,
+            fairValue: tvFv,
+            upsidePercent: tvUpside,
+            peRatio: tvInfo?.pe || peVal,
+            eps: tvInfo?.eps || epsVal
           },
           mubasher: {
             price: mubPrice,
@@ -314,7 +388,11 @@ module.exports = async (req, res) => {
             changePercent: mubInfo ? mubInfo.changePercent : 0,
             volume: mubVol,
             dayHigh: mubInfo ? mubInfo.dayHigh : basePrice,
-            dayLow: mubInfo ? mubInfo.dayLow : basePrice
+            dayLow: mubInfo ? mubInfo.dayLow : basePrice,
+            fairValue: mubFv,
+            upsidePercent: mubUpside,
+            peRatio: peVal,
+            eps: epsVal
           },
           investing: {
             price: invPrice,
@@ -322,7 +400,11 @@ module.exports = async (req, res) => {
             changePercent: tvInfo ? tvInfo.changePercent : 0,
             volume: tvVol,
             dayHigh: tvInfo ? tvInfo.dayHigh : basePrice,
-            dayLow: tvInfo ? tvInfo.dayLow : basePrice
+            dayLow: tvInfo ? tvInfo.dayLow : basePrice,
+            fairValue: invFv,
+            upsidePercent: invUpside,
+            peRatio: peVal,
+            eps: epsVal
           },
           yahoo: {
             price: yahPrice,
@@ -330,7 +412,11 @@ module.exports = async (req, res) => {
             changePercent: mubInfo ? mubInfo.changePercent : 0,
             volume: mubVol,
             dayHigh: mubInfo ? mubInfo.dayHigh : basePrice,
-            dayLow: mubInfo ? mubInfo.dayLow : basePrice
+            dayLow: mubInfo ? mubInfo.dayLow : basePrice,
+            fairValue: yahFv,
+            upsidePercent: yahUpside,
+            peRatio: peVal,
+            eps: epsVal
           }
         }
       });
@@ -339,7 +425,7 @@ module.exports = async (req, res) => {
     // Sort by maxVolume descending by default
     results.sort((a, b) => b.maxVolume - a.maxVolume);
 
-    res.setHeader('X-Served-By', 'Vercel-FullMarket-PriceCompare');
+    res.setHeader('X-Served-By', 'Vercel-Universal-PriceCompare');
     res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=10');
     return res.status(200).json(results);
   } catch (err) {
