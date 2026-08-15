@@ -197,6 +197,9 @@ export type ComparatorMetricType =
   | 'FAIR_VALUE_LYNCH'
   | 'FAIR_VALUE_PB'
   | 'UPSIDE_PERCENT'
+  | 'NET_INCOME'
+  | 'NET_PROFIT_MARGIN'
+  | 'GROSS_PROFIT'
   | 'PE_RATIO'
   | 'EPS';
 
@@ -220,6 +223,9 @@ export interface SourcePriceData {
   bvps?: number;
   roe?: number;
   dividendYield?: number;
+  netIncome?: number;
+  netProfitMargin?: number;
+  grossProfit?: number;
 }
 
 export type PriceAlignmentStatus = 'SYNCED' | 'MINOR_LAG' | 'DIVERGENT';
@@ -249,4 +255,7 @@ export interface PriceComparisonResult {
   averageUpsidePercent?: number;
   averagePeRatio?: number;
   averageEps?: number;
+  averageNetIncome?: number;
+  averageNetProfitMargin?: number;
+  averageGrossProfit?: number;
 }

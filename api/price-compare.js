@@ -106,7 +106,7 @@ function computeConsensusFV(grahamFv, peFv, lynchFv, pbFv, price) {
   return price > 0 ? Number((price * 1.05).toFixed(2)) : undefined;
 }
 
-// Fetch TradingView with rich fundamental metrics
+// Fetch TradingView with rich fundamental & profit metrics
 function fetchTradingView() {
   return new Promise((resolve) => {
     const postData = JSON.stringify({
@@ -114,7 +114,8 @@ function fetchTradingView() {
       columns: [
         'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector',
         'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_book_ratio', 'book_value_per_share',
-        'dividend_yield_recent', 'return_on_equity'
+        'dividend_yield_recent', 'return_on_equity',
+        'net_income', 'net_margin', 'operating_margin', 'total_revenue'
       ]
     });
 
@@ -234,7 +235,8 @@ module.exports = async (req, res) => {
       const sym = item.s.replace('EGX:', '').toUpperCase();
       const [
         name, desc, close, changePercent, changeAbs, volume, high, low, open, sector,
-        eps, pe, pb, bvps, dy, roe
+        eps, pe, pb, bvps, dy, roe,
+        netIncome, netMargin, operatingMargin, totalRevenue
       ] = item.d;
 
       if (typeof close === 'number' && close > 0) {
@@ -252,6 +254,9 @@ module.exports = async (req, res) => {
           bvps: (typeof bvps === 'number' && !isNaN(bvps) && bvps > 0) ? Number(bvps.toFixed(2)) : (pb && pb > 0 ? Number((close / pb).toFixed(2)) : undefined),
           dy: (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : undefined,
           roe: (typeof roe === 'number' && !isNaN(roe)) ? Number(roe.toFixed(2)) : undefined,
+          netIncome: (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : undefined,
+          netProfitMargin: (typeof netMargin === 'number' && !isNaN(netMargin)) ? Number(netMargin.toFixed(2)) : undefined,
+          grossProfit: (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : undefined,
           nameEn: desc || name || sym,
           sector: sector || 'General'
         });
@@ -388,7 +393,10 @@ module.exports = async (req, res) => {
           pbRatio: tvInfo?.pb,
           bvps: tvInfo?.bvps,
           roe: tvInfo?.roe,
-          dividendYield: tvInfo?.dy
+          dividendYield: tvInfo?.dy,
+          netIncome: tvInfo?.netIncome,
+          netProfitMargin: tvInfo?.netProfitMargin,
+          grossProfit: tvInfo?.grossProfit
         };
         validPrices.push(egxInfo.price);
         if (consensusFv) validConsensusFv.push(consensusFv);
@@ -426,7 +434,10 @@ module.exports = async (req, res) => {
           pbRatio: tvInfo.pb,
           bvps: tvInfo.bvps,
           roe: tvInfo.roe,
-          dividendYield: tvInfo.dy
+          dividendYield: tvInfo.dy,
+          netIncome: tvInfo.netIncome,
+          netProfitMargin: tvInfo.netProfitMargin,
+          grossProfit: tvInfo.grossProfit
         };
         validPrices.push(tvInfo.price);
         if (consensusFv) validConsensusFv.push(consensusFv);
@@ -464,7 +475,10 @@ module.exports = async (req, res) => {
           pbRatio: tvInfo?.pb,
           bvps: tvInfo?.bvps,
           roe: tvInfo?.roe,
-          dividendYield: tvInfo?.dy
+          dividendYield: tvInfo?.dy,
+          netIncome: tvInfo?.netIncome,
+          netProfitMargin: tvInfo?.netProfitMargin,
+          grossProfit: tvInfo?.grossProfit
         };
         validPrices.push(mubInfo.price);
         if (consensusFv) validConsensusFv.push(consensusFv);
@@ -531,6 +545,9 @@ module.exports = async (req, res) => {
         averageUpsidePercent: avgUpside,
         averagePeRatio: tvInfo?.pe,
         averageEps: tvInfo?.eps,
+        averageNetIncome: tvInfo?.netIncome,
+        averageNetProfitMargin: tvInfo?.netProfitMargin,
+        averageGrossProfit: tvInfo?.grossProfit,
         sources
       });
     }

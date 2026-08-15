@@ -11,7 +11,7 @@ export interface MetricDefinition {
   id: ComparatorMetricType;
   label: string;
   shortLabel: string;
-  category: 'MARKET' | 'FAIR_VALUE' | 'FUNDAMENTALS';
+  category: 'MARKET' | 'FAIR_VALUE' | 'PROFITS' | 'FUNDAMENTALS';
   icon: string;
   unit: string;
   formulaDescription: string;
@@ -28,7 +28,7 @@ export interface MetricDefinition {
         <div>
           <h2 class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
             <span>{{ activeMetricInfo().icon }}</span>
-            <span>مقارنة البيانات ونماذج القيمة العادلة متعددة المصادر</span>
+            <span>مقارنة البيانات ونماذج التقييم والأرباح متعددة المصادر</span>
           </h2>
           <p class="text-xs sm:text-sm text-gray-400">
             مقارنة لحظية عبر 5 مصادر (🏛️ البورصة المصرية EGX ،🌐 TradingView ،📊 مباشر مصر Mubasher ،📈 Investing.com ،💹 Yahoo Finance) لجميع أسهم السوق ({{ apiService.priceComparisons().length || 297 }} سهم)
@@ -61,15 +61,20 @@ export interface MetricDefinition {
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-gray-300 flex items-center gap-1.5">
               <i class="pi pi-sliders-h text-emeraldAccent"></i>
-              <span>اختر نموذج التقييم أو المؤشر المطلوب مقارنته:</span>
+              <span>اختر المؤشر أو نموذج التقييم أو الأرباح المطلوب مقارنتها:</span>
             </span>
           </div>
 
           <!-- Feature Dropdown with Categorized Groups -->
-          <div class="w-full sm:w-auto min-w-[340px]">
+          <div class="w-full sm:w-auto min-w-[360px]">
             <select [ngModel]="selectedMetric()"
                     (ngModelChange)="selectedMetric.set($event)"
                     class="w-full bg-darkBg border-2 border-emerald-500/40 hover:border-emerald-500 rounded-xl px-3.5 py-2 text-xs font-black text-emerald-300 focus:outline-none focus:border-emeraldAccent transition-colors cursor-pointer">
+              <optgroup label="💰 الأرباح وهوامش الربحية (Profits & Margins)">
+                <option value="NET_INCOME">💰 صافي الأرباح السنوية (Net Income TTM)</option>
+                <option value="NET_PROFIT_MARGIN">📊 هامش صافي الربح (Net Profit Margin %)</option>
+                <option value="GROSS_PROFIT">🏢 إجمالي الإيرادات السنوية (Total Revenue)</option>
+              </optgroup>
               <optgroup label="⚖️ نماذج حساب القيمة العادلة (Fair Value Models)">
                 <option value="FAIR_VALUE">⚖️ متوسط القيمة العادلة المرجح (Consensus Multi-Model)</option>
                 <option value="FAIR_VALUE_GRAHAM">📐 نموذج بنيامين جراهام (Graham: √(22.5×EPS×BVPS))</option>
@@ -95,13 +100,13 @@ export interface MetricDefinition {
 
         <!-- Formula & Description Banner for Active Metric -->
         <div class="bg-darkBg/70 px-3.5 py-2 rounded-xl border border-darkBorder flex items-center gap-2 text-xs text-gray-300">
-          <span class="text-emeraldAccent font-bold">المعادلة المطبقة:</span>
+          <span class="text-emeraldAccent font-bold">المعادلة / التعريف:</span>
           <span>{{ activeMetricInfo().formulaDescription }}</span>
         </div>
 
         <!-- Quick Switch Pill Buttons -->
         <div class="flex flex-wrap items-center gap-1.5 pt-1">
-          <span class="text-[11px] text-gray-400 font-bold ml-1">النماذج السريعة:</span>
+          <span class="text-[11px] text-gray-400 font-bold ml-1">الخيارات السريعة:</span>
           <button *ngFor="let m of quickPillMetrics"
                   (click)="selectedMetric.set(m.id)"
                   [class]="selectedMetric() === m.id ? 'bg-emerald-500 text-black font-black shadow-md shadow-emerald-500/20' : 'bg-darkBg text-gray-300 hover:bg-darkCard border border-darkBorder/80 font-bold'"
@@ -382,7 +387,7 @@ export interface MetricDefinition {
       </div>
 
       <!-- In-Depth Multi-Model Valuation Dialog (👁️) -->
-      <p-dialog [header]="selectedStock() ? '🔍 بطاقة المقارنة الشاملة لنماذج التقييم: ' + selectedStock()?.nameAr + ' (' + selectedStock()?.symbol + ')' : ''"
+      <p-dialog [header]="selectedStock() ? '🔍 بطاقة المقارنة الشاملة لنماذج التقييم والأرباح: ' + selectedStock()?.nameAr + ' (' + selectedStock()?.symbol + ')' : ''"
                 [(visible)]="detailModalVisible"
                 [modal]="true"
                 [style]="{width: '94vw', maxWidth: '920px'}"
@@ -404,7 +409,7 @@ export interface MetricDefinition {
           <div class="space-y-2">
             <h4 class="text-xs font-extrabold text-gray-300 flex items-center gap-1.5">
               <i class="pi pi-table text-emeraldAccent"></i>
-              <span>مصفوفة مقارنة كافة نماذج القيمة العادلة والمؤشرات:</span>
+              <span>مصفوفة مقارنة كافة المؤشرات ونماذج القيمة العادلة والأرباح:</span>
             </h4>
 
             <div class="overflow-x-auto rounded-xl border border-darkBorder">
@@ -457,7 +462,7 @@ export interface MetricDefinition {
 export class PriceComparatorComponent implements OnInit {
   public apiService = inject(StockApiService);
 
-  public selectedMetric = signal<ComparatorMetricType>('FAIR_VALUE');
+  public selectedMetric = signal<ComparatorMetricType>('NET_INCOME');
   public searchQuery = signal<string>('');
   public activeFilter = signal<'ALL' | 'DIVERGENT' | 'SYNCED' | 'HALAL_ONLY'>('ALL');
   public selectedSector = signal<string>('ALL');
@@ -466,6 +471,33 @@ export class PriceComparatorComponent implements OnInit {
   public selectedStock = signal<PriceComparisonResult | null>(null);
 
   public metricList: MetricDefinition[] = [
+    {
+      id: 'NET_INCOME',
+      label: 'صافي الأرباح السنوية (Net Income TTM)',
+      shortLabel: 'صافي الأرباح',
+      category: 'PROFITS',
+      icon: '💰',
+      unit: 'ج.م',
+      formulaDescription: 'صافي الربح السنوي المحقق بعد خصم كافة المصروفات والفوائد والضرائب (TTM)'
+    },
+    {
+      id: 'NET_PROFIT_MARGIN',
+      label: 'هامش صافي الربح (Net Profit Margin %)',
+      shortLabel: 'هامش الربح %',
+      category: 'PROFITS',
+      icon: '📊',
+      unit: '%',
+      formulaDescription: '(صافي الأرباح ÷ إجمالي الإيرادات) × 100% — يقيس كفاءة تحويل المبيعات إلى أرباح'
+    },
+    {
+      id: 'GROSS_PROFIT',
+      label: 'إجمالي الإيرادات السنوية (Total Revenue)',
+      shortLabel: 'إجمالي الإيرادات',
+      category: 'PROFITS',
+      icon: '🏢',
+      unit: 'ج.م',
+      formulaDescription: 'إجمالي مبيعات وإيرادات النشاط التشغيلي لآخر 12 شهراً'
+    },
     {
       id: 'FAIR_VALUE',
       label: 'متوسط القيمة العادلة المرجح (Consensus)',
@@ -586,15 +618,14 @@ export class PriceComparatorComponent implements OnInit {
   ];
 
   public quickPillMetrics = [
-    this.metricList[0], // Consensus FV
-    this.metricList[1], // Graham FV
-    this.metricList[2], // Sector PE FV
-    this.metricList[3], // Peter Lynch FV
-    this.metricList[4], // PB ROE FV
-    this.metricList[5], // Upside %
-    this.metricList[6], // Price
-    this.metricList[7], // Change %
-    this.metricList[8]  // Volume
+    this.metricList[0], // Net Income
+    this.metricList[1], // Net Margin %
+    this.metricList[3], // Consensus FV
+    this.metricList[4], // Graham FV
+    this.metricList[5], // Sector PE FV
+    this.metricList[8], // Upside %
+    this.metricList[9], // Price
+    this.metricList[10] // Change %
   ];
 
   public activeMetricInfo = computed(() => {
@@ -687,23 +718,8 @@ export class PriceComparatorComponent implements OnInit {
     }
 
     const avg = count > 0 ? sum / count : 0;
-    let marketAvgDisplay = `${avg.toFixed(2)} ج.م`;
-    if (metric === 'CHANGE_PERCENT' || metric === 'UPSIDE_PERCENT') {
-      marketAvgDisplay = `${avg >= 0 ? '+' : ''}${avg.toFixed(2)}%`;
-    } else if (metric === 'VOLUME') {
-      marketAvgDisplay = `${Math.round(avg).toLocaleString()} سهم`;
-    } else if (metric === 'PE_RATIO') {
-      marketAvgDisplay = `${avg.toFixed(1)}x`;
-    }
-
-    let topStockValDisplay = `${topVal.toFixed(2)} ج.م`;
-    if (metric === 'CHANGE_PERCENT' || metric === 'UPSIDE_PERCENT') {
-      topStockValDisplay = `${topVal >= 0 ? '+' : ''}${topVal.toFixed(2)}%`;
-    } else if (metric === 'VOLUME') {
-      topStockValDisplay = `${Math.round(topVal).toLocaleString()} سهم`;
-    } else if (metric === 'PE_RATIO') {
-      topStockValDisplay = `${topVal.toFixed(1)}x`;
-    }
+    const marketAvgDisplay = this.formatCurrencyOrNumber(avg, metric);
+    const topStockValDisplay = this.formatCurrencyOrNumber(topVal, metric);
 
     return {
       total: list.length,
@@ -718,6 +734,9 @@ export class PriceComparatorComponent implements OnInit {
 
   public getNumericMetricValue(stock: PriceComparisonResult, metric: ComparatorMetricType): number | null {
     switch (metric) {
+      case 'NET_INCOME': return stock.averageNetIncome ?? null;
+      case 'NET_PROFIT_MARGIN': return stock.averageNetProfitMargin ?? null;
+      case 'GROSS_PROFIT': return stock.averageGrossProfit ?? null;
       case 'PRICE': return stock.averagePrice;
       case 'FAIR_VALUE': return stock.averageFairValue || stock.averagePrice;
       case 'FAIR_VALUE_GRAHAM': return stock.averageFairValueGraham || null;
@@ -735,9 +754,34 @@ export class PriceComparatorComponent implements OnInit {
     }
   }
 
+  public formatCurrencyOrNumber(val: number, metric: ComparatorMetricType): string {
+    if (val === null || val === undefined || isNaN(val) || val === -Infinity) return '—';
+    if (metric === 'NET_INCOME' || metric === 'GROSS_PROFIT') {
+      if (Math.abs(val) >= 1e9) return `${(val / 1e9).toFixed(2)} مليار ج.م`;
+      if (Math.abs(val) >= 1e6) return `${(val / 1e6).toFixed(2)} مليون ج.م`;
+      return `${val.toLocaleString()} ج.م`;
+    }
+    if (metric === 'NET_PROFIT_MARGIN' || metric === 'CHANGE_PERCENT' || metric === 'UPSIDE_PERCENT') {
+      return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+    }
+    if (metric === 'VOLUME') {
+      return `${Math.round(val).toLocaleString()} سهم`;
+    }
+    if (metric === 'PE_RATIO') {
+      return `${val.toFixed(1)}x`;
+    }
+    return `${val.toFixed(2)} ج.م`;
+  }
+
   public formatSourceMetric(src: SourcePriceData | undefined, metric: ComparatorMetricType): string {
     if (!src) return '—';
     switch (metric) {
+      case 'NET_INCOME':
+        return (src.netIncome !== undefined) ? this.formatCurrencyOrNumber(src.netIncome, metric) : '—';
+      case 'NET_PROFIT_MARGIN':
+        return (src.netProfitMargin !== undefined) ? `${src.netProfitMargin >= 0 ? '+' : ''}${src.netProfitMargin}%` : '—';
+      case 'GROSS_PROFIT':
+        return (src.grossProfit !== undefined) ? this.formatCurrencyOrNumber(src.grossProfit, metric) : '—';
       case 'PRICE':
         return `${src.price} ج.م`;
       case 'FAIR_VALUE':
@@ -771,6 +815,12 @@ export class PriceComparatorComponent implements OnInit {
 
   public formatStockConsensus(stock: PriceComparisonResult, metric: ComparatorMetricType): string {
     switch (metric) {
+      case 'NET_INCOME':
+        return (stock.averageNetIncome !== undefined) ? this.formatCurrencyOrNumber(stock.averageNetIncome, metric) : '—';
+      case 'NET_PROFIT_MARGIN':
+        return (stock.averageNetProfitMargin !== undefined) ? `${stock.averageNetProfitMargin >= 0 ? '+' : ''}${stock.averageNetProfitMargin}%` : '—';
+      case 'GROSS_PROFIT':
+        return (stock.averageGrossProfit !== undefined) ? this.formatCurrencyOrNumber(stock.averageGrossProfit, metric) : '—';
       case 'PRICE':
         return `${stock.averagePrice} ج.م`;
       case 'FAIR_VALUE':
@@ -805,6 +855,14 @@ export class PriceComparatorComponent implements OnInit {
 
   public getMetricColorClass(src: SourcePriceData | undefined, metric: ComparatorMetricType): string {
     if (!src) return 'text-gray-500';
+    if (metric === 'NET_INCOME') {
+      const net = src.netIncome ?? 0;
+      return net > 0 ? 'text-emerald-300 font-bold' : (net < 0 ? 'text-rose-400' : 'text-gray-400');
+    }
+    if (metric === 'NET_PROFIT_MARGIN') {
+      const m = src.netProfitMargin ?? 0;
+      return m >= 20 ? 'text-emerald-300 font-black' : (m >= 0 ? 'text-emerald-400' : 'text-rose-400');
+    }
     if (metric === 'CHANGE_PERCENT') {
       return src.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400';
     }
@@ -815,7 +873,7 @@ export class PriceComparatorComponent implements OnInit {
     if (metric.startsWith('FAIR_VALUE')) {
       return 'text-emerald-400';
     }
-    if (metric === 'VOLUME') {
+    if (metric === 'VOLUME' || metric === 'GROSS_PROFIT') {
       return 'text-gray-200';
     }
     return 'text-white';
