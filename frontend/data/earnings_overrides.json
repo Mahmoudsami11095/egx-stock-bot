@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-17T02:00:00Z",
+  "lastUpdated": "2026-08-16T23:36:54.649Z",
   "overrides": {
     "EGAL": {
       "symbol": "EGAL",
@@ -7,7 +7,7 @@
       "netProfit": 15490000000,
       "periodMonths": 12,
       "totalShares": 412500000,
-      "dps": 12.0,
+      "dps": 12,
       "source": "Audited Financial Statement FY2026 - Egypt Aluminium (15.49B EGP announced Aug 12, 2026)",
       "updatedAt": "2026-08-17"
     },
@@ -47,7 +47,7 @@
       "netProfit": 14200000000,
       "periodMonths": 12,
       "totalShares": 2079150000,
-      "dps": 2.0,
+      "dps": 2,
       "source": "Audited Financial Statement FY2025 - MOPCO",
       "updatedAt": "2026-08-15"
     },
@@ -57,7 +57,7 @@
       "netProfit": 10011519905,
       "periodMonths": 6,
       "totalShares": 1261875000,
-      "dps": 3.0,
+      "dps": 3,
       "source": "Audited Financial Statement H1 2026 - Abu Qir Fertilizers (10.01B EGP announced Aug 2026)",
       "updatedAt": "2026-08-17"
     },
@@ -80,6 +80,16 @@
       "dps": 0.45,
       "source": "Audited Financial Statement FY2025 - TMG Holding",
       "updatedAt": "2026-08-15"
+    },
+    "AMOC": {
+      "symbol": "AMOC",
+      "name": "Alexandria Mineral Oils Company",
+      "netProfit": 1900000000,
+      "periodMonths": 6,
+      "totalShares": 1291500000,
+      "dps": 0.65,
+      "source": "Audited Financial Statement H1 2026 - AMOC (1.90B EGP announced July 30, 2026)",
+      "updatedAt": "2026-08-17"
     }
   }
 }

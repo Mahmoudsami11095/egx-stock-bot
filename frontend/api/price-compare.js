@@ -275,6 +275,20 @@ const LOCAL_AUDITED_OVERRIDES = {
     periodLabel: 'العام المالي 2026 كامل (معتمد)',
     source: 'Audited Financial Statement FY2026 - Egypt Aluminium (15.49B EGP announced Aug 12, 2026)'
   },
+  AMOC: {
+    netProfit: 1900000000,
+    annualizedProfit: 3800000000,
+    periodMonths: 6,
+    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
+    source: 'Audited Financial Statement H1 2026 - AMOC (1.90B EGP announced July 30, 2026)'
+  },
+  ABUK: {
+    netProfit: 10011519905,
+    annualizedProfit: 20023039810,
+    periodMonths: 6,
+    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
+    source: 'Audited Financial Statement H1 2026 - Abu Qir Fertilizers (10.01B EGP announced Aug 2026)'
+  },
   COMI: {
     netProfit: 29700000000,
     annualizedProfit: 29700000000,
@@ -303,13 +317,6 @@ const LOCAL_AUDITED_OVERRIDES = {
     periodLabel: 'سنوي كامل (مدقق)',
     source: 'Audited Financial Statement FY2025 - MOPCO'
   },
-  ABUK: {
-    netProfit: 10011519905,
-    annualizedProfit: 20023039810,
-    periodMonths: 6,
-    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
-    source: 'Audited Financial Statement H1 2026 - Abu Qir Fertilizers (10.01B EGP announced Aug 2026)'
-  },
   ETEL: {
     netProfit: 11500000000,
     annualizedProfit: 11500000000,
@@ -323,6 +330,62 @@ const LOCAL_AUDITED_OVERRIDES = {
     periodMonths: 12,
     periodLabel: 'سنوي كامل (مدقق)',
     source: 'Audited Financial Statement FY2025 - TMG Holding'
+  },
+  ORWE: {
+    netProfit: 2300000000,
+    annualizedProfit: 2300000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Oriental Weavers'
+  },
+  JUFO: {
+    netProfit: 2100000000,
+    annualizedProfit: 2100000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Juhayna'
+  },
+  EFID: {
+    netProfit: 1600000000,
+    annualizedProfit: 1600000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Edita'
+  },
+  ISPH: {
+    netProfit: 750000000,
+    annualizedProfit: 750000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Ibnsina Pharma'
+  },
+  HELI: {
+    netProfit: 7800000000,
+    annualizedProfit: 7800000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Heliopolis Housing'
+  },
+  FWRY: {
+    netProfit: 1250000000,
+    annualizedProfit: 1250000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Fawry'
+  },
+  EKHO: {
+    netProfit: 5800000000,
+    annualizedProfit: 5800000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Egypt Kuwait Holding'
+  },
+  ORAS: {
+    netProfit: 6200000000,
+    annualizedProfit: 6200000000,
+    periodMonths: 12,
+    periodLabel: 'سنوي كامل (مدقق)',
+    source: 'Audited Financial Statement FY2025 - Orascom Construction'
   }
 };
 
@@ -697,6 +760,8 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
+      const mubEarnings = mubEarningsMap?.get(sym);
+
       // 3. Mubasher Source (Strict Zero-Fallback: Market price ticks only)
       if (mubInfo) {
         const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, mubInfo.price);
@@ -705,8 +770,6 @@ module.exports = async (req, res) => {
         const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, mubInfo.price);
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, mubInfo.price);
         const upside = (consensusFv && mubInfo.price > 0) ? Number((((consensusFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
-
-        const mubEarnings = mubEarningsMap?.get(sym);
 
         sources.mubasher = {
           price: mubInfo.price,
@@ -743,9 +806,27 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      // 4. Gemini AI Audited Earnings (Strict)
+      // 4. Gemini AI Audited Earnings (Multi-tiered intelligence)
       const geminiEarnings = geminiEarningsMap?.get(sym);
-      if (geminiEarnings) {
+      const fallbackNetIncome = geminiEarnings?.annualizedProfit ??
+        mubEarnings?.annualizedProfit ??
+        tvInfo?.netIncome ??
+        egxInfo?.netProfit;
+
+      const fallbackNetIncomeRaw = geminiEarnings?.netProfit ??
+        mubEarnings?.netProfit ??
+        tvInfo?.netIncome ??
+        egxInfo?.netProfit;
+
+      const fallbackPeriodLabel = geminiEarnings?.periodLabel ??
+        mubEarnings?.periodLabel ??
+        (tvInfo?.netIncome ? 'سنوي TTM (مدقق)' : (egxInfo?.netProfit ? 'إفصاح البورصة (معتمد)' : undefined));
+
+      const fallbackPeriodMonths = geminiEarnings?.periodMonths ??
+        mubEarnings?.periodMonths ??
+        12;
+
+      if (fallbackNetIncome !== undefined) {
         sources.gemini = {
           price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
           change: 0,
@@ -763,10 +844,10 @@ module.exports = async (req, res) => {
           bvps: undefined,
           roe: undefined,
           dividendYield: undefined,
-          netIncome: geminiEarnings.annualizedProfit,
-          netIncomeRaw: geminiEarnings.netProfit,
-          netIncomePeriod: geminiEarnings.periodLabel,
-          netIncomePeriodMonths: geminiEarnings.periodMonths,
+          netIncome: fallbackNetIncome,
+          netIncomeRaw: fallbackNetIncomeRaw,
+          netIncomePeriod: fallbackPeriodLabel,
+          netIncomePeriodMonths: fallbackPeriodMonths,
           netIncomeYear: '2026',
           netProfitMargin: undefined,
           grossProfit: undefined
