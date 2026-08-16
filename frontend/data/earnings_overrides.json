@@ -90,6 +90,16 @@
       "dps": 0.65,
       "source": "Audited Financial Statement H1 2026 - AMOC (1.90B EGP announced July 30, 2026)",
       "updatedAt": "2026-08-17"
+    },
+    "ORAS": {
+      "symbol": "ORAS",
+      "name": "Orascom Construction PLC",
+      "netProfit": 6198300000,
+      "periodMonths": 6,
+      "totalShares": 110180000,
+      "dps": 13.5,
+      "source": "Audited Financial Statement H1 2026 - Orascom Construction ($127.8M USD / 6.20B EGP H1 -> 12.40B EGP annualized announced Aug 16, 2026)",
+      "updatedAt": "2026-08-17"
     }
   }
 }

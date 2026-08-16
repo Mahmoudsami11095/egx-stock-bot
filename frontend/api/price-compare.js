@@ -381,11 +381,11 @@ const LOCAL_AUDITED_OVERRIDES = {
     source: 'Audited Financial Statement FY2025 - Egypt Kuwait Holding'
   },
   ORAS: {
-    netProfit: 6200000000,
-    annualizedProfit: 6200000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Orascom Construction'
+    netProfit: 6198300000,
+    annualizedProfit: 12396600000,
+    periodMonths: 6,
+    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
+    source: 'Audited Financial Statement H1 2026 - Orascom Construction ($127.8M USD / 6.20B EGP H1 -> 12.40B EGP annualized announced Aug 16, 2026)'
   }
 };
 
