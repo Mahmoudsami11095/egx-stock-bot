@@ -304,11 +304,11 @@ const LOCAL_AUDITED_OVERRIDES = {
     source: 'Audited Financial Statement FY2025 - MOPCO'
   },
   ABUK: {
-    netProfit: 12800000000,
-    annualizedProfit: 12800000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Abu Qir Fertilizers'
+    netProfit: 10011519905,
+    annualizedProfit: 20023039810,
+    periodMonths: 6,
+    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
+    source: 'Audited Financial Statement H1 2026 - Abu Qir Fertilizers (10.01B EGP announced Aug 2026)'
   },
   ETEL: {
     netProfit: 11500000000,
