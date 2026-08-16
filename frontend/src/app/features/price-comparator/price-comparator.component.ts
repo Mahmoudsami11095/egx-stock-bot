@@ -126,7 +126,7 @@ export interface MetricDefinition {
             <i class="pi pi-database text-emeraldAccent"></i>
           </div>
           <div class="text-2xl font-black text-white">{{ stats().total }}</div>
-          <div class="text-[11px] text-gray-400 mt-1">عبر 5 مصادر متزامنة</div>
+          <div class="text-[11px] text-gray-400 mt-1">عبر 4 مصادر متزامنة</div>
         </div>
 
         <!-- Metric Market Average -->
@@ -241,9 +241,6 @@ export interface MetricDefinition {
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
                 📈 Investing.com
               </th>
-              <th class="py-3.5 px-3 text-center bg-darkCard/40">
-                💹 Yahoo Finance
-              </th>
               <th class="py-3.5 px-3 text-center bg-emerald-500/10 text-emerald-300">
                 متوسط الإجماع (Consensus)
               </th>
@@ -330,19 +327,6 @@ export interface MetricDefinition {
                   </div>
                 </ng-container>
                 <ng-template #noInv><span class="text-xs text-gray-500">—</span></ng-template>
-              </td>
-
-              <!-- Yahoo -->
-              <td class="py-3 px-3 text-center bg-darkCard/20">
-                <ng-container *ngIf="stock.sources['yahoo']; else noYah">
-                  <div [class]="getMetricColorClass(stock.sources['yahoo'], selectedMetric())" class="font-black text-xs">
-                    {{ formatSourceMetric(stock.sources['yahoo'], selectedMetric()) }}
-                  </div>
-                  <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
-                    {{ stock.sources['yahoo'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['yahoo'].changePercent }}%
-                  </div>
-                </ng-container>
-                <ng-template #noYah><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
               <!-- Consensus Average -->
