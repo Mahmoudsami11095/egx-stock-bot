@@ -259,3 +259,86 @@ export interface PriceComparisonResult {
   averageNetProfitMargin?: number;
   averageGrossProfit?: number;
 }
+
+export type RotationPhaseType = 'ACCUMULATION' | 'MARKUP' | 'DISTRIBUTION' | 'BASE_BUILDING';
+
+export interface SectorRotationStock {
+  symbol: string;
+  nameAr: string;
+  nameEn: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  avgVolume10d: number;
+  volumeSurge: number;
+  turnoverEgp: number;
+  rsi?: number;
+  sma20?: number;
+  sma50?: number;
+  aboveSma20: boolean;
+  marketCap: number;
+  fairValue?: number;
+  upsidePercent: number;
+  peRatio?: number;
+  eps?: number;
+  pbRatio?: number;
+  dividendYield?: number;
+  netIncome?: number;
+  netProfitMargin?: number;
+  grossProfit?: number;
+}
+
+export interface SectorRotationGroup {
+  sectorKey: string;
+  nameAr: string;
+  nameEn: string;
+  icon: string;
+  category: string;
+  stocksCount: number;
+  totalTurnoverEgp: number;
+  totalVolume: number;
+  totalMarketCap: number;
+  liquiditySharePercent: number;
+  avgVolumeSurge: number;
+  avgPriceChange: number;
+  avgRsi?: number;
+  avgPe?: number;
+  avgUpsidePercent: number;
+  avgNetMargin?: number;
+  rotationPhase: RotationPhaseType;
+  phaseLabelAr: string;
+  phaseDescriptionAr: string;
+  rotationScore: number;
+  stocks: SectorRotationStock[];
+}
+
+export interface SectorRotationSummary {
+  totalMarketTurnover: number;
+  totalMarketVolume: number;
+  totalMarketCap: number;
+  totalStocksCount: number;
+  totalSectorsCount: number;
+  leadingSector: {
+    sectorKey?: string;
+    nameAr?: string;
+    icon?: string;
+    turnoverEgp?: number;
+    liquiditySharePercent?: number;
+  };
+  topAccumulationSector: {
+    sectorKey?: string;
+    nameAr?: string;
+    icon?: string;
+    rotationScore?: number;
+    avgVolumeSurge?: number;
+    avgUpsidePercent?: number;
+  };
+  timestamp: string;
+}
+
+export interface SectorRotationResponse {
+  summary: SectorRotationSummary;
+  sectors: SectorRotationGroup[];
+}
+

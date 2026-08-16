@@ -123,6 +123,10 @@ import { StockApiService } from '../../core/services/stock-api.service';
              class="px-2.5 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white whitespace-nowrap">
             🏷️ مقارنة الأسعار اللحظية
           </a>
+          <a routerLink="/sector-rotation" routerLinkActive="bg-amber-600 text-white font-bold"
+             class="px-2.5 py-1.5 text-xs sm:text-sm rounded-lg transition-all text-gray-300 hover:text-white whitespace-nowrap">
+            🔄 تدوير السيولة
+          </a>
         </nav>
 
         <!-- Right Side Actions & Mobile Hamburger -->
@@ -172,6 +176,10 @@ import { StockApiService } from '../../core/services/stock-api.service';
         <a routerLink="/price-compare" (click)="mobileMenuOpen = false" routerLinkActive="bg-teal-600 text-white font-bold"
            class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
           🏷️ مقارنة الأسعار اللحظية
+        </a>
+        <a routerLink="/sector-rotation" (click)="mobileMenuOpen = false" routerLinkActive="bg-amber-600 text-white font-bold"
+           class="block px-3 py-2 text-sm rounded-lg transition-all text-gray-300 hover:bg-darkCard">
+          🔄 تدوير السيولة
         </a>
       </div>
     </header>

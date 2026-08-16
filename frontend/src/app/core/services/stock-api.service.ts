@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade, FairValueComparisonResult, PriceComparisonResult } from '../models/stock.model';
+import { StockAnalysisResult, GoldPrices, DataSource, IntradayTrade, FairValueComparisonResult, PriceComparisonResult, SectorRotationResponse } from '../models/stock.model';
 
 const STORAGE_KEY = 'egx_stocks_live_cache_v5';
 const STORAGE_TIME_KEY = 'egx_stocks_cache_timestamp_v5';
@@ -90,6 +90,9 @@ export class StockApiService {
   public priceComparisons = signal<PriceComparisonResult[]>([]);
   public priceComparisonLoading = signal<boolean>(false);
   public priceComparisonLastUpdated = signal<Date | null>(null);
+  public sectorRotation = signal<SectorRotationResponse | null>(null);
+  public sectorRotationLoading = signal<boolean>(false);
+  public sectorRotationLastUpdated = signal<Date | null>(null);
   public activeBackend = signal<'AZURE' | 'VERCEL_FALLBACK'>('AZURE');
   public serverFallbackNotice = signal<string | null>(null);
 
@@ -420,4 +423,30 @@ export class StockApiService {
       this.priceComparisonLoading.set(false);
     }
   }
+
+  public async loadSectorRotation(force: boolean = false): Promise<void> {
+    this.sectorRotationLoading.set(true);
+    try {
+      const ts = Date.now();
+      const res = await this.http.get<SectorRotationResponse>(`/api/sector-rotation?_ts=${ts}`).toPromise();
+      if (res && res.sectors && res.sectors.length > 0) {
+        this.sectorRotation.set(res);
+        this.sectorRotationLastUpdated.set(new Date());
+        try {
+          localStorage.setItem('egx_sector_rotation_cache', JSON.stringify(res));
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn('Error fetching sector rotation data:', err);
+      try {
+        const cached = localStorage.getItem('egx_sector_rotation_cache');
+        if (cached) {
+          this.sectorRotation.set(JSON.parse(cached));
+        }
+      } catch (e) {}
+    } finally {
+      this.sectorRotationLoading.set(false);
+    }
+  }
 }
+

@@ -30,6 +30,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/price-comparator/price-comparator.component').then(m => m.PriceComparatorComponent)
   },
   {
+    path: 'sector-rotation',
+    loadComponent: () => import('./features/sector-rotation/sector-rotation.component').then(m => m.SectorRotationComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }
