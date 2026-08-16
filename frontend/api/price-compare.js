@@ -349,6 +349,7 @@ module.exports = async (req, res) => {
           volume: !isNaN(volVal) ? volVal : 0,
           dayHigh: !isNaN(highVal) ? highVal : undefined,
           dayLow: !isNaN(lowVal) ? lowVal : undefined,
+          netProfit: (typeof item.netProfit === 'number' && !isNaN(item.netProfit)) ? item.netProfit : (parseFloat(item.netProfit) || undefined),
           nameAr: item.nameA || item.name || code,
           nameEn: item.nameE || code
         });
@@ -386,7 +387,7 @@ module.exports = async (req, res) => {
       const validPbFv = [];
       const validUpsides = [];
 
-      // 1. EGX Source (Strict)
+      // 1. EGX Source (Strict Zero-Fallback)
       if (egxInfo) {
         const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, egxInfo.price);
         const peFv = computeSectorPeFV(tvInfo?.eps, sector, egxInfo.price);
@@ -408,15 +409,15 @@ module.exports = async (req, res) => {
           fairValueLynch: lynch,
           fairValuePB: pbFv,
           upsidePercent: upside,
-          peRatio: tvInfo?.pe,
-          eps: tvInfo?.eps,
-          pbRatio: tvInfo?.pb,
-          bvps: tvInfo?.bvps,
-          roe: tvInfo?.roe,
-          dividendYield: tvInfo?.dy,
-          netIncome: tvInfo?.netIncome,
-          netProfitMargin: tvInfo?.netProfitMargin,
-          grossProfit: tvInfo?.grossProfit
+          peRatio: undefined,
+          eps: undefined,
+          pbRatio: undefined,
+          bvps: undefined,
+          roe: undefined,
+          dividendYield: undefined,
+          netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
+          netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
+          grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };
         validPrices.push(egxInfo.price);
         if (consensusFv) validConsensusFv.push(consensusFv);
@@ -427,7 +428,7 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      // 2. TradingView Source (Strict)
+      // 2. TradingView Source (Strict Zero-Fallback: Genuine fundamental & profit scan)
       if (tvInfo) {
         const graham = computeGrahamFV(tvInfo.eps, tvInfo.bvps, tvInfo.price);
         const peFv = computeSectorPeFV(tvInfo.eps, sector, tvInfo.price);
@@ -468,7 +469,7 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      // 3. Mubasher Source (Strict)
+      // 3. Mubasher Source (Strict Zero-Fallback: Market price ticks only)
       if (mubInfo) {
         const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, mubInfo.price);
         const peFv = computeSectorPeFV(tvInfo?.eps, sector, mubInfo.price);
@@ -490,15 +491,15 @@ module.exports = async (req, res) => {
           fairValueLynch: lynch,
           fairValuePB: pbFv,
           upsidePercent: upside,
-          peRatio: tvInfo?.pe,
-          eps: tvInfo?.eps,
-          pbRatio: tvInfo?.pb,
-          bvps: tvInfo?.bvps,
-          roe: tvInfo?.roe,
-          dividendYield: tvInfo?.dy,
-          netIncome: tvInfo?.netIncome,
-          netProfitMargin: tvInfo?.netProfitMargin,
-          grossProfit: tvInfo?.grossProfit
+          peRatio: undefined,        // Strict zero-fallback
+          eps: undefined,            // Strict zero-fallback
+          pbRatio: undefined,        // Strict zero-fallback
+          bvps: undefined,           // Strict zero-fallback
+          roe: undefined,            // Strict zero-fallback
+          dividendYield: undefined,  // Strict zero-fallback
+          netIncome: undefined,      // Strict zero-fallback (Mubasher price API does not return profits)
+          netProfitMargin: undefined,// Strict zero-fallback
+          grossProfit: undefined     // Strict zero-fallback
         };
         validPrices.push(mubInfo.price);
         if (consensusFv) validConsensusFv.push(consensusFv);
