@@ -151,7 +151,7 @@ function fetchTradingView() {
   });
 }
 
-// Fetch Mubasher EGX API
+// Fetch Mubasher EGX API (Market Prices)
 function fetchMubasher() {
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/stocks/prices?country=eg', {
@@ -175,6 +175,45 @@ function fetchMubasher() {
 
     req.on('error', () => resolve([]));
     req.on('timeout', () => { req.destroy(); resolve([]); });
+  });
+}
+
+// Fetch Mubasher EGX Corporate Earnings API
+function fetchMubasherEarnings() {
+  return new Promise((resolve) => {
+    const req = https.get('https://www.mubasher.info/api/1/earnings?country=eg&size=1000', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*'
+      },
+      timeout: 5000
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          const map = new Map();
+          for (const r of (json.rows || [])) {
+            const sym = (r.url || '').split('/').pop()?.toUpperCase();
+            if (sym && !map.has(sym)) {
+              map.set(sym, {
+                netProfit: typeof r.announced === 'number' ? r.announced : (parseFloat(r.announced) || undefined),
+                quarter: r.quarter,
+                year: r.year,
+                changePercentage: r.changePercentage
+              });
+            }
+          }
+          resolve(map);
+        } catch (e) {
+          resolve(new Map());
+        }
+      });
+    });
+
+    req.on('error', () => resolve(new Map()));
+    req.on('timeout', () => { req.destroy(); resolve(new Map()); });
   });
 }
 
@@ -240,10 +279,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData, egxData] = await Promise.all([
+    const [tvData, mubData, egxData, mubEarningsMap] = await Promise.all([
       fetchTradingView(),
       fetchMubasher(),
-      fetchEgxBeta()
+      fetchEgxBeta(),
+      fetchMubasherEarnings()
     ]);
 
     const allSymbolsMap = new Map();
@@ -478,6 +518,8 @@ module.exports = async (req, res) => {
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, mubInfo.price);
         const upside = (consensusFv && mubInfo.price > 0) ? Number((((consensusFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
 
+        const mubEarnings = mubEarningsMap?.get(sym);
+
         sources.mubasher = {
           price: mubInfo.price,
           change: mubInfo.change,
@@ -497,7 +539,7 @@ module.exports = async (req, res) => {
           bvps: undefined,           // Strict zero-fallback
           roe: undefined,            // Strict zero-fallback
           dividendYield: undefined,  // Strict zero-fallback
-          netIncome: undefined,      // Strict zero-fallback (Mubasher price API does not return profits)
+          netIncome: mubEarnings ? mubEarnings.netProfit : undefined, // Genuine official Mubasher declared profit
           netProfitMargin: undefined,// Strict zero-fallback
           grossProfit: undefined     // Strict zero-fallback
         };
