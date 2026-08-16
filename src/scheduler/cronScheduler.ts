@@ -11,12 +11,14 @@ import { TelegramBotService } from '../bot/telegramBot';
 import { logger } from '../services/logger';
 import { StockAnalysisResult } from '../types/stock';
 import { IntradayTrackerService } from '../services/intradayTracker';
+import { EgxOfficialHarvesterService } from '../services/egxOfficialHarvester';
 
 export class CronSchedulerService {
   private goldService = new GoldService();
   private shariaService = new ShariaService();
   private exportService = new ExportService();
   private googleSheetsService = new GoogleSheetsService();
+  private egxHarvester = new EgxOfficialHarvesterService();
 
   constructor(
     private stateManager: StateManager,
@@ -44,6 +46,12 @@ export class CronSchedulerService {
     // 3. Daily Market Close Excel & Google Sheet Sync (Sun-Thu at 3:00 PM: '0 15 * * 0-4')
     logger.info(`📁 Scheduling Daily Market Close Excel & Google Sheet Sync ('0 15 * * 0-4')...`);
     cron.schedule('0 15 * * 0-4', async () => { await this.sendDailySheetReport(); });
+
+    // 4. EGX Official Beta Exchange Live Harvester (Every 15 mins during trading hours: Sun-Thu 10:00 to 14:45)
+    logger.info(`🏛️ Scheduling EGX Official Exchange Harvester ('*/15 10-14 * * 0-4')...`);
+    cron.schedule('*/15 10-14 * * 0-4', async () => {
+      await this.egxHarvester.runHarvest();
+    });
   }
 
   public async sendDailySheetReport(): Promise<void> {

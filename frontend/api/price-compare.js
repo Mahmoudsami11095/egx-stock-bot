@@ -178,10 +178,30 @@ function fetchMubasher() {
   });
 }
 
-// Fetch EGX Beta Market Watch
+// Fetch EGX Beta Market Watch (Reads harvested official snapshot with zero-WAF failure)
 function fetchEgxBeta() {
   return new Promise((resolve) => {
-    const req = https.get('https://beta.egx.com.eg/api/market/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
+    // 1. Try reading from local data/egx-live.json first
+    const possiblePaths = [
+      path.join(__dirname, '..', 'data', 'egx-live.json'),
+      path.join(__dirname, '..', '..', 'data', 'egx-live.json'),
+      path.join(process.cwd(), 'data', 'egx-live.json'),
+      path.join(process.cwd(), 'frontend', 'data', 'egx-live.json')
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          const raw = fs.readFileSync(p, 'utf-8');
+          const data = JSON.parse(raw);
+          if (Array.isArray(data) && data.length > 0) {
+            return resolve(data);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Network request fallback
+    const req = https.get('https://beta.egx.com.eg/api/bff/egx/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
@@ -197,7 +217,7 @@ function fetchEgxBeta() {
             resolve([]);
           } else {
             const json = JSON.parse(body);
-            resolve(json.data?.data || json.data || []);
+            resolve(json.data?.data || json.data || (Array.isArray(json) ? json : []));
           }
         } catch (e) {
           resolve([]);
