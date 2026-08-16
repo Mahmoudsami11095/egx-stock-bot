@@ -224,6 +224,10 @@ export interface SourcePriceData {
   roe?: number;
   dividendYield?: number;
   netIncome?: number;
+  netIncomeRaw?: number;
+  netIncomePeriod?: string;
+  netIncomePeriodMonths?: number;
+  netIncomeYear?: string;
   netProfitMargin?: number;
   grossProfit?: number;
 }

@@ -178,7 +178,24 @@ function fetchMubasher() {
   });
 }
 
-// Fetch Mubasher EGX Corporate Earnings API
+function parsePeriodMonths(quarterStr) {
+  if (!quarterStr) return 12;
+  const q = String(quarterStr);
+  if (/الاول|الأول|3\s*أشهر|ثلاثة\s*أشهر/i.test(q)) return 3;
+  if (/الثاني|الثانى|6\s*أشهر|ستة\s*أشهر|نصف/i.test(q)) return 6;
+  if (/الثالث|9\s*أشهر|تسعة\s*أشهر/i.test(q)) return 9;
+  return 12;
+}
+
+function getPeriodLabel(periodMonths, year) {
+  const yrStr = year ? ` ${year}` : '';
+  if (periodMonths === 3) return `الربع الأول${yrStr} (معدل سنوياً)`;
+  if (periodMonths === 6) return `النصف الأول${yrStr} (معدل سنوياً)`;
+  if (periodMonths === 9) return `9 أشهر${yrStr} (معدل سنوياً)`;
+  return `سنوي كامل${yrStr}`;
+}
+
+// Fetch Mubasher EGX Corporate Earnings API (Normalized to Annualized TTM)
 function fetchMubasherEarnings() {
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/earnings?country=eg&size=1000', {
@@ -197,12 +214,23 @@ function fetchMubasherEarnings() {
           for (const r of (json.rows || [])) {
             const sym = (r.url || '').split('/').pop()?.toUpperCase();
             if (sym && !map.has(sym)) {
-              map.set(sym, {
-                netProfit: typeof r.announced === 'number' ? r.announced : (parseFloat(r.announced) || undefined),
-                quarter: r.quarter,
-                year: r.year,
-                changePercentage: r.changePercentage
-              });
+              const rawProfit = typeof r.announced === 'number' ? r.announced : (parseFloat(r.announced) || undefined);
+              if (rawProfit !== undefined) {
+                const pMonths = parsePeriodMonths(r.quarter);
+                const factor = 12 / pMonths;
+                const annualized = Number((rawProfit * factor).toFixed(2));
+                const pLabel = getPeriodLabel(pMonths, r.year);
+
+                map.set(sym, {
+                  netProfit: rawProfit,
+                  annualizedProfit: annualized,
+                  periodMonths: pMonths,
+                  periodLabel: pLabel,
+                  quarter: r.quarter,
+                  year: r.year,
+                  changePercentage: r.changePercentage
+                });
+              }
             }
           }
           resolve(map);
@@ -539,7 +567,11 @@ module.exports = async (req, res) => {
           bvps: undefined,           // Strict zero-fallback
           roe: undefined,            // Strict zero-fallback
           dividendYield: undefined,  // Strict zero-fallback
-          netIncome: mubEarnings ? mubEarnings.netProfit : undefined, // Genuine official Mubasher declared profit
+          netIncome: mubEarnings ? mubEarnings.annualizedProfit : undefined, // Normalized to Annualized TTM
+          netIncomeRaw: mubEarnings ? mubEarnings.netProfit : undefined,
+          netIncomePeriod: mubEarnings ? mubEarnings.periodLabel : undefined,
+          netIncomePeriodMonths: mubEarnings ? mubEarnings.periodMonths : undefined,
+          netIncomeYear: mubEarnings ? mubEarnings.year : undefined,
           netProfitMargin: undefined,// Strict zero-fallback
           grossProfit: undefined     // Strict zero-fallback
         };

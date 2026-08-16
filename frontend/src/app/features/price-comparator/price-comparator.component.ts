@@ -309,6 +309,9 @@ export interface MetricDefinition {
                   <div [class]="getMetricColorClass(stock.sources['mubasher'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['mubasher'], selectedMetric()) }}
                   </div>
+                  <div class="text-[9px] text-amber-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['mubasher'].netIncomePeriod">
+                    {{ stock.sources['mubasher'].netIncomePeriod }}
+                  </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['mubasher'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['mubasher'].changePercent }}%
                   </div>
