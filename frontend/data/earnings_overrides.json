@@ -34,12 +34,12 @@
     "SWDY": {
       "symbol": "SWDY",
       "name": "El Sewedy Electric Company",
-      "netProfit": 13500000000,
-      "periodMonths": 12,
+      "netProfit": 10640000000,
+      "periodMonths": 6,
       "totalShares": 2140780000,
       "dps": 1.85,
-      "source": "Audited Financial Statement FY2025 - Elsewedy Electric",
-      "updatedAt": "2026-08-15"
+      "source": "Audited Financial Statement H1 2026 - Elsewedy Electric (10.64B EGP announced Aug 12, 2026)",
+      "updatedAt": "2026-08-17"
     },
     "MFPC": {
       "symbol": "MFPC",

@@ -304,11 +304,11 @@ const LOCAL_AUDITED_OVERRIDES = {
     source: 'Audited Financial Statement FY2025 - Sidpec (EGX Approved)'
   },
   SWDY: {
-    netProfit: 13500000000,
-    annualizedProfit: 13500000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Elsewedy Electric'
+    netProfit: 10640000000,
+    annualizedProfit: 21280000000,
+    periodMonths: 6,
+    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
+    source: 'Audited Financial Statement H1 2026 - Elsewedy Electric (10.64B EGP announced Aug 12, 2026)'
   },
   MFPC: {
     netProfit: 14200000000,
