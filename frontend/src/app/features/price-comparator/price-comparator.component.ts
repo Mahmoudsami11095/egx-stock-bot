@@ -238,8 +238,8 @@ export interface MetricDefinition {
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
                 📊 مباشر Mubasher
               </th>
-              <th class="py-3.5 px-3 text-center bg-darkCard/40">
-                📈 Investing.com
+              <th class="py-3.5 px-3 text-center bg-cyan-500/10 text-cyan-300" *ngIf="selectedMetric() === 'NET_INCOME'">
+                🤖 Gemini AI (مدقق)
               </th>
               <th class="py-3.5 px-3 text-center bg-emerald-500/10 text-emerald-300">
                 متوسط الإجماع (Consensus)
@@ -316,17 +316,17 @@ export interface MetricDefinition {
                 <ng-template #noMub><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
-              <!-- Investing -->
-              <td class="py-3 px-3 text-center bg-darkCard/20">
-                <ng-container *ngIf="stock.sources['investing']; else noInv">
-                  <div [class]="getMetricColorClass(stock.sources['investing'], selectedMetric())" class="font-black text-xs">
-                    {{ formatSourceMetric(stock.sources['investing'], selectedMetric()) }}
+              <!-- Gemini AI Audited Earnings (Shown on Net Income) -->
+              <td class="py-3 px-3 text-center bg-cyan-500/5" *ngIf="selectedMetric() === 'NET_INCOME'">
+                <ng-container *ngIf="stock.sources['gemini']; else noGem">
+                  <div [class]="getMetricColorClass(stock.sources['gemini'], selectedMetric())" class="font-black text-xs">
+                    {{ formatSourceMetric(stock.sources['gemini'], selectedMetric()) }}
                   </div>
-                  <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
-                    {{ stock.sources['investing'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['investing'].changePercent }}%
+                  <div class="text-[9px] text-cyan-400 font-bold mt-0.5" *ngIf="stock.sources['gemini'].netIncomePeriod">
+                    {{ stock.sources['gemini'].netIncomePeriod }}
                   </div>
                 </ng-container>
-                <ng-template #noInv><span class="text-xs text-gray-500">—</span></ng-template>
+                <ng-template #noGem><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
               <!-- Consensus Average -->
@@ -880,6 +880,7 @@ export class PriceComparatorComponent implements OnInit {
       egx: 'البورصة المصرية EGX Official',
       tradingview: 'TradingView Scanner',
       mubasher: 'مباشر مصر Mubasher',
+      gemini: 'الذكاء الاصطناعي Gemini AI (مدقق)',
       investing: 'Investing.com Live',
       yahoo: 'Yahoo Finance'
     };
@@ -891,6 +892,7 @@ export class PriceComparatorComponent implements OnInit {
       egx: '🏛️',
       tradingview: '🌐',
       mubasher: '📊',
+      gemini: '🤖',
       investing: '📈',
       yahoo: '💹'
     };

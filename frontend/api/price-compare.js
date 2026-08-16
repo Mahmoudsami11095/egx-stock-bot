@@ -245,6 +245,83 @@ function fetchMubasherEarnings() {
   });
 }
 
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+let GEMINI_SHEET_CACHE = null;
+let GEMINI_SHEET_CACHE_TIME = 0;
+
+// Fetch Gemini AI Audited & Extracted Corporate Earnings Feed
+function fetchGeminiEarnings() {
+  const now = Date.now();
+  if (GEMINI_SHEET_CACHE && (now - GEMINI_SHEET_CACHE_TIME < 60000)) {
+    return Promise.resolve(GEMINI_SHEET_CACHE);
+  }
+
+  return new Promise((resolve) => {
+    const url = 'https://docs.google.com/spreadsheets/d/1EKvEu7qKYFZY6JoMfohKSXtFV6tvKxbtlvDlTYr2mJ0/gviz/tq?tqx=out:csv&gid=0';
+    const req = https.get(url, { timeout: 4000 }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          const map = new Map();
+          for (let i = 1; i < lines.length; i++) {
+            const row = parseCSVLine(lines[i]);
+            const sym = (row[0] || '').replace(/"/g, '').trim().toUpperCase();
+            const profitStr = (row[2] || '').replace(/"/g, '').replace(/,/g, '').trim();
+            const profit = parseFloat(profitStr);
+            const periodMonths = parseInt((row[3] || '').replace(/"/g, '').trim(), 10) || 12;
+            const source = (row[6] || '').replace(/"/g, '').trim() || 'Gemini AI Verified Filing';
+
+            if (sym && !isNaN(profit) && profit > 0 && !map.has(sym)) {
+              const factor = 12 / periodMonths;
+              const annualized = Number((profit * factor).toFixed(2));
+              let periodLabel = 'سنوي كامل (مدقق)';
+              if (periodMonths === 3) periodLabel = 'الربع الأول (مدقق)';
+              else if (periodMonths === 6) periodLabel = 'النصف الأول (مدقق)';
+              else if (periodMonths === 9) periodLabel = '9 أشهر (مدقق)';
+
+              map.set(sym, {
+                netProfit: profit,
+                annualizedProfit: annualized,
+                periodMonths,
+                periodLabel,
+                source
+              });
+            }
+          }
+          GEMINI_SHEET_CACHE = map;
+          GEMINI_SHEET_CACHE_TIME = now;
+          resolve(map);
+        } catch (e) {
+          resolve(new Map());
+        }
+      });
+    });
+
+    req.on('error', () => resolve(new Map()));
+    req.on('timeout', () => { req.destroy(); resolve(new Map()); });
+  });
+}
+
 // Fetch EGX Beta Market Watch (Reads harvested official snapshot with zero-WAF failure)
 function fetchEgxBeta() {
   return new Promise((resolve) => {
@@ -307,11 +384,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData, egxData, mubEarningsMap] = await Promise.all([
+    const [tvData, mubData, egxData, mubEarningsMap, geminiEarningsMap] = await Promise.all([
       fetchTradingView(),
       fetchMubasher(),
       fetchEgxBeta(),
-      fetchMubasherEarnings()
+      fetchMubasherEarnings(),
+      fetchGeminiEarnings()
     ]);
 
     const allSymbolsMap = new Map();
@@ -581,6 +659,36 @@ module.exports = async (req, res) => {
         if (lynch) validLynchFv.push(lynch);
         if (pbFv) validPbFv.push(pbFv);
         validUpsides.push(upside);
+      }
+
+      // 4. Gemini AI Audited Earnings (Strict)
+      const geminiEarnings = geminiEarningsMap?.get(sym);
+      if (geminiEarnings) {
+        sources.gemini = {
+          price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
+          change: 0,
+          changePercent: 0,
+          volume: 0,
+          fairValue: undefined,
+          fairValueGraham: undefined,
+          fairValuePE: undefined,
+          fairValueLynch: undefined,
+          fairValuePB: undefined,
+          upsidePercent: undefined,
+          peRatio: undefined,
+          eps: undefined,
+          pbRatio: undefined,
+          bvps: undefined,
+          roe: undefined,
+          dividendYield: undefined,
+          netIncome: geminiEarnings.annualizedProfit,
+          netIncomeRaw: geminiEarnings.netProfit,
+          netIncomePeriod: geminiEarnings.periodLabel,
+          netIncomePeriodMonths: geminiEarnings.periodMonths,
+          netIncomeYear: '2026',
+          netProfitMargin: undefined,
+          grossProfit: undefined
+        };
       }
 
       // If no valid source returned price for this stock, skip
