@@ -105,34 +105,74 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
 
       <!-- ===== TAB 1: LIVE SIGNALS SCAN ===== -->
       <div *ngIf="activeTab() === 'SIGNALS'" class="space-y-6">
-        <!-- Filter Tabs -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <button (click)="activeFilter.set('ALL')"
-                  [class]="activeFilter() === 'ALL' ? 'bg-orange-500 text-black font-black shadow-lg shadow-orange-500/20' : 'bg-darkCard text-gray-300 hover:bg-darkBorder border border-darkBorder'"
-                  class="px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2">
-            <i class="pi pi-list"></i>
-            الكل ({{ allIntradayBuys().length + allIntradaySells().length + allIntradayNeutral().length }})
-          </button>
-          <button (click)="activeFilter.set('BUY')"
-                  [class]="activeFilter() === 'BUY' ? 'bg-emerald-500 text-black font-black shadow-lg shadow-emerald-500/20' : 'bg-darkCard text-gray-300 hover:bg-darkBorder border border-darkBorder'"
-                  class="px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2">
-            <i class="pi pi-arrow-up"></i>
-            🟢 شراء ({{ allIntradayBuys().length }})
-          </button>
-          <button (click)="activeFilter.set('SELL')"
-                  [class]="activeFilter() === 'SELL' ? 'bg-rose-500 text-black font-black shadow-lg shadow-rose-500/20' : 'bg-darkCard text-gray-300 hover:bg-darkBorder border border-darkBorder'"
-                  class="px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2">
-            <i class="pi pi-arrow-down"></i>
-            🔴 بيع ({{ allIntradaySells().length }})
-          </button>
+        <!-- Filter & Sort Bar -->
+        <div class="flex items-center justify-between gap-3 flex-wrap bg-darkCard/40 p-3 rounded-2xl border border-darkBorder/60">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button (click)="activeFilter.set('ALL')"
+                    [class]="activeFilter() === 'ALL' ? 'bg-orange-500 text-black font-black shadow-lg shadow-orange-500/20' : 'bg-darkCard text-gray-300 hover:bg-darkBorder border border-darkBorder'"
+                    class="px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-1.5">
+              <i class="pi pi-list"></i>
+              الكل ({{ allIntradayBuys().length + allIntradaySells().length + allIntradayNeutral().length }})
+            </button>
+            <button (click)="activeFilter.set('BUY')"
+                    [class]="activeFilter() === 'BUY' ? 'bg-emerald-500 text-black font-black shadow-lg shadow-emerald-500/20' : 'bg-darkCard text-gray-300 hover:bg-darkBorder border border-darkBorder'"
+                    class="px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-1.5">
+              <i class="pi pi-arrow-up"></i>
+              🟢 شراء ({{ allIntradayBuys().length }})
+            </button>
+            <button (click)="activeFilter.set('SELL')"
+                    [class]="activeFilter() === 'SELL' ? 'bg-rose-500 text-black font-black shadow-lg shadow-rose-500/20' : 'bg-darkCard text-gray-300 hover:bg-darkBorder border border-darkBorder'"
+                    class="px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-1.5">
+              <i class="pi pi-arrow-down"></i>
+              🔴 بيع ({{ allIntradaySells().length }})
+            </button>
+          </div>
 
-          <!-- Search -->
-          <div class="flex-1 min-w-[180px] max-w-xs mr-auto">
-            <div class="relative">
-              <i class="pi pi-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+          <!-- Sort Selector -->
+          <div class="flex items-center gap-2 flex-wrap mr-auto">
+            <span class="text-xs text-gray-400 font-bold flex items-center gap-1">
+              <i class="pi pi-sort-alt text-orange-400"></i>
+              ترتيب الفرص:
+            </span>
+            <div class="flex items-center gap-1 bg-darkBg/90 p-1 rounded-xl border border-darkBorder/60 text-xs">
+              <button (click)="sortBy.set('BEST_TA')"
+                      [class]="sortBy() === 'BEST_TA' ? 'bg-orange-500 text-black font-black' : 'text-gray-400 hover:text-white'"
+                      class="px-2.5 py-1 rounded-lg transition-all"
+                      title="الترتيب الأفضل فنياً: العائد للمخاطرة + حجم السيولة + الزخم">
+                🏆 الأفضل فنياً
+              </button>
+              <button (click)="sortBy.set('RISK_REWARD')"
+                      [class]="sortBy() === 'RISK_REWARD' ? 'bg-emerald-500 text-black font-black' : 'text-gray-400 hover:text-white'"
+                      class="px-2.5 py-1 rounded-lg transition-all"
+                      title="أعلى نسبة عائد إلى مخاطرة">
+                🎯 العائد/المخاطرة
+              </button>
+              <button (click)="sortBy.set('VOLUME')"
+                      [class]="sortBy() === 'VOLUME' ? 'bg-amber-500 text-black font-black' : 'text-gray-400 hover:text-white'"
+                      class="px-2.5 py-1 rounded-lg transition-all"
+                      title="أعلى انفجار في حجم التداول مقارنة بالمتوسط">
+                🔥 أعلى سيولة
+              </button>
+              <button (click)="sortBy.set('POTENTIAL_GAIN')"
+                      [class]="sortBy() === 'POTENTIAL_GAIN' ? 'bg-cyan-500 text-black font-black' : 'text-gray-400 hover:text-white'"
+                      class="px-2.5 py-1 rounded-lg transition-all"
+                      title="أعلى نسبة ربح متوقع للهدف">
+                📈 أعلى هدف %
+              </button>
+              <button (click)="sortBy.set('PRICE_CHANGE')"
+                      [class]="sortBy() === 'PRICE_CHANGE' ? 'bg-purple-500 text-black font-black' : 'text-gray-400 hover:text-white'"
+                      class="px-2.5 py-1 rounded-lg transition-all"
+                      title="أعلى صعود لحظي خلال الجلسة">
+                ⚡ نسبة التغير
+              </button>
+            </div>
+
+            <!-- Search -->
+            <div class="relative min-w-[140px] max-w-xs">
+              <i class="pi pi-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
               <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
-                     placeholder="بحث باسم أو رمز السهم..."
-                     class="w-full bg-darkCard border border-darkBorder rounded-xl py-2.5 pr-9 pl-4 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-400/50 transition-colors" />
+                     placeholder="بحث باسم أو رمز..."
+                     class="w-full bg-darkBg/90 border border-darkBorder rounded-xl py-1.5 pr-8 pl-3 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-400/50 transition-colors" />
             </div>
           </div>
         </div>
@@ -156,9 +196,17 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
                  class="glass-card p-5 rounded-2xl hover:border-emeraldAccent/50 transition-all cursor-pointer group space-y-3 border-l-4 border-l-emeraldAccent">
               <!-- Header Row -->
               <div class="flex items-center justify-between">
-                <span class="font-black text-white text-base group-hover:text-emeraldAccent transition-colors">
-                  {{ stock.quote.symbol }}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="font-black text-white text-base group-hover:text-emeraldAccent transition-colors">
+                    {{ stock.quote.symbol }}
+                  </span>
+                  <!-- Risk Reward Badge -->
+                  <span *ngIf="getRiskRewardRatio(stock) > 1"
+                        [class]="getRiskRewardRatio(stock) >= 2.5 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/20'"
+                        class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border">
+                    🎯 R:R {{ getRiskRewardRatio(stock) }}:1
+                  </span>
+                </div>
                 <span [class]="getIntradaySignalBadgeClass(stock.intradaySignal!)" class="text-xs font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1">
                   <i class="pi pi-pencil text-[10px]"></i>
                   {{ getIntradaySignalLabel(stock.intradaySignal!) }}
@@ -227,9 +275,16 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
                  class="glass-card p-5 rounded-2xl hover:border-rose-400/50 transition-all cursor-pointer group space-y-3 border-l-4 border-l-roseAccent">
               <!-- Header Row -->
               <div class="flex items-center justify-between">
-                <span class="font-black text-white text-base group-hover:text-rose-400 transition-colors">
-                  {{ stock.quote.symbol }}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="font-black text-white text-base group-hover:text-rose-400 transition-colors">
+                    {{ stock.quote.symbol }}
+                  </span>
+                  <!-- Risk Reward Badge -->
+                  <span *ngIf="getRiskRewardRatio(stock) > 1"
+                        class="bg-rose-500/15 text-rose-300 border-rose-500/20 text-[10px] font-extrabold px-2 py-0.5 rounded-full border">
+                    🎯 R:R {{ getRiskRewardRatio(stock) }}:1
+                  </span>
+                </div>
                 <span [class]="getIntradaySignalBadgeClass(stock.intradaySignal!)" class="text-xs font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1">
                   {{ getIntradaySignalLabel(stock.intradaySignal!) }}
                 </span>
@@ -448,7 +503,7 @@ type ActiveTab = 'SIGNALS' | 'OPEN_TRADES' | 'CLOSED_TRADES';
                 <td class="p-4 text-gray-300 font-bold">{{ trade.entryPrice }} ج.م</td>
                 <td class="p-4 text-white font-bold">{{ trade.closePrice || '-' }} ج.م</td>
                 <td class="p-4">
-                  <span [class]="(trade.pnlPercentage || 0) >= 0 ? 'text-emeraldAccent' : 'text-roseAccent'" class="font-black">
+                  <span [class]="(trade.pnlPercentage || 0) >= 0 ? 'text-emerald-400 font-black' : 'text-rose-400 font-black'">
                     {{ (trade.pnlPercentage || 0) >= 0 ? '+' : '' }}{{ trade.pnlPercentage }}%
                   </span>
                 </td>
@@ -482,23 +537,86 @@ export class IntradayTradingComponent {
   public activeTab = signal<ActiveTab>('SIGNALS');
   public activeFilter = signal<IntradayFilter>('ALL');
   public searchTerm = signal<string>('');
+  public sortBy = signal<'BEST_TA' | 'RISK_REWARD' | 'VOLUME' | 'POTENTIAL_GAIN' | 'PRICE_CHANGE'>('BEST_TA');
 
-  // ─── Computed lists: ALL intraday stocks (not limited to top 4 like dashboard) ───
+  // ─── Computed lists: ALL intraday stocks with Institutional TA Ranking ───
   private isHalalOnly = (s: StockAnalysisResult) => s.shariaTier !== 'NON_COMPLIANT';
 
+  // Institutional Multi-factor Technical Analysis Quality Calculator
+  calculateTechnicalQualityScore(stock: StockAnalysisResult, isBuy: boolean): number {
+    const rr = this.getRiskRewardRatio(stock);
+    const volumeRatio = stock.indicators.volumeRatio || 1;
+    const rsi = stock.indicators.rsi || 50;
+    const signalWeight = stock.intradaySignal === 'STRONG_BUY' || stock.intradaySignal === 'STRONG_SELL' ? 2 : 1;
+    
+    // Optimal RSI sweet spot for breakout is 55-68
+    let rsiScore = 0;
+    if (isBuy) {
+      if (rsi >= 55 && rsi <= 68) rsiScore = 3;
+      else if (rsi > 68 && rsi <= 75) rsiScore = 1.5;
+      else if (rsi < 55 && rsi >= 45) rsiScore = 1;
+      else if (rsi > 75) rsiScore = -2; // overbought risk
+    } else {
+      if (rsi <= 45 && rsi >= 30) rsiScore = 3;
+      else if (rsi < 30) rsiScore = -2; // oversold bounce risk
+    }
+
+    const expectedGain = this.getExpectedGainPercent(stock);
+
+    // Multi-factor composite: Signal weight (10x) + R:R (4x) + Volume ratio (3x) + RSI sweet spot + Expected gain
+    return (signalWeight * 10) + (Math.min(rr, 6) * 4) + (Math.min(volumeRatio, 5) * 3) + rsiScore + (Math.min(Math.abs(expectedGain), 10) * 0.5);
+  }
+
+  getRiskRewardRatio(stock: StockAnalysisResult): number {
+    const entry = stock.intradayEntry || stock.quote.currentPrice;
+    const target = stock.intradayTp1 || stock.intradayTarget;
+    const stop = stock.intradayStopLoss;
+    if (!entry || !target || !stop) return 1;
+    const reward = Math.abs(target - entry);
+    const risk = Math.abs(entry - stop);
+    if (risk === 0) return 1;
+    return Number((reward / risk).toFixed(2));
+  }
+
+  getExpectedGainPercent(stock: StockAnalysisResult): number {
+    const entry = stock.intradayEntry || stock.quote.currentPrice;
+    const target = stock.intradayTp1 || stock.intradayTarget;
+    if (!entry || !target) return 0;
+    return Number((((target - entry) / entry) * 100).toFixed(2));
+  }
+
+  private sortStocks(stocks: StockAnalysisResult[], isBuy: boolean): StockAnalysisResult[] {
+    const sortMode = this.sortBy();
+    return [...stocks].sort((a, b) => {
+      switch (sortMode) {
+        case 'RISK_REWARD':
+          return this.getRiskRewardRatio(b) - this.getRiskRewardRatio(a);
+        case 'VOLUME':
+          return (b.indicators.volumeRatio || 0) - (a.indicators.volumeRatio || 0);
+        case 'POTENTIAL_GAIN':
+          return Math.abs(this.getExpectedGainPercent(b)) - Math.abs(this.getExpectedGainPercent(a));
+        case 'PRICE_CHANGE':
+          return Math.abs(b.quote.changePercent) - Math.abs(a.quote.changePercent);
+        case 'BEST_TA':
+        default:
+          return this.calculateTechnicalQualityScore(b, isBuy) - this.calculateTechnicalQualityScore(a, isBuy);
+      }
+    });
+  }
+
   allIntradayBuys = computed(() => {
-    const sorted = [...this.apiService.stocks()].sort((a, b) => (b.intradayScore || 0) - (a.intradayScore || 0));
-    return sorted.filter(s => this.isHalalOnly(s) && (s.intradaySignal === 'BUY' || s.intradaySignal === 'STRONG_BUY'));
+    const filtered = this.apiService.stocks().filter(s => this.isHalalOnly(s) && (s.intradaySignal === 'BUY' || s.intradaySignal === 'STRONG_BUY'));
+    return this.sortStocks(filtered, true);
   });
 
   allIntradaySells = computed(() => {
-    const sorted = [...this.apiService.stocks()].sort((a, b) => (a.intradayScore || 0) - (b.intradayScore || 0));
-    return sorted.filter(s => this.isHalalOnly(s) && (s.intradaySignal === 'SELL' || s.intradaySignal === 'STRONG_SELL'));
+    const filtered = this.apiService.stocks().filter(s => this.isHalalOnly(s) && (s.intradaySignal === 'SELL' || s.intradaySignal === 'STRONG_SELL'));
+    return this.sortStocks(filtered, false);
   });
 
   allIntradayNeutral = computed(() => {
-    const sorted = [...this.apiService.stocks()].sort((a, b) => (b.intradayScore || 0) - (a.intradayScore || 0));
-    return sorted.filter(s => this.isHalalOnly(s) && (s.intradaySignal === 'NEUTRAL' || !s.intradaySignal));
+    const filtered = this.apiService.stocks().filter(s => this.isHalalOnly(s) && (s.intradaySignal === 'NEUTRAL' || !s.intradaySignal));
+    return [...filtered].sort((a, b) => (b.indicators.volumeRatio || 0) - (a.indicators.volumeRatio || 0));
   });
 
   // ─── Filtered lists (with search) ───
