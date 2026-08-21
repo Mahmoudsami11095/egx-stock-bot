@@ -152,6 +152,90 @@ function fetchTradingView() {
   });
 }
 
+// Extract Detailed Financial Statements from TradingView Symbol Pages (with caching)
+let TV_DETAILED_CACHE = new Map();
+let TV_DETAILED_CACHE_TIME = 0;
+
+function parseTvPeriod(periodStr) {
+  if (!periodStr) return { factor: 1, label: 'سنوي كامل' };
+  const yr = periodStr.split('-')[0] || '';
+  if (periodStr.includes('Q1')) return { factor: 4, label: `الربع الأول ${yr} (معدل سنوياً)` };
+  if (periodStr.includes('Q2') || periodStr.includes('H1')) return { factor: 2, label: `النصف الأول ${yr} (معدل سنوياً)` };
+  if (periodStr.includes('Q3') || periodStr.includes('9M')) return { factor: 1.3333, label: `9 أشهر ${yr} (معدل سنوياً)` };
+  return { factor: 1, label: `سنوي كامل ${yr}` };
+}
+
+function fetchTvSymbolFinancials(sym) {
+  return new Promise((resolve) => {
+    const url = `https://www.tradingview.com/symbols/EGX-${sym}/financials-overview/`;
+    https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      timeout: 4000
+    }, (res) => {
+      let b = '';
+      res.on('data', c => b += c);
+      res.on('end', () => {
+        const regex = /<script type="application\/prs\.init-data\+json">([\s\S]*?)<\/script>/gi;
+        let match;
+        while ((match = regex.exec(b)) !== null) {
+          try {
+            const d = JSON.parse(match[1]);
+            for (const k of Object.keys(d)) {
+              if (d[k]?.descriptions?.['Income statements']) {
+                const inc = d[k].descriptions['Income statements'].data;
+                const bal = d[k].descriptions['Balance sheet']?.data;
+                const div = d[k].descriptions['Dividends']?.data;
+                if (inc && inc.netIncome !== null && inc.netIncome !== undefined) {
+                  const pInfo = parseTvPeriod(inc.fiscalPeriod);
+                  const annualized = Number((inc.netIncome * pInfo.factor).toFixed(2));
+                  return resolve({
+                    sym,
+                    rawNetIncome: inc.netIncome,
+                    netIncome: annualized,
+                    netIncomePeriod: pInfo.label,
+                    totalRevenue: inc.totalRevenue ? Number((inc.totalRevenue * pInfo.factor).toFixed(2)) : undefined,
+                    fiscalPeriod: inc.fiscalPeriod,
+                    totalAssets: bal?.totalAssets,
+                    totalLiabilities: bal?.totalLiabilities,
+                    dividendYield: div?.dividendsYield
+                  });
+                }
+              }
+            }
+          } catch (e) {}
+        }
+        resolve(null);
+      });
+    }).on('error', () => resolve(null));
+  });
+}
+
+const TV_PRIMARY_SYMBOLS = [
+  'EGAS', 'MASR', 'CLHO', 'FWRY', 'COMI', 'SWDY', 'ABUK', 'EGAL', 'TMGH', 'ORAS',
+  'AMOC', 'ETEL', 'SKPC', 'MFPC', 'ESRS', 'ISPH', 'HELI', 'EKHO', 'EKHOA', 'CICH',
+  'HRHO', 'JUFO', 'DOMT', 'OBRI', 'EFID', 'RMDA', 'AUTO', 'ORWE', 'MNHD', 'PHDC'
+];
+
+async function fetchTradingViewDetailedMap() {
+  const now = Date.now();
+  if (TV_DETAILED_CACHE.size > 0 && (now - TV_DETAILED_CACHE_TIME < 120000)) {
+    return TV_DETAILED_CACHE;
+  }
+  const results = await Promise.all(TV_PRIMARY_SYMBOLS.map(fetchTvSymbolFinancials));
+  const map = new Map();
+  for (const r of results) {
+    if (r && r.netIncome !== undefined) {
+      map.set(r.sym, r);
+    }
+  }
+  TV_DETAILED_CACHE = map;
+  TV_DETAILED_CACHE_TIME = now;
+  return map;
+}
+
 // Fetch Mubasher EGX API (Market Prices)
 function fetchMubasher() {
   return new Promise((resolve) => {
@@ -530,12 +614,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData, egxData, mubEarningsMap, geminiEarningsMap] = await Promise.all([
+    const [tvData, mubData, egxData, mubEarningsMap, geminiEarningsMap, tvDetailedMap] = await Promise.all([
       fetchTradingView(),
       fetchMubasher(),
       fetchEgxBeta(),
       fetchMubasherEarnings(),
-      fetchGeminiEarnings()
+      fetchGeminiEarnings(),
+      fetchTradingViewDetailedMap()
     ]);
 
     const allSymbolsMap = new Map();
@@ -552,6 +637,12 @@ module.exports = async (req, res) => {
         recommendAll, rsi, macd, macdSignal, ema20, ema50, ema200
       ] = item.d;
 
+      const detailed = tvDetailedMap?.get(sym);
+      const effectiveNetIncome = (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : detailed?.netIncome;
+      const effectivePeriod = (typeof netIncome === 'number' && !isNaN(netIncome)) ? 'سنوي كامل (مدقق)' : detailed?.netIncomePeriod;
+      const effectiveRevenue = (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : detailed?.totalRevenue;
+      const effectiveDy = (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : (detailed?.dividendYield ? Number(detailed.dividendYield.toFixed(2)) : undefined);
+
       if (typeof close === 'number' && close > 0) {
         tvMap.set(sym, {
           price: Number(close.toFixed(2)),
@@ -565,12 +656,13 @@ module.exports = async (req, res) => {
           pe: (typeof pe === 'number' && !isNaN(pe) && pe > 0) ? Number(pe.toFixed(2)) : undefined,
           pb: (typeof pb === 'number' && !isNaN(pb) && pb > 0) ? Number(pb.toFixed(2)) : undefined,
           bvps: (typeof bvps === 'number' && !isNaN(bvps) && bvps > 0) ? Number(bvps.toFixed(2)) : (pb && pb > 0 ? Number((close / pb).toFixed(2)) : undefined),
-          dy: (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : undefined,
+          dy: effectiveDy,
           roe: (typeof roe === 'number' && !isNaN(roe)) ? Number(roe.toFixed(2)) : undefined,
-          netIncome: (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : undefined,
+          netIncome: effectiveNetIncome,
+          netIncomePeriod: effectivePeriod,
           netProfitMargin: (typeof netMargin === 'number' && !isNaN(netMargin)) ? Number(netMargin.toFixed(2)) : undefined,
           operatingMargin: (typeof operatingMargin === 'number' && !isNaN(operatingMargin)) ? Number(operatingMargin.toFixed(2)) : undefined,
-          totalRevenue: (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : undefined,
+          totalRevenue: effectiveRevenue,
           grossProfit: (typeof grossProfit === 'number' && !isNaN(grossProfit)) ? grossProfit : undefined,
           technicalRating: (typeof recommendAll === 'number' && !isNaN(recommendAll)) ? Number(recommendAll.toFixed(2)) : undefined,
           rsi: (typeof rsi === 'number' && !isNaN(rsi)) ? Number(rsi.toFixed(2)) : undefined,
@@ -759,6 +851,7 @@ module.exports = async (req, res) => {
           roe: tvInfo.roe,
           dividendYield: tvInfo.dy,
           netIncome: tvInfo.netIncome,
+          netIncomePeriod: tvInfo.netIncomePeriod,
           netProfitMargin: tvInfo.netProfitMargin,
           grossProfit: tvInfo.grossProfit
         };
