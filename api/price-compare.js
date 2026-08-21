@@ -678,31 +678,22 @@ module.exports = async (req, res) => {
       const validPbFv = [];
       const validUpsides = [];
 
-      // 1. EGX Source (Real-Time Synchronized with Official Fundamental Filing)
+      // 1. EGX Source (Strict Zero-Fallback: 100% Genuine Official EGX Data Only)
       if (egxInfo) {
-        // If EGX static snapshot is from a previous session, synchronize price ticks with live market feed
-        const livePrice = (tvInfo && tvInfo.price > 0) ? tvInfo.price : ((mubInfo && mubInfo.price > 0) ? mubInfo.price : egxInfo.price);
-        const liveChange = (tvInfo && tvInfo.change !== undefined) ? tvInfo.change : ((mubInfo && mubInfo.change !== undefined) ? mubInfo.change : egxInfo.change);
-        const liveChangePercent = (tvInfo && tvInfo.changePercent !== undefined) ? tvInfo.changePercent : ((mubInfo && mubInfo.changePercent !== undefined) ? mubInfo.changePercent : egxInfo.changePercent);
-        const liveVolume = (tvInfo && tvInfo.volume > 0) ? tvInfo.volume : ((mubInfo && mubInfo.volume > 0) ? mubInfo.volume : egxInfo.volume);
-        const liveHigh = tvInfo?.dayHigh || mubInfo?.dayHigh || egxInfo.dayHigh;
-        const liveLow = tvInfo?.dayLow || mubInfo?.dayLow || egxInfo.dayLow;
-
-        const effectivePrice = livePrice;
-        const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, effectivePrice);
-        const peFv = computeSectorPeFV(tvInfo?.eps, sector, effectivePrice);
-        const lynch = computeLynchFV(tvInfo?.eps, tvInfo?.dy, effectivePrice);
-        const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, effectivePrice);
-        const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, effectivePrice);
-        const upside = (consensusFv && effectivePrice > 0) ? Number((((consensusFv - effectivePrice) / effectivePrice) * 100).toFixed(2)) : 0;
+        const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, egxInfo.price);
+        const peFv = computeSectorPeFV(tvInfo?.eps, sector, egxInfo.price);
+        const lynch = computeLynchFV(tvInfo?.eps, tvInfo?.dy, egxInfo.price);
+        const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, egxInfo.price);
+        const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, egxInfo.price);
+        const upside = (consensusFv && egxInfo.price > 0) ? Number((((consensusFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
 
         sources.egx = {
-          price: effectivePrice,
-          change: liveChange,
-          changePercent: liveChangePercent,
-          volume: liveVolume,
-          dayHigh: liveHigh,
-          dayLow: liveLow,
+          price: egxInfo.price,
+          change: egxInfo.change,
+          changePercent: egxInfo.changePercent,
+          volume: egxInfo.volume,
+          dayHigh: egxInfo.dayHigh,
+          dayLow: egxInfo.dayLow,
           fairValue: consensusFv,
           fairValueGraham: graham,
           fairValuePE: peFv,
@@ -719,7 +710,7 @@ module.exports = async (req, res) => {
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
           grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };
-        validPrices.push(effectivePrice);
+        validPrices.push(egxInfo.price);
         if (consensusFv) validConsensusFv.push(consensusFv);
         if (graham) validGrahamFv.push(graham);
         if (peFv) validPeFv.push(peFv);
