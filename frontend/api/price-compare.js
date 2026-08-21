@@ -810,6 +810,7 @@ module.exports = async (req, res) => {
           roe: undefined,
           dividendYield: undefined,
           netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
+          netIncomePeriod: egxInfo.netProfit ? 'سنوي كامل (إفصاح رسمي)' : undefined,
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
           grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };

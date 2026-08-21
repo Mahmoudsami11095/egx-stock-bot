@@ -280,6 +280,9 @@ export interface MetricDefinition {
                   <div [class]="getMetricColorClass(stock.sources['egx'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['egx'], selectedMetric()) }}
                   </div>
+                  <div class="text-[9px] text-emerald-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['egx'].netIncome">
+                    {{ stock.sources['egx'].netIncomePeriod || 'سنوي كامل (إفصاح رسمي)' }}
+                  </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['egx'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['egx'].changePercent }}%
                   </div>
@@ -292,6 +295,9 @@ export interface MetricDefinition {
                 <ng-container *ngIf="stock.sources['tradingview']; else noTv">
                   <div [class]="getMetricColorClass(stock.sources['tradingview'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['tradingview'], selectedMetric()) }}
+                  </div>
+                  <div class="text-[9px] text-sky-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['tradingview'].netIncome">
+                    {{ stock.sources['tradingview'].netIncomePeriod || 'سنوي كامل (مدقق)' }}
                   </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['tradingview'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['tradingview'].changePercent }}%
@@ -306,8 +312,8 @@ export interface MetricDefinition {
                   <div [class]="getMetricColorClass(stock.sources['mubasher'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['mubasher'], selectedMetric()) }}
                   </div>
-                  <div class="text-[9px] text-amber-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['mubasher'].netIncomePeriod">
-                    {{ stock.sources['mubasher'].netIncomePeriod }}
+                  <div class="text-[9px] text-amber-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['mubasher'].netIncome">
+                    {{ stock.sources['mubasher'].netIncomePeriod || 'سنوي كامل' }}
                   </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['mubasher'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['mubasher'].changePercent }}%
@@ -322,8 +328,8 @@ export interface MetricDefinition {
                   <div [class]="getMetricColorClass(stock.sources['gemini'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['gemini'], selectedMetric()) }}
                   </div>
-                  <div class="text-[9px] text-cyan-400 font-bold mt-0.5" *ngIf="stock.sources['gemini'].netIncomePeriod">
-                    {{ stock.sources['gemini'].netIncomePeriod }}
+                  <div class="text-[9px] text-cyan-400 font-bold mt-0.5" *ngIf="stock.sources['gemini'].netIncome">
+                    {{ stock.sources['gemini'].netIncomePeriod || 'سنوي كامل (مدقق)' }}
                   </div>
                 </ng-container>
                 <ng-template #noGem><span class="text-xs text-gray-500">—</span></ng-template>
