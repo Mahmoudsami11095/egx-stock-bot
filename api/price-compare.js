@@ -236,6 +236,74 @@ async function fetchTradingViewDetailedMap() {
   return map;
 }
 
+// Fetch Stockastic Company API (with caching)
+let STOCKASTIC_CACHE = new Map();
+let STOCKASTIC_CACHE_TIME = 0;
+
+function fetchStockasticSymbol(sym) {
+  return new Promise((resolve) => {
+    const url = `https://authapi.stockastic.app/api/public/companies/${sym}.EGX`;
+    https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+      },
+      timeout: 3500
+    }, (res) => {
+      let b = '';
+      res.on('data', c => b += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(b);
+          if (json && json.data && json.data.id) {
+            const d = json.data;
+            const shares = d.egidListedShares ? Number(d.egidListedShares) : undefined;
+            const marketCap = (typeof d.market_cap === 'number' && d.market_cap > 0) ? d.market_cap : undefined;
+            const price = (marketCap && shares && shares > 0) ? Number((marketCap / shares).toFixed(2)) : undefined;
+            return resolve({
+              sym,
+              id: d.id,
+              companyName: d.company_name,
+              nameAr: d.egidArabicName,
+              marketCap,
+              sharesCount: shares,
+              price,
+              isin: d.egidISINSymbolCode,
+              reuters: d.egidReutersCode,
+              sectorAr: d.Sector?.egidArabicName,
+              sectorEn: d.Sector?.egidEnglishName
+            });
+          }
+        } catch (e) {}
+        resolve(null);
+      });
+    }).on('error', () => resolve(null));
+  });
+}
+
+const STOCKASTIC_SYMBOLS = [
+  'ORWE', 'COMI', 'EGAS', 'EGAL', 'SWDY', 'TMGH', 'FWRY', 'MASR', 'ABUK',
+  'AMOC', 'ETEL', 'SKPC', 'MFPC', 'ESRS', 'ISPH', 'HELI', 'EKHO', 'EKHOA', 'CICH',
+  'HRHO', 'JUFO', 'DOMT', 'OBRI', 'EFID', 'RMDA', 'AUTO', 'MNHD', 'PHDC', 'CLHO'
+];
+
+async function fetchStockasticMap() {
+  const now = Date.now();
+  if (STOCKASTIC_CACHE.size > 0 && (now - STOCKASTIC_CACHE_TIME < 180000)) {
+    return STOCKASTIC_CACHE;
+  }
+  const results = await Promise.all(STOCKASTIC_SYMBOLS.map(fetchStockasticSymbol));
+  const map = new Map();
+  for (const r of results) {
+    if (r && r.sym) {
+      map.set(r.sym, r);
+    }
+  }
+  STOCKASTIC_CACHE = map;
+  STOCKASTIC_CACHE_TIME = now;
+  return map;
+}
+
 // Fetch Mubasher EGX API (Market Prices)
 function fetchMubasher() {
   return new Promise((resolve) => {
@@ -614,13 +682,14 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData, egxData, mubEarningsMap, geminiEarningsMap, tvDetailedMap] = await Promise.all([
+    const [tvData, mubData, egxData, mubEarningsMap, geminiEarningsMap, tvDetailedMap, stockasticMap] = await Promise.all([
       fetchTradingView(),
       fetchMubasher(),
       fetchEgxBeta(),
       fetchMubasherEarnings(),
       fetchGeminiEarnings(),
-      fetchTradingViewDetailedMap()
+      fetchTradingViewDetailedMap(),
+      fetchStockasticMap()
     ]);
 
     const allSymbolsMap = new Map();
@@ -958,6 +1027,22 @@ module.exports = async (req, res) => {
           netProfitMargin: undefined,
           grossProfit: undefined
         };
+      }
+
+      // 5. Stockastic Source (Genuine Market Cap & Profile API)
+      const stockasticInfo = stockasticMap?.get(sym);
+      if (stockasticInfo) {
+        sources.stockastic = {
+          price: stockasticInfo.price,
+          marketCap: stockasticInfo.marketCap,
+          sharesCount: stockasticInfo.sharesCount,
+          isin: stockasticInfo.isin,
+          reuters: stockasticInfo.reuters,
+          sectorAr: stockasticInfo.sectorAr,
+          sectorEn: stockasticInfo.sectorEn,
+          periodNote: stockasticInfo.sharesCount ? `${(stockasticInfo.sharesCount / 1e6).toFixed(1)} مليون سهم` : 'إفصاح رسمي'
+        };
+        if (stockasticInfo.price) validPrices.push(stockasticInfo.price);
       }
 
       // If no valid source returned price for this stock, skip

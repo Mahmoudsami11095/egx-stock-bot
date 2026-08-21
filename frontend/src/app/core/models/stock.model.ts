@@ -230,6 +230,9 @@ export interface SourcePriceData {
   netIncomeYear?: string;
   netProfitMargin?: number;
   grossProfit?: number;
+  marketCap?: number;
+  sharesCount?: number;
+  periodNote?: string;
 }
 
 export type PriceAlignmentStatus = 'SYNCED' | 'MINOR_LAG' | 'DIVERGENT';

@@ -238,6 +238,9 @@ export interface MetricDefinition {
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
                 📊 مباشر Mubasher
               </th>
+              <th class="py-3.5 px-3 text-center bg-purple-500/10 text-purple-300">
+                ⚡ Stockastic
+              </th>
               <th class="py-3.5 px-3 text-center bg-cyan-500/10 text-cyan-300" *ngIf="selectedMetric() === 'NET_INCOME'">
                 🤖 Gemini AI (مدقق)
               </th>
@@ -320,6 +323,19 @@ export interface MetricDefinition {
                   </div>
                 </ng-container>
                 <ng-template #noMub><span class="text-xs text-gray-500">—</span></ng-template>
+              </td>
+
+              <!-- Stockastic -->
+              <td class="py-3 px-3 text-center bg-purple-500/5">
+                <ng-container *ngIf="stock.sources['stockastic']; else noStockastic">
+                  <div [class]="getMetricColorClass(stock.sources['stockastic'], selectedMetric())" class="font-black text-xs">
+                    {{ formatSourceMetric(stock.sources['stockastic'], selectedMetric()) }}
+                  </div>
+                  <div class="text-[9px] text-purple-400/90 font-bold mt-0.5" *ngIf="stock.sources['stockastic'].periodNote">
+                    {{ stock.sources['stockastic'].periodNote }}
+                  </div>
+                </ng-container>
+                <ng-template #noStockastic><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
               <!-- Gemini AI Audited Earnings (Shown on Net Income) -->
