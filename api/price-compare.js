@@ -115,7 +115,8 @@ function fetchTradingView() {
         'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector',
         'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_book_ratio', 'book_value_per_share',
         'dividend_yield_recent', 'return_on_equity',
-        'net_income', 'net_margin', 'operating_margin', 'total_revenue'
+        'net_income', 'net_margin', 'operating_margin', 'total_revenue', 'gross_profit',
+        'Recommend.All', 'RSI', 'MACD.macd', 'MACD.signal', 'EMA20', 'EMA50', 'EMA200'
       ]
     });
 
@@ -539,7 +540,7 @@ module.exports = async (req, res) => {
 
     const allSymbolsMap = new Map();
 
-    // Map 1: TradingView Data (Strict)
+    // Map 1: TradingView Data (Strict Genuine Financials & Technicals)
     const tvMap = new Map();
     for (const item of tvData) {
       if (!item.s || !item.d) continue;
@@ -547,7 +548,8 @@ module.exports = async (req, res) => {
       const [
         name, desc, close, changePercent, changeAbs, volume, high, low, open, sector,
         eps, pe, pb, bvps, dy, roe,
-        netIncome, netMargin, operatingMargin, totalRevenue
+        netIncome, netMargin, operatingMargin, totalRevenue, grossProfit,
+        recommendAll, rsi, macd, macdSignal, ema20, ema50, ema200
       ] = item.d;
 
       if (typeof close === 'number' && close > 0) {
@@ -567,7 +569,16 @@ module.exports = async (req, res) => {
           roe: (typeof roe === 'number' && !isNaN(roe)) ? Number(roe.toFixed(2)) : undefined,
           netIncome: (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : undefined,
           netProfitMargin: (typeof netMargin === 'number' && !isNaN(netMargin)) ? Number(netMargin.toFixed(2)) : undefined,
-          grossProfit: (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : undefined,
+          operatingMargin: (typeof operatingMargin === 'number' && !isNaN(operatingMargin)) ? Number(operatingMargin.toFixed(2)) : undefined,
+          totalRevenue: (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : undefined,
+          grossProfit: (typeof grossProfit === 'number' && !isNaN(grossProfit)) ? grossProfit : undefined,
+          technicalRating: (typeof recommendAll === 'number' && !isNaN(recommendAll)) ? Number(recommendAll.toFixed(2)) : undefined,
+          rsi: (typeof rsi === 'number' && !isNaN(rsi)) ? Number(rsi.toFixed(2)) : undefined,
+          macd: (typeof macd === 'number' && !isNaN(macd)) ? Number(macd.toFixed(2)) : undefined,
+          macdSignal: (typeof macdSignal === 'number' && !isNaN(macdSignal)) ? Number(macdSignal.toFixed(2)) : undefined,
+          ema20: (typeof ema20 === 'number' && !isNaN(ema20)) ? Number(ema20.toFixed(2)) : undefined,
+          ema50: (typeof ema50 === 'number' && !isNaN(ema50)) ? Number(ema50.toFixed(2)) : undefined,
+          ema200: (typeof ema200 === 'number' && !isNaN(ema200)) ? Number(ema200.toFixed(2)) : undefined,
           nameEn: desc || name || sym,
           sector: sector || 'General'
         });
