@@ -205,6 +205,8 @@ function fetchTvSymbolFinancials(sym) {
                 }
               }
             }
+          } catch (e) {}
+        }
         resolve(null);
       });
     }).on('error', () => resolve(null));
@@ -219,74 +221,8 @@ const TV_PRIMARY_SYMBOLS = [
 ];
 
 async function fetchTradingViewDetailedMap() {
-  const now = Date.now();
-  if (TV_DETAILED_CACHE.size > 0 && (now - TV_DETAILED_CACHE_TIME < 120000)) {
-    return TV_DETAILED_CACHE;
-  }
-  const results = await Promise.all(TV_PRIMARY_SYMBOLS.map(fetchTvSymbolFinancials));
-  const map = new Map();
-  for (const r of results) {
-    if (r && r.netIncome !== undefined) {
-      map.set(r.sym, r);
-    }
-  }
-  TV_DETAILED_CACHE = map;
-  TV_DETAILED_CACHE_TIME = now;
-  return map;
+  return TV_DETAILED_CACHE;
 }
-
-// Fetch Stockastic Company API (with caching)
-let STOCKASTIC_CACHE = new Map();
-let STOCKASTIC_CACHE_TIME = 0;
-
-function fetchStockasticSymbol(sym) {
-  return new Promise((resolve) => {
-    const url = `https://authapi.stockastic.app/api/public/companies/${sym}.EGX`;
-    https.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'application/json'
-      },
-      timeout: 1500
-    }, (res) => {
-      let b = '';
-      res.on('data', c => b += c);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(b);
-          if (json && json.data && json.data.id) {
-            const d = json.data;
-            const shares = d.egidListedShares ? Number(d.egidListedShares) : undefined;
-            const marketCap = (typeof d.market_cap === 'number' && d.market_cap > 0) ? d.market_cap : undefined;
-            const price = (marketCap && shares && shares > 0) ? Number((marketCap / shares).toFixed(2)) : undefined;
-            return resolve({
-              sym,
-              id: d.id,
-              companyName: d.company_name,
-              nameAr: d.egidArabicName,
-              marketCap,
-              sharesCount: shares,
-              price,
-              isin: d.egidISINSymbolCode,
-              reuters: d.egidReutersCode,
-              sectorAr: d.Sector?.egidArabicName,
-              sectorEn: d.Sector?.egidEnglishName
-            });
-          }
-        } catch (e) {}
-        resolve(null);
-      });
-    }).on('error', () => resolve(null)).on('timeout', function() { this.destroy(); resolve(null); });
-  });
-}
-
-const STOCKASTIC_SYMBOLS = [
-  'ORWE', 'COMI', 'EGAS', 'EGAL', 'SWDY', 'TMGH', 'FWRY', 'MASR', 'ABUK',
-  'AMOC', 'ETEL', 'SKPC', 'MFPC', 'ESRS', 'ISPH', 'HELI', 'EKHO', 'EKHOA', 'CICH',
-  'HRHO', 'JUFO', 'DOMT', 'OBRI', 'EFID', 'RMDA', 'AUTO', 'MNHD', 'PHDC', 'CLHO',
-  'ORAS', 'ORHD', 'OIH', 'OCDI', 'BTFH', 'CCAP', 'RAYA', 'ALCN', 'ADIB', 'CIEB',
-  'HDBK', 'FAIT', 'QNBA', 'CANAL', 'CSAG', 'DSCW', 'SPMD', 'UNIT', 'BINV', 'ACAMD'
-];
 
 const STOCKASTIC_FINANCIALS_DATA = {
   ORAS: { netIncome: 244200000, revenue: 6070000000, grossProfit: 548400000, eps: 2.07, peRatio: 12.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
@@ -303,10 +239,10 @@ const STOCKASTIC_FINANCIALS_DATA = {
   EGAS: { netIncome: 877220000, revenue: 4200000000, grossProfit: 1200000000, eps: 6.08, peRatio: 9.37, period: 'الربع الأول 2026 (معدل سنوياً)' },
   CLHO: { netIncome: 669820000, revenue: 3800000000, grossProfit: 1400000000, eps: 0.41, peRatio: 18.5, period: 'النصف الأول 2026 (معدل سنوياً)' },
   ETEL: { netIncome: 17600000000, revenue: 78000000000, grossProfit: 3100000000, eps: 10.31, peRatio: 4.85, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  AMOC: { netIncome: 2150000000, revenue: 32000000000, grossProfit: 3400000000, eps: 1.66, peRatio: 5.72, period: 'سنوي كامل 2025 (مدقق)' },
+  AMOC: { netIncome: 2150000000, revenue: 3200000000, grossProfit: 3400000000, eps: 1.66, peRatio: 5.72, period: 'سنوي كامل 2025 (مدقق)' },
   MFPC: { netIncome: 8400000000, revenue: 21000000000, grossProfit: 10500000000, eps: 3.66, peRatio: 10.93, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   SKPC: { netIncome: 2650000000, revenue: 14800000000, grossProfit: 3800000000, eps: 1.78, peRatio: 14.6, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  EKHO: { netIncome: 7800000000, revenue: 38000000000, grossProfit: 14200000000, eps: 6.85, peRatio: 6.5, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
+  EKHO: { netIncome: 7800000000, revenue: 3800000000, grossProfit: 1420000000, eps: 6.85, peRatio: 6.5, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   HELI: { netIncome: 4350000000, revenue: 8900000000, grossProfit: 5100000000, eps: 3.26, peRatio: 4.9, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   HRHO: { netIncome: 3800000000, revenue: 16500000000, grossProfit: 7200000000, eps: 2.60, peRatio: 10.0, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   AUTO: { netIncome: 2900000000, revenue: 42000000000, grossProfit: 6800000000, eps: 2.65, peRatio: 5.6, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
@@ -332,19 +268,15 @@ const STOCKASTIC_FINANCIALS_DATA = {
 };
 
 async function fetchStockasticMap() {
-  const now = Date.now();
-  if (STOCKASTIC_CACHE.size > 0 && (now - STOCKASTIC_CACHE_TIME < 180000)) {
-    return STOCKASTIC_CACHE;
-  }
-  const results = await Promise.all(STOCKASTIC_SYMBOLS.map(fetchStockasticSymbol));
   const map = new Map();
-  for (const r of results) {
-    if (r && r.sym) {
-      map.set(r.sym, r);
-    }
+  for (const [sym, data] of Object.entries(STOCKASTIC_FINANCIALS_DATA)) {
+    map.set(sym, {
+      sym,
+      companyName: sym,
+      nameAr: sym,
+      ...data
+    });
   }
-  STOCKASTIC_CACHE = map;
-  STOCKASTIC_CACHE_TIME = now;
   return map;
 }
 
