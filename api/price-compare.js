@@ -290,8 +290,8 @@ function fetchMubasher() {
       },
       timeout: 5000
     }, (res) => {
-      let b = '';
-      res.on('data', c => b += c);
+      let body = '';
+      res.on('data', c => body += c);
       res.on('end', () => {
         try {
           const json = JSON.parse(body);
