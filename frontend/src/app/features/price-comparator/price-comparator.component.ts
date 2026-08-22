@@ -766,12 +766,13 @@ export class PriceComparatorComponent implements OnInit {
     }
   }
 
-  public formatCurrencyOrNumber(val: number, metric: ComparatorMetricType): string {
+  public formatCurrencyOrNumber(val: number, metric: ComparatorMetricType, currency?: string): string {
     if (val === null || val === undefined || isNaN(val) || val === -Infinity) return '—';
+    const curr = currency === 'USD' ? ' $' : ' ج.م';
     if (metric === 'NET_INCOME' || metric === 'GROSS_PROFIT') {
-      if (Math.abs(val) >= 1e9) return `${(val / 1e9).toFixed(2)} مليار ج.م`;
-      if (Math.abs(val) >= 1e6) return `${(val / 1e6).toFixed(2)} مليون ج.م`;
-      return `${val.toLocaleString()} ج.م`;
+      if (Math.abs(val) >= 1e9) return `${(val / 1e9).toFixed(2)} مليار${curr}`;
+      if (Math.abs(val) >= 1e6) return `${(val / 1e6).toFixed(2)} مليون${curr}`;
+      return `${val.toLocaleString()}${curr}`;
     }
     if (metric === 'NET_PROFIT_MARGIN' || metric === 'CHANGE_PERCENT' || metric === 'UPSIDE_PERCENT') {
       return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
@@ -782,30 +783,31 @@ export class PriceComparatorComponent implements OnInit {
     if (metric === 'PE_RATIO') {
       return `${val.toFixed(1)}x`;
     }
-    return `${val.toFixed(2)} ج.م`;
+    return `${val.toFixed(2)}${curr}`;
   }
 
   public formatSourceMetric(src: SourcePriceData | undefined, metric: ComparatorMetricType): string {
     if (!src) return '—';
+    const curr = src.currency;
     switch (metric) {
       case 'NET_INCOME':
-        return (src.netIncome !== undefined) ? this.formatCurrencyOrNumber(src.netIncome, metric) : '—';
+        return (src.netIncome !== undefined) ? this.formatCurrencyOrNumber(src.netIncome, metric, curr) : '—';
       case 'NET_PROFIT_MARGIN':
         return (src.netProfitMargin !== undefined) ? `${src.netProfitMargin >= 0 ? '+' : ''}${src.netProfitMargin}%` : '—';
       case 'GROSS_PROFIT':
-        return (src.grossProfit !== undefined) ? this.formatCurrencyOrNumber(src.grossProfit, metric) : '—';
+        return (src.grossProfit !== undefined) ? this.formatCurrencyOrNumber(src.grossProfit, metric, curr) : '—';
       case 'PRICE':
-        return `${src.price} ج.م`;
+        return `${src.price}${curr === 'USD' ? ' $' : ' ج.م'}`;
       case 'FAIR_VALUE':
-        return src.fairValue ? `${src.fairValue} ج.م` : '—';
+        return src.fairValue ? `${src.fairValue}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'FAIR_VALUE_GRAHAM':
-        return src.fairValueGraham ? `${src.fairValueGraham} ج.م` : '—';
+        return src.fairValueGraham ? `${src.fairValueGraham}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'FAIR_VALUE_PE':
-        return src.fairValuePE ? `${src.fairValuePE} ج.م` : '—';
+        return src.fairValuePE ? `${src.fairValuePE}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'FAIR_VALUE_LYNCH':
-        return src.fairValueLynch ? `${src.fairValueLynch} ج.م` : '—';
+        return src.fairValueLynch ? `${src.fairValueLynch}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'FAIR_VALUE_PB':
-        return src.fairValuePB ? `${src.fairValuePB} ج.م` : '—';
+        return src.fairValuePB ? `${src.fairValuePB}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'UPSIDE_PERCENT':
         return (src.upsidePercent !== undefined) ? `${src.upsidePercent >= 0 ? '+' : ''}${src.upsidePercent}%` : '—';
       case 'CHANGE_PERCENT':
@@ -813,15 +815,15 @@ export class PriceComparatorComponent implements OnInit {
       case 'VOLUME':
         return `${(src.volume || 0).toLocaleString()}`;
       case 'DAY_HIGH':
-        return src.dayHigh ? `${src.dayHigh} ج.م` : '—';
+        return src.dayHigh ? `${src.dayHigh}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'DAY_LOW':
-        return src.dayLow ? `${src.dayLow} ج.م` : '—';
+        return src.dayLow ? `${src.dayLow}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       case 'PE_RATIO':
         return src.peRatio ? `${src.peRatio}x` : '—';
       case 'EPS':
-        return src.eps ? `${src.eps} ج.م` : '—';
+        return src.eps ? `${src.eps}${curr === 'USD' ? ' $' : ' ج.م'}` : '—';
       default:
-        return `${src.price} ج.م`;
+        return `${src.price}${curr === 'USD' ? ' $' : ' ج.م'}`;
     }
   }
 

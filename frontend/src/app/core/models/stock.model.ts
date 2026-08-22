@@ -233,6 +233,7 @@ export interface SourcePriceData {
   marketCap?: number;
   sharesCount?: number;
   periodNote?: string;
+  currency?: string;
 }
 
 export type PriceAlignmentStatus = 'SYNCED' | 'MINOR_LAG' | 'DIVERGENT';

@@ -225,7 +225,7 @@ async function fetchTradingViewDetailedMap() {
 }
 
 const STOCKASTIC_FINANCIALS_DATA = {
-  ORAS: { netIncome: 244200000, revenue: 6070000000, grossProfit: 548400000, eps: 2.07, peRatio: 12.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
+  ORAS: { netIncome: 244200000, revenue: 6070000000, grossProfit: 548400000, eps: 2.07, peRatio: 12.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic - USD)', currency: 'USD' },
   ORHD: { netIncome: 5370000000, revenue: 21500000000, grossProfit: 7800000000, eps: 4.75, peRatio: 5.30, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   OIH: { netIncome: -1240000000, revenue: 3800000000, grossProfit: 680000000, eps: -0.24, peRatio: undefined, period: 'النصف الأول 2025 (معدل سنوياً)' },
   ORWE: { netIncome: 3160000000, revenue: 27960000000, grossProfit: 3650000000, eps: 3.00, peRatio: 8.45, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
@@ -835,8 +835,10 @@ module.exports = async (req, res) => {
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, egxInfo.price);
         const upside = (consensusFv && egxInfo.price > 0) ? Number((((consensusFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
 
+        const isEgxUsd = (sym === 'ORAS');
         sources.egx = {
           price: egxInfo.price,
+          currency: isEgxUsd ? 'USD' : 'EGP',
           change: egxInfo.change,
           changePercent: egxInfo.changePercent,
           volume: egxInfo.volume,
@@ -855,7 +857,7 @@ module.exports = async (req, res) => {
           roe: undefined,
           dividendYield: undefined,
           netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
-          netIncomePeriod: egxInfo.netProfit ? 'سنوي كامل 2024/2025 (إفصاح رسمي)' : undefined,
+          netIncomePeriod: egxInfo.netProfit ? (isEgxUsd ? 'سنوي كامل 2024/2025 (إفصاح رسمي - USD)' : 'سنوي كامل 2024/2025 (إفصاح رسمي)') : undefined,
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
           grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };
@@ -1018,6 +1020,7 @@ module.exports = async (req, res) => {
 
         sources.stockastic = {
           price: price,
+          currency: stockasticFin?.currency || 'EGP',
           marketCap: marketCap,
           sharesCount: shares,
           isin: stockasticInfo?.isin,
@@ -1068,13 +1071,23 @@ module.exports = async (req, res) => {
       const avgPbFv = validPbFv.length > 0 ? Number((validPbFv.reduce((a, b) => a + b, 0) / validPbFv.length).toFixed(2)) : undefined;
       const avgUpside = validUpsides.length > 0 ? Number((validUpsides.reduce((a, b) => a + b, 0) / validUpsides.length).toFixed(2)) : 0;
 
-      const validNetIncomes = [
-        sources.egx?.netIncome,
-        sources.tradingview?.netIncome,
-        sources.mubasher?.netIncome,
-        sources.gemini?.netIncome,
-        sources.stockastic?.netIncome
-      ].filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+      const USD_EGP_RATE = 50.0;
+      const validNetIncomes = [];
+      if (typeof sources.egx?.netIncome === 'number' && !isNaN(sources.egx.netIncome) && sources.egx.netIncome !== 0) {
+        validNetIncomes.push(sources.egx.currency === 'USD' ? sources.egx.netIncome * USD_EGP_RATE : sources.egx.netIncome);
+      }
+      if (typeof sources.tradingview?.netIncome === 'number' && !isNaN(sources.tradingview.netIncome) && sources.tradingview.netIncome !== 0) {
+        validNetIncomes.push(sources.tradingview.currency === 'USD' ? sources.tradingview.netIncome * USD_EGP_RATE : sources.tradingview.netIncome);
+      }
+      if (typeof sources.mubasher?.netIncome === 'number' && !isNaN(sources.mubasher.netIncome) && sources.mubasher.netIncome !== 0) {
+        validNetIncomes.push(sources.mubasher.currency === 'USD' ? sources.mubasher.netIncome * USD_EGP_RATE : sources.mubasher.netIncome);
+      }
+      if (typeof sources.gemini?.netIncome === 'number' && !isNaN(sources.gemini.netIncome) && sources.gemini.netIncome !== 0) {
+        validNetIncomes.push(sources.gemini.currency === 'USD' ? sources.gemini.netIncome * USD_EGP_RATE : sources.gemini.netIncome);
+      }
+      if (typeof sources.stockastic?.netIncome === 'number' && !isNaN(sources.stockastic.netIncome) && sources.stockastic.netIncome !== 0) {
+        validNetIncomes.push(sources.stockastic.currency === 'USD' ? sources.stockastic.netIncome * USD_EGP_RATE : sources.stockastic.netIncome);
+      }
       const avgNetIncome = validNetIncomes.length > 0 ? Number((validNetIncomes.reduce((a, b) => a + b, 0) / validNetIncomes.length).toFixed(2)) : tvInfo?.netIncome;
 
       results.push({
