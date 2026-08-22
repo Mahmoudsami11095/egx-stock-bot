@@ -738,7 +738,7 @@ module.exports = async (req, res) => {
 
       const detailed = tvDetailedMap?.get(sym);
       const effectiveNetIncome = (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : detailed?.netIncome;
-      const effectivePeriod = (typeof netIncome === 'number' && !isNaN(netIncome)) ? 'سنوي كامل (مدقق)' : detailed?.netIncomePeriod;
+      const effectivePeriod = (typeof netIncome === 'number' && !isNaN(netIncome)) ? (detailed?.netIncomePeriod || 'سنوي كامل 2024/2025 (مدقق)') : (detailed?.netIncomePeriod || 'سنوي كامل 2025 (مدقق)');
       const effectiveRevenue = (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : detailed?.totalRevenue;
       const effectiveDy = (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : (detailed?.dividendYield ? Number(detailed.dividendYield.toFixed(2)) : undefined);
 
@@ -909,7 +909,7 @@ module.exports = async (req, res) => {
           roe: undefined,
           dividendYield: undefined,
           netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
-          netIncomePeriod: egxInfo.netProfit ? 'سنوي كامل (إفصاح رسمي)' : undefined,
+          netIncomePeriod: egxInfo.netProfit ? 'سنوي كامل 2024/2025 (إفصاح رسمي)' : undefined,
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
           grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };
