@@ -247,7 +247,7 @@ function fetchStockasticSymbol(sym) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'application/json'
       },
-      timeout: 3500
+      timeout: 1500
     }, (res) => {
       let b = '';
       res.on('data', c => b += c);
@@ -276,7 +276,7 @@ function fetchStockasticSymbol(sym) {
         } catch (e) {}
         resolve(null);
       });
-    }).on('error', () => resolve(null));
+    }).on('error', () => resolve(null)).on('timeout', function() { this.destroy(); resolve(null); });
   });
 }
 
