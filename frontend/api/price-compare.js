@@ -1024,7 +1024,8 @@ module.exports = async (req, res) => {
 
       const fallbackPeriodLabel = geminiEarnings?.periodLabel ??
         mubEarnings?.periodLabel ??
-        (tvInfo?.netIncome ? 'سنوي TTM (مدقق)' : (egxInfo?.netProfit ? 'إفصاح البورصة (معتمد)' : undefined));
+        tvInfo?.netIncomePeriod ??
+        (egxInfo?.netProfit ? 'سنوي كامل 2024/2025 (إفصاح رسمي)' : 'سنوي كامل 2025 (مدقق)');
 
       const fallbackPeriodMonths = geminiEarnings?.periodMonths ??
         mubEarnings?.periodMonths ??
