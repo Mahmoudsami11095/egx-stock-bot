@@ -331,7 +331,10 @@ export interface MetricDefinition {
                   <div [class]="getMetricColorClass(stock.sources['stockastic'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['stockastic'], selectedMetric()) }}
                   </div>
-                  <div class="text-[9px] text-purple-400/90 font-bold mt-0.5" *ngIf="stock.sources['stockastic'].periodNote">
+                  <div class="text-[9px] text-purple-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['stockastic'].netIncome">
+                    {{ stock.sources['stockastic'].netIncomePeriod || 'آخر 12 شهرًا LTM' }}
+                  </div>
+                  <div class="text-[9px] text-purple-400/90 font-bold mt-0.5" *ngIf="selectedMetric() !== 'NET_INCOME' && stock.sources['stockastic'].periodNote">
                     {{ stock.sources['stockastic'].periodNote }}
                   </div>
                 </ng-container>
