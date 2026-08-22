@@ -904,6 +904,7 @@ export class PriceComparatorComponent implements OnInit {
     const map: Record<string, string> = {
       egx: 'البورصة المصرية EGX Official',
       tradingview: 'TradingView Scanner',
+      stockastic: 'منصة ستوكاستك Stockastic LTM',
       mubasher: 'مباشر مصر Mubasher',
       gemini: 'الذكاء الاصطناعي Gemini AI (مدقق)',
       investing: 'Investing.com Live',
@@ -916,6 +917,7 @@ export class PriceComparatorComponent implements OnInit {
     const map: Record<string, string> = {
       egx: '🏛️',
       tradingview: '🌐',
+      stockastic: '⚡',
       mubasher: '📊',
       gemini: '🤖',
       investing: '📈',
