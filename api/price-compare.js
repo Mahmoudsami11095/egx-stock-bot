@@ -539,6 +539,8 @@ module.exports = async (req, res) => {
         recommendAll, rsi, macd, macdSignal, ema20, ema50, ema200
       ] = item.d;
 
+      const detailed = tvDetailedMap?.get(sym);
+      const effectiveNetIncome = (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : detailed?.netIncome;
       const effectivePeriod = detailed?.netIncomePeriod || (typeof netIncome === 'number' && !isNaN(netIncome) ? 'سنوي كامل' : undefined);
       const effectiveRevenue = (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : detailed?.totalRevenue;
       const effectiveDy = (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : (detailed?.dividendYield ? Number(detailed.dividendYield.toFixed(2)) : undefined);
