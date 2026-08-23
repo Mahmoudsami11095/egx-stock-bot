@@ -233,7 +233,7 @@ const STOCKASTIC_FINANCIALS_DATA = {
   SWDY: { netIncome: 18850000000, revenue: 198000000000, grossProfit: 28500000000, eps: 8.80, peRatio: 13.18, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   TMGH: { netIncome: 14200000000, revenue: 52000000000, grossProfit: 21000000000, eps: 6.89, peRatio: 14.18, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   FWRY: { netIncome: 2890000000, revenue: 6120000000, grossProfit: 3400000000, eps: 0.85, peRatio: 22.60, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  MASR: { netIncome: 3160000000, revenue: 11200000000, grossProfit: 5400000000, eps: 1.48, peRatio: 5.17, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
+  MASR: { netIncome: 3390000000, revenue: 12060000000, grossProfit: 6570000000, eps: 1.36, peRatio: 5.62, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   ABUK: { netIncome: 12800000000, revenue: 26400000000, grossProfit: 14500000000, eps: 10.14, peRatio: 7.45, period: 'سنوي كامل 2025 (مدقق)' },
   EGAL: { netIncome: 10500000000, revenue: 35000000000, grossProfit: 12800000000, eps: 25.45, peRatio: 12.97, period: 'سنوي كامل 2025 (مدقق)' },
   EGAS: { netIncome: 877220000, revenue: 4200000000, grossProfit: 1200000000, eps: 6.08, peRatio: 9.37, period: 'الربع الأول 2026 (معدل سنوياً)' },
