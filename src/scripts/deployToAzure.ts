@@ -12,6 +12,11 @@ conn.on('ready', () => {
   console.log('✅ SSH Connection established!');
 
   const commands = [
+    'cd /home/azureuser/egx-stock-bot',
+    'git fetch origin main && git reset --hard origin/main',
+    'npx tsc',
+    'pm2 restart egx-stock-bot',
+    'sleep 2',
     'pm2 list'
   ].join(' && echo "\n---COMMAND-SEPARATOR---\n" && ');
 

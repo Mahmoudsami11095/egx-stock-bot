@@ -846,7 +846,7 @@ module.exports = async (req, res) => {
         const marketCap = stockasticFin.marketCap;
         const price = stockasticFin.price;
         const netIncome = stockasticFin.netIncome;
-        const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || 'آخر 12 شهرًا LTM 2026 (Stockastic)';
+        const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || 'آخر 12 شهرًا LTM 2025 (Stockastic)';
         const effCurrency = stockasticFin.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
 
         sources.stockastic = {

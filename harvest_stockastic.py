@@ -71,7 +71,7 @@ async def harvest():
                 gross_profit = None
                 eps = None
                 pe_ratio = None
-                period = 'آخر 12 شهرًا LTM 2026 (Stockastic)'
+                period = 'آخر 12 شهرًا LTM 2025 (Stockastic)'
 
                 # Match patterns from the Income Statement table
                 # e.g. "صافي الربح للفترة" or "الإيرادات" or "مجمل الربح"

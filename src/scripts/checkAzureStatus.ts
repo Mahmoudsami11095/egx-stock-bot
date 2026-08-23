@@ -12,7 +12,9 @@ conn.on('ready', () => {
   console.log('✅ SSH Connection established!');
   
   const commands = [
-    'curl -s http://20.91.240.54:5000/api/stocks?source=tradingview | head -c 500'
+    'echo azureuserSami@11095 | sudo -S pm2 restart egx-stock-bot',
+    'sleep 2',
+    'curl -s http://127.0.0.1:5000/api/intraday-trades'
   ].join(' && echo "\n---COMMAND-SEPARATOR---\n" && ');
 
   conn.exec(commands, (err, stream) => {
