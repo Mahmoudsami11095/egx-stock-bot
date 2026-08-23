@@ -996,28 +996,9 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      // 4. Gemini AI Audited Earnings (Multi-tiered intelligence)
+      // 4. Gemini AI Audited Earnings (Strict Zero-Fallback: Genuine audited earnings feed only)
       const geminiEarnings = geminiEarningsMap?.get(sym);
-      const fallbackNetIncome = geminiEarnings?.annualizedProfit ??
-        mubEarnings?.annualizedProfit ??
-        tvInfo?.netIncome ??
-        egxInfo?.netProfit;
-
-      const fallbackNetIncomeRaw = geminiEarnings?.netProfit ??
-        mubEarnings?.netProfit ??
-        tvInfo?.netIncome ??
-        egxInfo?.netProfit;
-
-      const fallbackPeriodLabel = geminiEarnings?.periodLabel ??
-        mubEarnings?.periodLabel ??
-        tvInfo?.netIncomePeriod ??
-        (egxInfo?.netProfit ? 'سنوي كامل 2024/2025 (إفصاح رسمي)' : 'سنوي كامل 2025 (مدقق)');
-
-      const fallbackPeriodMonths = geminiEarnings?.periodMonths ??
-        mubEarnings?.periodMonths ??
-        12;
-
-      if (fallbackNetIncome !== undefined) {
+      if (geminiEarnings && geminiEarnings.netProfit !== undefined) {
         sources.gemini = {
           price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
           change: 0,
@@ -1035,60 +1016,47 @@ module.exports = async (req, res) => {
           bvps: undefined,
           roe: undefined,
           dividendYield: undefined,
-          netIncome: fallbackNetIncome,
-          netIncomeRaw: fallbackNetIncomeRaw,
-          netIncomePeriod: fallbackPeriodLabel,
-          netIncomePeriodMonths: fallbackPeriodMonths,
-          netIncomeYear: '2026',
+          netIncome: geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit,
+          netIncomeRaw: geminiEarnings.netProfit,
+          netIncomePeriod: geminiEarnings.periodLabel,
+          netIncomePeriodMonths: geminiEarnings.periodMonths,
+          netIncomeYear: geminiEarnings.year,
           netProfitMargin: undefined,
           grossProfit: undefined
         };
       }
 
-      // 5. Stockastic Source (Genuine Market Cap, Financial Statements & Profile API)
+      // 5. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic LTM statements only)
       const stockasticInfo = stockasticMap?.get(sym);
       const stockasticFin = stockasticInfo || STOCKASTIC_FINANCIALS_DATA[sym];
 
-      const shares = stockasticInfo?.sharesCount || stockasticFin?.sharesCount || meta?.sharesCount;
-      const marketCap = stockasticInfo?.marketCap || stockasticFin?.marketCap;
-      const price = stockasticInfo?.price || stockasticFin?.price || tvInfo?.price || egxInfo?.price || mubInfo?.price;
+      if (stockasticFin && (stockasticFin.netIncome !== undefined || stockasticFin.revenue !== undefined || stockasticFin.price !== undefined)) {
+        const shares = stockasticFin.sharesCount || stockasticInfo?.sharesCount;
+        const marketCap = stockasticFin.marketCap || stockasticInfo?.marketCap;
+        const price = stockasticFin.price || stockasticInfo?.price;
+        const netIncome = stockasticFin.netIncome;
+        const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || 'آخر 12 شهرًا LTM 2026 (Stockastic)';
+        const effCurrency = stockasticFin.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
 
-      const effNetIncome = stockasticFin?.netIncome ?? 
-                           (shares && tvInfo?.eps ? shares * tvInfo.eps : undefined) ??
-                           fallbackNetIncome ??
-                           tvInfo?.netIncome ??
-                           egxInfo?.netProfit;
-
-      const effPeriod = stockasticFin?.period ?? 
-                        stockasticFin?.netIncomePeriod ?? 
-                        (stockasticFin?.netIncome ? 'آخر 12 شهرًا LTM 2026 (Stockastic)' : fallbackPeriodLabel);
-
-      const effRevenue = stockasticFin?.revenue ?? stockasticFin?.totalRevenue ?? tvInfo?.totalRevenue;
-      const effGrossProfit = stockasticFin?.grossProfit ?? tvInfo?.grossProfit;
-      const effEps = stockasticFin?.eps ?? (effNetIncome && shares ? Number((effNetIncome / shares).toFixed(2)) : tvInfo?.eps);
-      const effPeRatio = stockasticFin?.peRatio ?? (price && effEps && effEps > 0 ? Number((price / effEps).toFixed(2)) : tvInfo?.peRatio);
-      const effCurrency = stockasticFin?.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
-
-      if (effNetIncome !== undefined || price !== undefined) {
         sources.stockastic = {
           price: price,
           currency: effCurrency,
           marketCap: marketCap,
           sharesCount: shares,
-          isin: stockasticInfo?.isin || stockasticFin?.isin,
-          reuters: stockasticInfo?.reuters || stockasticFin?.reuters,
-          sectorAr: stockasticInfo?.sectorAr || stockasticFin?.sectorAr || sector,
-          sectorEn: stockasticInfo?.sectorEn || stockasticFin?.sectorEn,
-          netIncome: effNetIncome,
-          netIncomeRaw: effNetIncome,
+          isin: stockasticFin.isin || stockasticInfo?.isin,
+          reuters: stockasticFin.reuters || stockasticInfo?.reuters,
+          sectorAr: stockasticFin.sectorAr || stockasticInfo?.sectorAr || sector,
+          sectorEn: stockasticFin.sectorEn || stockasticInfo?.sectorEn,
+          netIncome: netIncome,
+          netIncomeRaw: netIncome,
           netIncomePeriod: effPeriod,
-          totalRevenue: effRevenue,
-          grossProfit: effGrossProfit,
-          eps: effEps,
-          peRatio: effPeRatio,
+          totalRevenue: stockasticFin.revenue || stockasticFin.totalRevenue,
+          grossProfit: stockasticFin.grossProfit,
+          eps: stockasticFin.eps,
+          peRatio: stockasticFin.peRatio,
           periodNote: effPeriod
         };
-        if (stockasticInfo?.price) validPrices.push(stockasticInfo.price);
+        if (price) validPrices.push(price);
       }
 
       // If no valid source returned price for this stock, skip
