@@ -267,9 +267,40 @@ const STOCKASTIC_FINANCIALS_DATA = {
   QNBA: { netIncome: 24500000000, revenue: 58000000000, grossProfit: 36000000000, eps: 11.20, peRatio: 4.50, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' }
 };
 
+let STOCKASTIC_CACHE = null;
+let STOCKASTIC_CACHE_TIME = 0;
+
 async function fetchStockasticMap() {
+  const now = Date.now();
+  if (STOCKASTIC_CACHE && (now - STOCKASTIC_CACHE_TIME < 60000)) {
+    return STOCKASTIC_CACHE;
+  }
+
+  let mergedData = { ...STOCKASTIC_FINANCIALS_DATA };
+
+  // Try reading from data/stockastic-live.json dynamically if present
+  try {
+    const livePaths = [
+      path.join(process.cwd(), 'data', 'stockastic-live.json'),
+      path.join(process.cwd(), 'frontend', 'data', 'stockastic-live.json'),
+      '/home/azureuser/egx-stock-bot/data/stockastic-live.json'
+    ];
+    for (const p of livePaths) {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        const json = JSON.parse(raw);
+        if (json && typeof json === 'object') {
+          mergedData = { ...mergedData, ...json };
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    // Graceful fallback to in-memory snapshot
+  }
+
   const map = new Map();
-  for (const [sym, data] of Object.entries(STOCKASTIC_FINANCIALS_DATA)) {
+  for (const [sym, data] of Object.entries(mergedData)) {
     map.set(sym, {
       sym,
       companyName: sym,
@@ -277,6 +308,9 @@ async function fetchStockasticMap() {
       ...data
     });
   }
+
+  STOCKASTIC_CACHE = map;
+  STOCKASTIC_CACHE_TIME = now;
   return map;
 }
 

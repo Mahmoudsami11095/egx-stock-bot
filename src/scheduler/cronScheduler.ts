@@ -12,6 +12,7 @@ import { logger } from '../services/logger';
 import { StockAnalysisResult } from '../types/stock';
 import { IntradayTrackerService } from '../services/intradayTracker';
 import { EgxOfficialHarvesterService } from '../services/egxOfficialHarvester';
+import { StockasticHarvesterService } from '../services/stockasticHarvester';
 
 export class CronSchedulerService {
   private goldService = new GoldService();
@@ -19,6 +20,7 @@ export class CronSchedulerService {
   private exportService = new ExportService();
   private googleSheetsService = new GoogleSheetsService();
   private egxHarvester = new EgxOfficialHarvesterService();
+  private stockasticHarvester = new StockasticHarvesterService();
 
   constructor(
     private stateManager: StateManager,
@@ -51,6 +53,12 @@ export class CronSchedulerService {
     logger.info(`🏛️ Scheduling EGX Official Exchange Harvester ('*/15 10-14 * * 0-4')...`);
     cron.schedule('*/15 10-14 * * 0-4', async () => {
       await this.egxHarvester.runHarvest();
+    });
+
+    // 5. Stockastic Automated LTM Financials Harvester (Every Sunday at 3:00 AM & Wed at 4:00 PM)
+    logger.info(`⚡ Scheduling Stockastic Automated LTM Financials Harvester ('0 3 * * 0')...`);
+    cron.schedule('0 3 * * 0', async () => {
+      await this.stockasticHarvester.runHarvest();
     });
   }
 
