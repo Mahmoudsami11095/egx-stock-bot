@@ -213,63 +213,9 @@ function fetchTvSymbolFinancials(sym) {
   });
 }
 
-const TV_PRIMARY_SYMBOLS = [
-  'EGAS', 'MASR', 'CLHO', 'FWRY', 'COMI', 'SWDY', 'ABUK', 'EGAL', 'TMGH', 'ORAS',
-  'ORHD', 'OIH', 'OCDI', 'BTFH', 'CCAP', 'RAYA', 'ALCN', 'ADIB', 'CIEB', 'HDBK', 'FAIT', 'QNBA',
-  'AMOC', 'ETEL', 'SKPC', 'MFPC', 'ESRS', 'ISPH', 'HELI', 'EKHO', 'EKHOA', 'CICH',
-  'HRHO', 'JUFO', 'DOMT', 'OBRI', 'EFID', 'RMDA', 'AUTO', 'ORWE', 'MNHD', 'PHDC'
-];
-
 async function fetchTradingViewDetailedMap() {
   return TV_DETAILED_CACHE;
 }
-
-const STOCKASTIC_FINANCIALS_DATA = {
-  COPR: { netIncome: 22390000, revenue: 31210000, grossProfit: 3910000, eps: 4.30, peRatio: 8.50, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
-  MOED: { netIncome: 4950000, revenue: 38500000, grossProfit: 12400000, eps: 0.05, peRatio: 12.10, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
-  LUTS: { netIncome: 8130000, revenue: 65400000, grossProfit: 18900000, eps: 0.15, peRatio: 9.40, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
-  IEEC: { netIncome: 26360000, revenue: 142000000, grossProfit: 45000000, eps: 0.35, peRatio: 7.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
-  ORAS: { netIncome: 244200000, revenue: 6070000000, grossProfit: 548400000, eps: 2.07, peRatio: 12.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic - USD)', currency: 'USD' },
-  ORHD: { netIncome: 5370000000, revenue: 21500000000, grossProfit: 7800000000, eps: 4.75, peRatio: 5.30, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  OIH: { netIncome: -1240000000, revenue: 3800000000, grossProfit: 680000000, eps: -0.24, peRatio: undefined, period: 'النصف الأول 2025 (معدل سنوياً)' },
-  ORWE: { netIncome: 3160000000, revenue: 27960000000, grossProfit: 3650000000, eps: 3.00, peRatio: 8.45, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  COMI: { netIncome: 61630000000, revenue: 125000000000, grossProfit: 78000000000, eps: 18.10, peRatio: 7.57, period: 'سنوي كامل 2025 (مدقق)' },
-  SWDY: { netIncome: 18850000000, revenue: 198000000000, grossProfit: 28500000000, eps: 8.80, peRatio: 13.18, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  TMGH: { netIncome: 14200000000, revenue: 52000000000, grossProfit: 21000000000, eps: 6.89, peRatio: 14.18, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  FWRY: { netIncome: 2890000000, revenue: 6120000000, grossProfit: 3400000000, eps: 0.85, peRatio: 22.60, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  MASR: { netIncome: 3390000000, revenue: 12060000000, grossProfit: 6570000000, eps: 1.36, peRatio: 5.62, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  ABUK: { netIncome: 12800000000, revenue: 26400000000, grossProfit: 14500000000, eps: 10.14, peRatio: 7.45, period: 'سنوي كامل 2025 (مدقق)' },
-  EGAL: { netIncome: 10500000000, revenue: 35000000000, grossProfit: 12800000000, eps: 25.45, peRatio: 12.97, period: 'سنوي كامل 2025 (مدقق)' },
-  EGAS: { netIncome: 877220000, revenue: 4200000000, grossProfit: 1200000000, eps: 6.08, peRatio: 9.37, period: 'الربع الأول 2026 (معدل سنوياً)' },
-  CLHO: { netIncome: 669820000, revenue: 3800000000, grossProfit: 1400000000, eps: 0.41, peRatio: 18.5, period: 'النصف الأول 2026 (معدل سنوياً)' },
-  ETEL: { netIncome: 17600000000, revenue: 78000000000, grossProfit: 3100000000, eps: 10.31, peRatio: 4.85, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  AMOC: { netIncome: 2150000000, revenue: 3200000000, grossProfit: 3400000000, eps: 1.66, peRatio: 5.72, period: 'سنوي كامل 2025 (مدقق)' },
-  MFPC: { netIncome: 8400000000, revenue: 21000000000, grossProfit: 10500000000, eps: 3.66, peRatio: 10.93, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  SKPC: { netIncome: 2650000000, revenue: 14800000000, grossProfit: 3800000000, eps: 1.78, peRatio: 14.6, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  EKHO: { netIncome: 7800000000, revenue: 3800000000, grossProfit: 1420000000, eps: 6.85, peRatio: 6.5, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  HELI: { netIncome: 4350000000, revenue: 8900000000, grossProfit: 5100000000, eps: 3.26, peRatio: 4.9, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  HRHO: { netIncome: 3800000000, revenue: 16500000000, grossProfit: 7200000000, eps: 2.60, peRatio: 10.0, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  AUTO: { netIncome: 2900000000, revenue: 42000000000, grossProfit: 6800000000, eps: 2.65, peRatio: 5.6, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  JUFO: { netIncome: 2450000000, revenue: 24000000000, grossProfit: 6200000000, eps: 2.60, peRatio: 12.3, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  DOMT: { netIncome: 820000000, revenue: 10500000000, grossProfit: 2100000000, eps: 2.89, peRatio: 9.0, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  EFID: { netIncome: 1650000000, revenue: 15000000000, grossProfit: 3600000000, eps: 2.28, peRatio: 10.5, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  OBRI: { netIncome: 1250000000, revenue: 8400000000, grossProfit: 2800000000, eps: 1.85, peRatio: 12.0, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  RMDA: { netIncome: 480000000, revenue: 3200000000, grossProfit: 1400000000, eps: 0.32, peRatio: 9.4, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  ISPH: { netIncome: 320000000, revenue: 22000000000, grossProfit: 1800000000, eps: 0.22, peRatio: 15.0, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  CICH: { netIncome: 1450000000, revenue: 5600000000, grossProfit: 2400000000, eps: 1.41, peRatio: 5.3, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  PHDC: { netIncome: 3250000000, revenue: 26000000000, grossProfit: 8900000000, eps: 1.10, peRatio: 5.9, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  MNHD: { netIncome: 3160000000, revenue: 11200000000, grossProfit: 5400000000, eps: 1.48, peRatio: 5.17, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  OCDI: { netIncome: 2530000000, revenue: 15400000000, grossProfit: 5200000000, eps: 7.20, peRatio: 8.50, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  BTFH: { netIncome: 1650000000, revenue: 5200000000, grossProfit: 3100000000, eps: 0.31, peRatio: 14.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  CCAP: { netIncome: 8200000000, revenue: 142000000000, grossProfit: 24500000000, eps: 4.50, peRatio: 2.80, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  RAYA: { netIncome: 1150000000, revenue: 45000000000, grossProfit: 4600000000, eps: 0.54, peRatio: 7.80, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  ALCN: { netIncome: 6450000000, revenue: 8900000000, grossProfit: 6900000000, eps: 4.35, peRatio: 6.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  ADIB: { netIncome: 9200000000, revenue: 26000000000, grossProfit: 16500000000, eps: 15.30, peRatio: 4.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  CIEB: { netIncome: 8150000000, revenue: 18500000000, grossProfit: 12400000000, eps: 6.52, peRatio: 4.80, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  HDBK: { netIncome: 11200000000, revenue: 22000000000, grossProfit: 14800000000, eps: 21.10, peRatio: 4.10, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  FAIT: { netIncome: 9800000000, revenue: 21000000000, grossProfit: 13500000000, eps: 14.80, peRatio: 3.90, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
-  QNBA: { netIncome: 24500000000, revenue: 58000000000, grossProfit: 36000000000, eps: 11.20, peRatio: 4.50, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' }
-};
 
 let STOCKASTIC_CACHE = null;
 let STOCKASTIC_CACHE_TIME = 0;
@@ -280,13 +226,15 @@ async function fetchStockasticMap() {
     return STOCKASTIC_CACHE;
   }
 
-  let mergedData = { ...STOCKASTIC_FINANCIALS_DATA };
+  let liveData = {};
 
-  // Try reading from data/stockastic-live.json dynamically if present
+  // Dynamically load live harvested statements from data/stockastic-live.json
   try {
     const livePaths = [
       path.join(process.cwd(), 'data', 'stockastic-live.json'),
       path.join(process.cwd(), 'frontend', 'data', 'stockastic-live.json'),
+      path.join(__dirname, '..', 'data', 'stockastic-live.json'),
+      path.join(__dirname, '..', '..', 'data', 'stockastic-live.json'),
       '/home/azureuser/egx-stock-bot/data/stockastic-live.json'
     ];
     for (const p of livePaths) {
@@ -294,23 +242,25 @@ async function fetchStockasticMap() {
         const raw = fs.readFileSync(p, 'utf-8');
         const json = JSON.parse(raw);
         if (json && typeof json === 'object') {
-          mergedData = { ...mergedData, ...json };
+          liveData = json;
           break;
         }
       }
     }
   } catch (e) {
-    // Graceful fallback to in-memory snapshot
+    // Dynamic error handling
   }
 
   const map = new Map();
-  for (const [sym, data] of Object.entries(mergedData)) {
-    map.set(sym, {
-      sym,
-      companyName: sym,
-      nameAr: sym,
-      ...data
-    });
+  for (const [sym, data] of Object.entries(liveData)) {
+    if (data && typeof data === 'object') {
+      map.set(sym, {
+        sym,
+        companyName: sym,
+        nameAr: sym,
+        ...data
+      });
+    }
   }
 
   STOCKASTIC_CACHE = map;
@@ -1026,14 +976,13 @@ module.exports = async (req, res) => {
         };
       }
 
-      // 5. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic LTM statements only)
-      const stockasticInfo = stockasticMap?.get(sym);
-      const stockasticFin = stockasticInfo || STOCKASTIC_FINANCIALS_DATA[sym];
+      // 5. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic dynamic feed only)
+      const stockasticFin = stockasticMap?.get(sym);
 
       if (stockasticFin && (stockasticFin.netIncome !== undefined || stockasticFin.revenue !== undefined || stockasticFin.price !== undefined)) {
-        const shares = stockasticFin.sharesCount || stockasticInfo?.sharesCount;
-        const marketCap = stockasticFin.marketCap || stockasticInfo?.marketCap;
-        const price = stockasticFin.price || stockasticInfo?.price;
+        const shares = stockasticFin.sharesCount;
+        const marketCap = stockasticFin.marketCap;
+        const price = stockasticFin.price;
         const netIncome = stockasticFin.netIncome;
         const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || 'آخر 12 شهرًا LTM 2026 (Stockastic)';
         const effCurrency = stockasticFin.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
@@ -1043,10 +992,10 @@ module.exports = async (req, res) => {
           currency: effCurrency,
           marketCap: marketCap,
           sharesCount: shares,
-          isin: stockasticFin.isin || stockasticInfo?.isin,
-          reuters: stockasticFin.reuters || stockasticInfo?.reuters,
-          sectorAr: stockasticFin.sectorAr || stockasticInfo?.sectorAr || sector,
-          sectorEn: stockasticFin.sectorEn || stockasticInfo?.sectorEn,
+          isin: stockasticFin.isin,
+          reuters: stockasticFin.reuters,
+          sectorAr: stockasticFin.sectorAr || sector,
+          sectorEn: stockasticFin.sectorEn,
           netIncome: netIncome,
           netIncomeRaw: netIncome,
           netIncomePeriod: effPeriod,
