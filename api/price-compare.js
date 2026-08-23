@@ -384,128 +384,6 @@ function parseCSVLine(line) {
 let GEMINI_SHEET_CACHE = null;
 let GEMINI_SHEET_CACHE_TIME = 0;
 
-const LOCAL_AUDITED_OVERRIDES = {
-  EGAL: {
-    netProfit: 15490000000,
-    annualizedProfit: 15490000000,
-    periodMonths: 12,
-    periodLabel: 'العام المالي 2026 كامل (معتمد)',
-    source: 'Audited Financial Statement FY2026 - Egypt Aluminium (15.49B EGP announced Aug 12, 2026)'
-  },
-  AMOC: {
-    netProfit: 1900000000,
-    annualizedProfit: 3800000000,
-    periodMonths: 6,
-    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
-    source: 'Audited Financial Statement H1 2026 - AMOC (1.90B EGP announced July 30, 2026)'
-  },
-  ABUK: {
-    netProfit: 10011519905,
-    annualizedProfit: 20023039810,
-    periodMonths: 6,
-    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
-    source: 'Audited Financial Statement H1 2026 - Abu Qir Fertilizers (10.01B EGP announced Aug 2026)'
-  },
-  COMI: {
-    netProfit: 29700000000,
-    annualizedProfit: 29700000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - CIB Egypt'
-  },
-  SKPC: {
-    netProfit: 1138000000,
-    annualizedProfit: 1138000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Sidpec (EGX Approved)'
-  },
-  SWDY: {
-    netProfit: 10640000000,
-    annualizedProfit: 21280000000,
-    periodMonths: 6,
-    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
-    source: 'Audited Financial Statement H1 2026 - Elsewedy Electric (10.64B EGP announced Aug 12, 2026)'
-  },
-  MFPC: {
-    netProfit: 14200000000,
-    annualizedProfit: 14200000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - MOPCO'
-  },
-  ETEL: {
-    netProfit: 11500000000,
-    annualizedProfit: 11500000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Telecom Egypt'
-  },
-  TMGH: {
-    netProfit: 9100000000,
-    annualizedProfit: 9100000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - TMG Holding'
-  },
-  ORWE: {
-    netProfit: 2300000000,
-    annualizedProfit: 2300000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Oriental Weavers'
-  },
-  JUFO: {
-    netProfit: 2100000000,
-    annualizedProfit: 2100000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Juhayna'
-  },
-  EFID: {
-    netProfit: 1600000000,
-    annualizedProfit: 1600000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Edita'
-  },
-  ISPH: {
-    netProfit: 750000000,
-    annualizedProfit: 750000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Ibnsina Pharma'
-  },
-  HELI: {
-    netProfit: 7800000000,
-    annualizedProfit: 7800000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Heliopolis Housing'
-  },
-  FWRY: {
-    netProfit: 1250000000,
-    annualizedProfit: 1250000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Fawry'
-  },
-  EKHO: {
-    netProfit: 5800000000,
-    annualizedProfit: 5800000000,
-    periodMonths: 12,
-    periodLabel: 'سنوي كامل (مدقق)',
-    source: 'Audited Financial Statement FY2025 - Egypt Kuwait Holding'
-  },
-  ORAS: {
-    netProfit: 6198300000,
-    annualizedProfit: 12396600000,
-    periodMonths: 6,
-    periodLabel: 'النصف الأول 2026 (معدل سنوياً)',
-    source: 'Audited Financial Statement H1 2026 - Orascom Construction ($127.8M USD / 6.20B EGP H1 -> 12.40B EGP annualized announced Aug 16, 2026)'
-  }
-};
-
 // Fetch Gemini AI Audited & Extracted Corporate Earnings Feed
 function fetchGeminiEarnings() {
   const now = Date.now();
@@ -548,20 +426,11 @@ function fetchGeminiEarnings() {
             }
           }
 
-          // Apply authoritative local overrides (e.g. latest FY2026 EGAL 15.49B)
-          for (const [s, data] of Object.entries(LOCAL_AUDITED_OVERRIDES)) {
-            map.set(s, { ...data });
-          }
-
           GEMINI_SHEET_CACHE = map;
           GEMINI_SHEET_CACHE_TIME = now;
           resolve(map);
         } catch (e) {
-          const fallbackMap = new Map();
-          for (const [s, data] of Object.entries(LOCAL_AUDITED_OVERRIDES)) {
-            fallbackMap.set(s, { ...data });
-          }
-          resolve(fallbackMap);
+          resolve(new Map());
         }
       });
     });
