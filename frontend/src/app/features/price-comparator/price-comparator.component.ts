@@ -284,7 +284,7 @@ export interface MetricDefinition {
                     {{ formatSourceMetric(stock.sources['egx'], selectedMetric()) }}
                   </div>
                   <div class="text-[9px] text-emerald-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['egx'].netIncome">
-                    {{ stock.sources['egx'].netIncomePeriod || 'سنوي كامل 2024/2025 (إفصاح رسمي)' }}
+                    {{ stock.sources['egx'].netIncomePeriod || 'سنوي كامل 2025 (إفصاح رسمي)' }}
                   </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['egx'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['egx'].changePercent }}%
@@ -300,7 +300,7 @@ export interface MetricDefinition {
                     {{ formatSourceMetric(stock.sources['tradingview'], selectedMetric()) }}
                   </div>
                   <div class="text-[9px] text-sky-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['tradingview'].netIncome">
-                    {{ stock.sources['tradingview'].netIncomePeriod || 'سنوي كامل 2024/2025 (مدقق)' }}
+                    {{ stock.sources['tradingview'].netIncomePeriod || 'سنوي كامل 2025 (مدقق)' }}
                   </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['tradingview'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['tradingview'].changePercent }}%
@@ -316,7 +316,7 @@ export interface MetricDefinition {
                     {{ formatSourceMetric(stock.sources['mubasher'], selectedMetric()) }}
                   </div>
                   <div class="text-[9px] text-amber-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['mubasher'].netIncome">
-                    {{ stock.sources['mubasher'].netIncomePeriod || 'سنوي كامل 2025' }}
+                    {{ stock.sources['mubasher'].netIncomePeriod || 'سنوي كامل 2025 (إفصاح رسمي)' }}
                   </div>
                   <div class="text-[10px] text-gray-500" *ngIf="selectedMetric() === 'PRICE'">
                     {{ stock.sources['mubasher'].changePercent >= 0 ? '+' : '' }}{{ stock.sources['mubasher'].changePercent }}%
@@ -332,7 +332,7 @@ export interface MetricDefinition {
                     {{ formatSourceMetric(stock.sources['stockastic'], selectedMetric()) }}
                   </div>
                   <div class="text-[9px] text-purple-400/90 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['stockastic'].netIncome">
-                    {{ stock.sources['stockastic'].netIncomePeriod || 'آخر 12 شهرًا LTM 2026' }}
+                    {{ stock.sources['stockastic'].netIncomePeriod || 'سنوي كامل 2025 (إفصاح رسمي)' }}
                   </div>
                   <div class="text-[9px] text-purple-400/90 font-bold mt-0.5" *ngIf="selectedMetric() !== 'NET_INCOME' && stock.sources['stockastic'].periodNote">
                     {{ stock.sources['stockastic'].periodNote }}

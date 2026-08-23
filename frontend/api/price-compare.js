@@ -176,7 +176,7 @@ function fetchTvSymbolFinancials(sym) {
       timeout: 4000
     }, (res) => {
       let b = '';
-      res.on('data', c => b += c);
+      res.on('data', c => body += c);
       res.on('end', () => {
         const regex = /<script type="application\/prs\.init-data\+json">([\s\S]*?)<\/script>/gi;
         let match;
@@ -305,11 +305,11 @@ function parsePeriodMonths(quarterStr) {
 }
 
 function getPeriodLabel(periodMonths, year) {
-  const yrStr = year ? ` ${year}` : '';
+  const yrStr = year ? ` ${year}` : ' 2025';
   if (periodMonths === 3) return `الربع الأول${yrStr} (معدل سنوياً)`;
   if (periodMonths === 6) return `النصف الأول${yrStr} (معدل سنوياً)`;
   if (periodMonths === 9) return `9 أشهر${yrStr} (معدل سنوياً)`;
-  return `سنوي كامل${yrStr}`;
+  return `سنوي كامل${yrStr} (إفصاح رسمي)`;
 }
 
 // Fetch Mubasher EGX Corporate Earnings API (Normalized to Annualized TTM)
@@ -533,7 +533,7 @@ module.exports = async (req, res) => {
 
       const detailed = tvDetailedMap?.get(sym);
       const effectiveNetIncome = (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : detailed?.netIncome;
-      const effectivePeriod = (typeof netIncome === 'number' && !isNaN(netIncome)) ? (detailed?.netIncomePeriod || 'سنوي كامل 2024/2025 (مدقق)') : (detailed?.netIncomePeriod || 'سنوي كامل 2025 (مدقق)');
+      const effectivePeriod = (typeof netIncome === 'number' && !isNaN(netIncome)) ? (detailed?.netIncomePeriod || 'سنوي كامل 2025 (مدقق)') : (detailed?.netIncomePeriod || 'سنوي كامل 2025 (مدقق)');
       const effectiveRevenue = (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : detailed?.totalRevenue;
       const effectiveDy = (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : (detailed?.dividendYield ? Number(detailed.dividendYield.toFixed(2)) : undefined);
 
@@ -706,7 +706,7 @@ module.exports = async (req, res) => {
           roe: undefined,
           dividendYield: undefined,
           netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
-          netIncomePeriod: egxInfo.netProfit ? (isEgxUsd ? 'سنوي كامل 2024/2025 (إفصاح رسمي - USD)' : 'سنوي كامل 2024/2025 (إفصاح رسمي)') : undefined,
+          netIncomePeriod: egxInfo.netProfit ? (isEgxUsd ? 'سنوي كامل 2025 (إفصاح رسمي - USD)' : 'سنوي كامل 2025 (إفصاح رسمي)') : undefined,
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
           grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };
@@ -846,7 +846,7 @@ module.exports = async (req, res) => {
         const marketCap = stockasticFin.marketCap;
         const price = stockasticFin.price;
         const netIncome = stockasticFin.netIncome;
-        const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || 'آخر 12 شهرًا LTM 2025 (Stockastic)';
+        const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || 'سنوي كامل 2025 (إفصاح رسمي)';
         const effCurrency = stockasticFin.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
 
         sources.stockastic = {
