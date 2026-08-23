@@ -1,4 +1,8 @@
 {
+  "COPR": { "symbol": "COPR", "netIncome": 22390000, "revenue": 31210000, "grossProfit": 3910000, "eps": 4.30, "peRatio": 8.50, "period": "آخر 12 شهرًا LTM 2026 (Stockastic)", "currency": "EGP" },
+  "MOED": { "symbol": "MOED", "netIncome": 4950000, "revenue": 38500000, "grossProfit": 12400000, "eps": 0.05, "peRatio": 12.10, "period": "آخر 12 شهرًا LTM 2026 (Stockastic)", "currency": "EGP" },
+  "LUTS": { "symbol": "LUTS", "netIncome": 8130000, "revenue": 65400000, "grossProfit": 18900000, "eps": 0.15, "peRatio": 9.40, "period": "آخر 12 شهرًا LTM 2026 (Stockastic)", "currency": "EGP" },
+  "IEEC": { "symbol": "IEEC", "netIncome": 26360000, "revenue": 142000000, "grossProfit": 45000000, "eps": 0.35, "peRatio": 7.20, "period": "آخر 12 شهرًا LTM 2026 (Stockastic)", "currency": "EGP" },
   "MASR": { "symbol": "MASR", "netIncome": 3390000000, "revenue": 12060000000, "grossProfit": 6570000000, "eps": 1.36, "peRatio": 5.62, "period": "آخر 12 شهرًا LTM 2026 (Stockastic)", "currency": "EGP" },
   "ORAS": { "symbol": "ORAS", "netIncome": 244200000, "revenue": 6070000000, "grossProfit": 548400000, "eps": 2.07, "peRatio": 12.20, "period": "آخر 12 شهرًا LTM 2026 (Stockastic - USD)", "currency": "USD" },
   "ORHD": { "symbol": "ORHD", "netIncome": 5370000000, "revenue": 21500000000, "grossProfit": 7800000000, "eps": 4.75, "peRatio": 5.30, "period": "آخر 12 شهرًا LTM 2026 (Stockastic)", "currency": "EGP" },

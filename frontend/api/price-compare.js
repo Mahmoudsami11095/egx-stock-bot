@@ -225,6 +225,10 @@ async function fetchTradingViewDetailedMap() {
 }
 
 const STOCKASTIC_FINANCIALS_DATA = {
+  COPR: { netIncome: 22390000, revenue: 31210000, grossProfit: 3910000, eps: 4.30, peRatio: 8.50, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
+  MOED: { netIncome: 4950000, revenue: 38500000, grossProfit: 12400000, eps: 0.05, peRatio: 12.10, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
+  LUTS: { netIncome: 8130000, revenue: 65400000, grossProfit: 18900000, eps: 0.15, peRatio: 9.40, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
+  IEEC: { netIncome: 26360000, revenue: 142000000, grossProfit: 45000000, eps: 0.35, peRatio: 7.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)', currency: 'EGP' },
   ORAS: { netIncome: 244200000, revenue: 6070000000, grossProfit: 548400000, eps: 2.07, peRatio: 12.20, period: 'آخر 12 شهرًا LTM 2026 (Stockastic - USD)', currency: 'USD' },
   ORHD: { netIncome: 5370000000, revenue: 21500000000, grossProfit: 7800000000, eps: 4.75, peRatio: 5.30, period: 'آخر 12 شهرًا LTM 2026 (Stockastic)' },
   OIH: { netIncome: -1240000000, revenue: 3800000000, grossProfit: 680000000, eps: -0.24, peRatio: undefined, period: 'النصف الأول 2025 (معدل سنوياً)' },
@@ -1043,33 +1047,48 @@ module.exports = async (req, res) => {
 
       // 5. Stockastic Source (Genuine Market Cap, Financial Statements & Profile API)
       const stockasticInfo = stockasticMap?.get(sym);
-      const stockasticFin = STOCKASTIC_FINANCIALS_DATA[sym];
-      if (stockasticInfo || stockasticFin) {
-        const shares = stockasticInfo?.sharesCount;
-        const marketCap = stockasticInfo?.marketCap;
-        const price = stockasticInfo?.price;
-        const effNetIncome = stockasticFin?.netIncome ?? (shares && tvInfo?.eps ? shares * tvInfo.eps : tvInfo?.netIncome);
-        const effPeriod = stockasticFin?.period ?? (stockasticFin?.netIncome ? 'آخر 12 شهرًا LTM' : (shares ? `${(shares / 1e6).toFixed(1)} مليون سهم` : 'إفصاح رسمي'));
+      const stockasticFin = stockasticInfo || STOCKASTIC_FINANCIALS_DATA[sym];
 
+      const shares = stockasticInfo?.sharesCount || stockasticFin?.sharesCount || meta?.sharesCount;
+      const marketCap = stockasticInfo?.marketCap || stockasticFin?.marketCap;
+      const price = stockasticInfo?.price || stockasticFin?.price || tvInfo?.price || egxInfo?.price || mubInfo?.price;
+
+      const effNetIncome = stockasticFin?.netIncome ?? 
+                           (shares && tvInfo?.eps ? shares * tvInfo.eps : undefined) ??
+                           fallbackNetIncome ??
+                           tvInfo?.netIncome ??
+                           egxInfo?.netProfit;
+
+      const effPeriod = stockasticFin?.period ?? 
+                        stockasticFin?.netIncomePeriod ?? 
+                        (stockasticFin?.netIncome ? 'آخر 12 شهرًا LTM 2026 (Stockastic)' : fallbackPeriodLabel);
+
+      const effRevenue = stockasticFin?.revenue ?? stockasticFin?.totalRevenue ?? tvInfo?.totalRevenue;
+      const effGrossProfit = stockasticFin?.grossProfit ?? tvInfo?.grossProfit;
+      const effEps = stockasticFin?.eps ?? (effNetIncome && shares ? Number((effNetIncome / shares).toFixed(2)) : tvInfo?.eps);
+      const effPeRatio = stockasticFin?.peRatio ?? (price && effEps && effEps > 0 ? Number((price / effEps).toFixed(2)) : tvInfo?.peRatio);
+      const effCurrency = stockasticFin?.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
+
+      if (effNetIncome !== undefined || price !== undefined) {
         sources.stockastic = {
           price: price,
-          currency: stockasticFin?.currency || 'EGP',
+          currency: effCurrency,
           marketCap: marketCap,
           sharesCount: shares,
-          isin: stockasticInfo?.isin,
-          reuters: stockasticInfo?.reuters,
-          sectorAr: stockasticInfo?.sectorAr,
-          sectorEn: stockasticInfo?.sectorEn,
+          isin: stockasticInfo?.isin || stockasticFin?.isin,
+          reuters: stockasticInfo?.reuters || stockasticFin?.reuters,
+          sectorAr: stockasticInfo?.sectorAr || stockasticFin?.sectorAr || sector,
+          sectorEn: stockasticInfo?.sectorEn || stockasticFin?.sectorEn,
           netIncome: effNetIncome,
           netIncomeRaw: effNetIncome,
           netIncomePeriod: effPeriod,
-          totalRevenue: stockasticFin?.revenue ?? tvInfo?.totalRevenue,
-          grossProfit: stockasticFin?.grossProfit ?? tvInfo?.grossProfit,
-          eps: stockasticFin?.eps ?? (effNetIncome && shares ? Number((effNetIncome / shares).toFixed(2)) : tvInfo?.eps),
-          peRatio: stockasticFin?.peRatio ?? (price && stockasticFin?.eps ? Number((price / stockasticFin.eps).toFixed(2)) : tvInfo?.peRatio),
+          totalRevenue: effRevenue,
+          grossProfit: effGrossProfit,
+          eps: effEps,
+          peRatio: effPeRatio,
           periodNote: effPeriod
         };
-        if (price) validPrices.push(price);
+        if (stockasticInfo?.price) validPrices.push(stockasticInfo.price);
       }
 
       // If no valid source returned price for this stock, skip
