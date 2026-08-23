@@ -116,7 +116,8 @@ function fetchTradingView() {
         'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_book_ratio', 'book_value_per_share',
         'dividend_yield_recent', 'return_on_equity',
         'net_income', 'net_margin', 'operating_margin', 'total_revenue', 'gross_profit',
-        'Recommend.All', 'RSI', 'MACD.macd', 'MACD.signal', 'EMA20', 'EMA50', 'EMA200'
+        'Recommend.All', 'RSI', 'MACD.macd', 'MACD.signal', 'EMA20', 'EMA50', 'EMA200',
+        'earnings_release_date'
       ]
     });
 
@@ -159,10 +160,11 @@ let TV_DETAILED_CACHE_TIME = 0;
 function parseTvPeriod(periodStr) {
   if (!periodStr) return { factor: 1, label: 'سنوي كامل' };
   const yr = periodStr.split('-')[0] || '';
-  if (periodStr.includes('Q1')) return { factor: 4, label: `الربع الأول ${yr} (معدل سنوياً)` };
-  if (periodStr.includes('Q2') || periodStr.includes('H1')) return { factor: 2, label: `النصف الأول ${yr} (معدل سنوياً)` };
-  if (periodStr.includes('Q3') || periodStr.includes('9M')) return { factor: 1.3333, label: `9 أشهر ${yr} (معدل سنوياً)` };
-  return { factor: 1, label: `سنوي كامل ${yr}` };
+  if (periodStr.includes('Q1')) return { factor: 4, label: `الربع الأول ${yr} (معدل سنوياً)`.trim() };
+  if (periodStr.includes('Q2') || periodStr.includes('H1')) return { factor: 2, label: `النصف الأول ${yr} (معدل سنوياً)`.trim() };
+  if (periodStr.includes('Q3') || periodStr.includes('9M')) return { factor: 1.3333, label: `9 أشهر ${yr} (معدل سنوياً)`.trim() };
+  if (periodStr.includes('Q4')) return { factor: 1, label: `الربع الرابع ${yr} (معدل سنوياً)`.trim() };
+  return { factor: 1, label: `سنوي كامل ${yr}`.trim() };
 }
 
 function fetchTvSymbolFinancials(sym) {
@@ -173,7 +175,7 @@ function fetchTvSymbolFinancials(sym) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       },
-      timeout: 4000
+      timeout: 3000
     }, (res) => {
       let b = '';
       res.on('data', c => b += c);
@@ -214,6 +216,29 @@ function fetchTvSymbolFinancials(sym) {
 }
 
 async function fetchTradingViewDetailedMap() {
+  const now = Date.now();
+  if (TV_DETAILED_CACHE.size > 0 && (now - TV_DETAILED_CACHE_TIME < 300000)) {
+    return TV_DETAILED_CACHE;
+  }
+
+  // Pre-fetch priority symbols from watchlist with race timeout
+  const prioritySymbols = Array.from(watchlistMetaMap.keys()).slice(0, 30);
+  if (prioritySymbols.length > 0) {
+    try {
+      const fetchPromise = Promise.all(
+        prioritySymbols.map(sym => fetchTvSymbolFinancials(sym).catch(() => null))
+      );
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve([]), 2500));
+      const results = await Promise.race([fetchPromise, timeoutPromise]);
+      for (const r of results) {
+        if (r && r.sym) {
+          TV_DETAILED_CACHE.set(r.sym, r);
+        }
+      }
+    } catch (e) {}
+  }
+
+  TV_DETAILED_CACHE_TIME = now;
   return TV_DETAILED_CACHE;
 }
 
@@ -505,6 +530,23 @@ function fetchEgxBeta() {
   });
 }
 
+function formatEgxDate(rawDate, writeTime) {
+  if (rawDate && typeof rawDate === 'string') {
+    const datePart = rawDate.split('T')[0];
+    const parts = datePart.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
+  if (writeTime && typeof writeTime === 'string' && writeTime.length >= 8) {
+    const y = writeTime.slice(0, 4);
+    const m = writeTime.slice(4, 6);
+    const d = writeTime.slice(6, 8);
+    return `${d}-${m}-${y}`;
+  }
+  return undefined;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -536,12 +578,15 @@ module.exports = async (req, res) => {
         name, desc, close, changePercent, changeAbs, volume, high, low, open, sector,
         eps, pe, pb, bvps, dy, roe,
         netIncome, netMargin, operatingMargin, totalRevenue, grossProfit,
-        recommendAll, rsi, macd, macdSignal, ema20, ema50, ema200
+        recommendAll, rsi, macd, macdSignal, ema20, ema50, ema200,
+        earningsReleaseDate
       ] = item.d;
 
       const detailed = tvDetailedMap?.get(sym);
       const effectiveNetIncome = (typeof netIncome === 'number' && !isNaN(netIncome)) ? netIncome : detailed?.netIncome;
-      const effectivePeriod = detailed?.netIncomePeriod || (typeof netIncome === 'number' && !isNaN(netIncome) ? 'سنوي كامل' : undefined);
+      const releaseYear = (typeof earningsReleaseDate === 'number' && earningsReleaseDate > 0) ? new Date(earningsReleaseDate * 1000).getFullYear() : undefined;
+      const defaultTvPeriod = releaseYear ? `سنوي كامل ${releaseYear}` : (typeof netIncome === 'number' && !isNaN(netIncome) ? 'سنوي كامل' : undefined);
+      const effectivePeriod = detailed?.netIncomePeriod || defaultTvPeriod;
       const effectiveRevenue = (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : detailed?.totalRevenue;
       const effectiveDy = (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : (detailed?.dividendYield ? Number(detailed.dividendYield.toFixed(2)) : undefined);
 
@@ -637,6 +682,7 @@ module.exports = async (req, res) => {
         const volVal = parseInt(String(item.volume || item.tradedVolume || '0').replace(/,/g, ''), 10);
         const highVal = parseFloat(item.highPrice || item.high);
         const lowVal = parseFloat(item.lowPrice || item.low);
+        const egxFormattedDate = formatEgxDate(item.lastTradeDate, item.writeTime);
 
         egxMap.set(code, {
           price: val,
@@ -646,6 +692,7 @@ module.exports = async (req, res) => {
           dayHigh: !isNaN(highVal) ? highVal : undefined,
           dayLow: !isNaN(lowVal) ? lowVal : undefined,
           netProfit: (typeof item.netProfit === 'number' && !isNaN(item.netProfit)) ? item.netProfit : (parseFloat(item.netProfit) || undefined),
+          formattedDate: egxFormattedDate,
           nameAr: item.nameA || item.name || code,
           nameEn: item.nameE || code
         });
@@ -693,6 +740,9 @@ module.exports = async (req, res) => {
         const upside = (consensusFv && egxInfo.price > 0) ? Number((((consensusFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
 
         const isEgxUsd = (sym === 'ORAS');
+        const dateSuffix = egxInfo.formattedDate ? ` (${egxInfo.formattedDate}${isEgxUsd ? ' - USD' : ''})` : (isEgxUsd ? ' (USD)' : '');
+        const egxPeriod = egxInfo.netProfit ? `إفصاح رسمي${dateSuffix}` : undefined;
+
         sources.egx = {
           price: egxInfo.price,
           currency: isEgxUsd ? 'USD' : 'EGP',
@@ -714,7 +764,7 @@ module.exports = async (req, res) => {
           roe: undefined,
           dividendYield: undefined,
           netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
-          netIncomePeriod: egxInfo.netProfit ? (isEgxUsd ? 'إفصاح رسمي (USD)' : 'إفصاح رسمي') : undefined,
+          netIncomePeriod: egxPeriod,
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
           grossProfit: undefined         // Strict zero-fallback (EGX does not supply total revenue)
         };
