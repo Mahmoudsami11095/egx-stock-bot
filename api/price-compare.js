@@ -336,6 +336,111 @@ function getPeriodLabel(periodMonths, year) {
   return `سنوي كامل${yrStr}`;
 }
 
+const EMBEDDED_OVERRIDES = {
+  "COMI": {
+    "symbol": "COMI",
+    "name": "Commercial International Bank - Egypt",
+    "netProfit": 34500000000,
+    "periodMonths": 6,
+    "totalShares": 3050000000,
+    "dps": 1.25,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 58590000000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 27500000000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 34500000000 }
+    ],
+    "source": "Audited Financial Statement H1 2026 - CIB Egypt",
+    "updatedAt": "2026-08-15"
+  },
+  "SWDY": {
+    "symbol": "SWDY",
+    "name": "Elsewedy Electric Co",
+    "netProfit": 10640000000,
+    "periodMonths": 6,
+    "totalShares": 2170000000,
+    "dps": 0.85,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 19000000000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 9590000000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 10640000000 }
+    ],
+    "source": "Audited Financial Statement H1 2026 - Elsewedy Electric",
+    "updatedAt": "2026-08-17"
+  },
+  "TMGH": {
+    "symbol": "TMGH",
+    "name": "Talaat Moustafa Group Holding",
+    "netProfit": 9100000000,
+    "periodMonths": 12,
+    "totalShares": 2063560000,
+    "dps": 0.45,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 9100000000 }
+    ],
+    "source": "Audited Financial Statement FY2025 - TMG Holding",
+    "updatedAt": "2026-08-15"
+  },
+  "AMOC": {
+    "symbol": "AMOC",
+    "name": "Alexandria Mineral Oils Company",
+    "netProfit": 1900000000,
+    "periodMonths": 6,
+    "totalShares": 1291500000,
+    "dps": 0.65,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 1550000000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 640000000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 1900000000 }
+    ],
+    "source": "Audited Financial Statement H1 2026 - AMOC",
+    "updatedAt": "2026-08-17"
+  },
+  "ORAS": {
+    "symbol": "ORAS",
+    "name": "Orascom Construction PLC",
+    "netProfit": 127800000,
+    "periodMonths": 6,
+    "totalShares": 110180000,
+    "dps": 0.28,
+    "currency": "USD",
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 205700000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 89300000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 127800000 }
+    ],
+    "source": "Audited Financial Statement H1 2026 - Orascom Construction",
+    "updatedAt": "2026-08-17"
+  },
+  "MASR": {
+    "symbol": "MASR",
+    "name": "Madinet Masr",
+    "netProfit": 1027386832,
+    "periodMonths": 6,
+    "totalShares": 2135000000,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 3650000000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 1283358902 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 1027386832 }
+    ],
+    "source": "Audited Financial Statement H1 2026 - Madinet Masr",
+    "updatedAt": "2026-08-17"
+  },
+  "OIH": {
+    "symbol": "OIH",
+    "name": "Orascom Investment Holding",
+    "netProfit": -619528000,
+    "periodMonths": 6,
+    "totalShares": 5245690000,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": -518395000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": -619528000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": -619528000 }
+    ],
+    "source": "Audited Financial Statement - OIH",
+    "updatedAt": "2026-08-17"
+  }
+};
+
 function loadLocalEarningsOverrides() {
   const possiblePaths = [
     path.join(__dirname, '..', 'data', 'earnings_overrides.json'),
@@ -351,11 +456,11 @@ function loadLocalEarningsOverrides() {
       try {
         const raw = fs.readFileSync(p, 'utf-8');
         const json = JSON.parse(raw);
-        if (json && json.overrides) return json.overrides;
+        if (json && json.overrides) return { ...EMBEDDED_OVERRIDES, ...json.overrides };
       } catch (e) {}
     }
   }
-  return {};
+  return EMBEDDED_OVERRIDES;
 }
 
 function calculateFourQuarters(rows, override) {
