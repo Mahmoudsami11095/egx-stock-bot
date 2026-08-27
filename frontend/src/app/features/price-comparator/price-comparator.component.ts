@@ -241,10 +241,10 @@ export interface MetricDefinition {
               <th class="py-3.5 px-3 text-center bg-purple-500/10 text-purple-300">
                 ⚡ Stockastic
               </th>
-              <th class="py-3.5 px-3 text-center bg-cyan-500/10 text-cyan-300" *ngIf="selectedMetric() === 'NET_INCOME'">
+              <th class="py-3.5 px-3 text-center bg-cyan-500/10 text-cyan-300" *ngIf="isGeminiVisible(selectedMetric())">
                 🤖 Gemini AI (مدقق رسمي)
               </th>
-              <th class="py-3.5 px-3 text-center bg-teal-500/10 text-teal-300" *ngIf="selectedMetric() === 'NET_INCOME'">
+              <th class="py-3.5 px-3 text-center bg-teal-500/10 text-teal-300" *ngIf="isGeminiVisible(selectedMetric())">
                 📊 Gemini AI (آخر 4 أرباع TTM)
               </th>
               <th class="py-3.5 px-3 text-center bg-emerald-500/10 text-emerald-300">
@@ -344,29 +344,29 @@ export interface MetricDefinition {
                 <ng-template #noStockastic><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
-              <!-- Gemini AI Audited Earnings (Shown on Net Income) -->
-              <td class="py-3 px-3 text-center bg-cyan-500/5" *ngIf="selectedMetric() === 'NET_INCOME'">
+              <!-- Gemini AI Audited Earnings (Shown on Net Income & Fair Values) -->
+              <td class="py-3 px-3 text-center bg-cyan-500/5" *ngIf="isGeminiVisible(selectedMetric())">
                 <ng-container *ngIf="stock.sources['gemini']; else noGem">
                   <div [class]="getMetricColorClass(stock.sources['gemini'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['gemini'], selectedMetric()) }}
                   </div>
-                  <div class="text-[9px] text-cyan-400 font-bold mt-0.5" *ngIf="stock.sources['gemini'].netIncome && stock.sources['gemini'].netIncomePeriod">
+                  <div class="text-[9px] text-cyan-400 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['gemini'].netIncome && stock.sources['gemini'].netIncomePeriod">
                     {{ stock.sources['gemini'].netIncomePeriod }}
                   </div>
                 </ng-container>
                 <ng-template #noGem><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
-              <!-- Gemini AI Last 4 Quarters / TTM Column (Shown on Net Income) -->
-              <td class="py-3 px-3 text-center bg-teal-500/5" *ngIf="selectedMetric() === 'NET_INCOME'">
+              <!-- Gemini AI Last 4 Quarters / TTM Column (Shown on Net Income & Fair Values) -->
+              <td class="py-3 px-3 text-center bg-teal-500/5" *ngIf="isGeminiVisible(selectedMetric())">
                 <ng-container *ngIf="stock.sources['gemini_4q']; else noGem4q">
                   <div [class]="getMetricColorClass(stock.sources['gemini_4q'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['gemini_4q'], selectedMetric()) }}
                   </div>
-                  <div class="text-[9px] text-teal-400 font-bold mt-0.5" *ngIf="stock.sources['gemini_4q'].netIncomePeriod">
+                  <div class="text-[9px] text-teal-400 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['gemini_4q'].netIncomePeriod">
                     {{ stock.sources['gemini_4q'].netIncomePeriod }}
                   </div>
-                  <div class="text-[8.5px] text-gray-400 font-mono mt-0.5 truncate max-w-[150px] mx-auto" *ngIf="stock.sources['gemini_4q'].quarterlyBreakdown" [title]="stock.sources['gemini_4q'].quarterlyBreakdown">
+                  <div class="text-[8.5px] text-gray-400 font-mono mt-0.5 truncate max-w-[150px] mx-auto" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['gemini_4q'].quarterlyBreakdown" [title]="stock.sources['gemini_4q'].quarterlyBreakdown">
                     {{ stock.sources['gemini_4q'].quarterlyBreakdown }}
                   </div>
                 </ng-container>
@@ -929,6 +929,10 @@ export class PriceComparatorComponent implements OnInit {
       return 'text-gray-200';
     }
     return 'text-white';
+  }
+
+  public isGeminiVisible(metric: ComparatorMetricType): boolean {
+    return metric === 'NET_INCOME' || metric.startsWith('FAIR_VALUE') || metric === 'UPSIDE_PERCENT' || metric === 'EPS' || metric === 'PE_RATIO';
   }
 
   public openDetail(stock: PriceComparisonResult): void {

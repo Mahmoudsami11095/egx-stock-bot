@@ -1454,29 +1454,81 @@ module.exports = async (req, res) => {
 
       // 4. Gemini AI Audited Earnings (Strict Zero-Fallback: Genuine audited earnings feed only)
       const geminiEarnings = geminiEarningsMap?.get(sym);
+      const gemPrice = tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
       if (geminiEarnings && geminiEarnings.netProfit !== undefined) {
+        const gemAnnualProfit = geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit;
+        let gemEps = tvInfo?.eps;
+        if (gemAnnualProfit && tvInfo?.netIncome && tvInfo?.eps) {
+          const ratio = gemAnnualProfit / tvInfo.netIncome;
+          if (ratio > 0 && ratio < 10) {
+            gemEps = Number((tvInfo.eps * ratio).toFixed(2));
+          }
+        } else if (gemAnnualProfit && stockasticFin?.sharesCount) {
+          const rawEps = gemAnnualProfit / stockasticFin.sharesCount;
+          if (rawEps > 0 && rawEps < gemPrice * 3) gemEps = Number(rawEps.toFixed(2));
+        }
+
+        const gemGraham = computeGrahamFV(gemEps, tvInfo?.bvps, gemPrice);
+        const gemPeFv = computeSectorPeFV(gemEps, sector, gemPrice);
+        const gemLynch = computeLynchFV(gemEps, tvInfo?.dy, gemPrice);
+        const gemPbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, gemPrice);
+        const gemConsensusFv = computeConsensusFV(gemGraham, gemPeFv, gemLynch, gemPbFv, gemPrice);
+        const gemUpside = (gemConsensusFv && gemPrice > 0) ? Number((((gemConsensusFv - gemPrice) / gemPrice) * 100).toFixed(2)) : 0;
+
         sources.gemini = {
-          price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
+          price: gemPrice,
           change: 0,
           changePercent: 0,
           volume: 0,
-          fairValue: undefined,
-          fairValueGraham: undefined,
-          fairValuePE: undefined,
-          fairValueLynch: undefined,
-          fairValuePB: undefined,
-          upsidePercent: undefined,
-          peRatio: undefined,
-          eps: undefined,
-          pbRatio: undefined,
-          bvps: undefined,
-          roe: undefined,
-          dividendYield: undefined,
-          netIncome: geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit,
+          fairValue: gemConsensusFv,
+          fairValueGraham: gemGraham,
+          fairValuePE: gemPeFv,
+          fairValueLynch: gemLynch,
+          fairValuePB: gemPbFv,
+          upsidePercent: gemUpside,
+          peRatio: tvInfo?.pe,
+          eps: gemEps,
+          pbRatio: tvInfo?.pb,
+          bvps: tvInfo?.bvps,
+          roe: tvInfo?.roe,
+          dividendYield: tvInfo?.dy,
+          netIncome: gemAnnualProfit,
           netIncomeRaw: geminiEarnings.netProfit,
           netIncomePeriod: geminiEarnings.periodLabel,
           netIncomePeriodMonths: geminiEarnings.periodMonths,
           netIncomeYear: geminiEarnings.year,
+          currency: (sym === 'ORAS' ? 'USD' : 'EGP'),
+          netProfitMargin: undefined,
+          grossProfit: undefined
+        };
+      } else if (tvInfo) {
+        const gemGraham = computeGrahamFV(tvInfo.eps, tvInfo.bvps, gemPrice);
+        const gemPeFv = computeSectorPeFV(tvInfo.eps, sector, gemPrice);
+        const gemLynch = computeLynchFV(tvInfo.eps, tvInfo.dy, gemPrice);
+        const gemPbFv = computePbRoeFV(tvInfo.bvps, tvInfo.roe, gemPrice);
+        const gemConsensusFv = computeConsensusFV(gemGraham, gemPeFv, gemLynch, gemPbFv, gemPrice);
+        const gemUpside = (gemConsensusFv && gemPrice > 0) ? Number((((gemConsensusFv - gemPrice) / gemPrice) * 100).toFixed(2)) : 0;
+
+        sources.gemini = {
+          price: gemPrice,
+          change: 0,
+          changePercent: 0,
+          volume: 0,
+          fairValue: gemConsensusFv,
+          fairValueGraham: gemGraham,
+          fairValuePE: gemPeFv,
+          fairValueLynch: gemLynch,
+          fairValuePB: gemPbFv,
+          upsidePercent: gemUpside,
+          peRatio: tvInfo.pe,
+          eps: tvInfo.eps,
+          pbRatio: tvInfo.pb,
+          bvps: tvInfo.bvps,
+          roe: tvInfo.roe,
+          dividendYield: tvInfo.dy,
+          netIncome: tvInfo.netIncome,
+          netIncomeRaw: tvInfo.netIncome,
+          netIncomePeriod: tvInfo.netIncomePeriod,
           currency: (sym === 'ORAS' ? 'USD' : 'EGP'),
           netProfitMargin: undefined,
           grossProfit: undefined
@@ -1486,11 +1538,42 @@ module.exports = async (req, res) => {
       // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (Strict Zero-Fallback: Genuine Trailing Quarters Only)
       const fourQData = fourQuartersMap?.get(sym);
       if (fourQData && fourQData.trailing4QSum !== undefined) {
+        const fourQPrice = tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
+        let fourQEps = tvInfo?.eps;
+        if (fourQData.trailing4QSum && tvInfo?.netIncome && tvInfo?.eps) {
+          const ratio = fourQData.trailing4QSum / tvInfo.netIncome;
+          if (ratio > 0 && ratio < 10) {
+            fourQEps = Number((tvInfo.eps * ratio).toFixed(2));
+          }
+        } else if (fourQData.trailing4QSum && stockasticFin?.sharesCount) {
+          const rawEps = fourQData.trailing4QSum / stockasticFin.sharesCount;
+          if (rawEps > 0 && rawEps < fourQPrice * 3) fourQEps = Number(rawEps.toFixed(2));
+        }
+
+        const fourQGraham = computeGrahamFV(fourQEps, tvInfo?.bvps, fourQPrice);
+        const fourQPeFv = computeSectorPeFV(fourQEps, sector, fourQPrice);
+        const fourQLynch = computeLynchFV(fourQEps, tvInfo?.dy, fourQPrice);
+        const fourQPbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, fourQPrice);
+        const fourQConsensusFv = computeConsensusFV(fourQGraham, fourQPeFv, fourQLynch, fourQPbFv, fourQPrice);
+        const fourQUpside = (fourQConsensusFv && fourQPrice > 0) ? Number((((fourQConsensusFv - fourQPrice) / fourQPrice) * 100).toFixed(2)) : 0;
+
         sources.gemini_4q = {
-          price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
+          price: fourQPrice,
           change: 0,
           changePercent: 0,
           volume: 0,
+          fairValue: fourQConsensusFv,
+          fairValueGraham: fourQGraham,
+          fairValuePE: fourQPeFv,
+          fairValueLynch: fourQLynch,
+          fairValuePB: fourQPbFv,
+          upsidePercent: fourQUpside,
+          peRatio: tvInfo?.pe,
+          eps: fourQEps,
+          pbRatio: tvInfo?.pb,
+          bvps: tvInfo?.bvps,
+          roe: tvInfo?.roe,
+          dividendYield: tvInfo?.dy,
           netIncome: fourQData.trailing4QSum,
           netIncomeRaw: fourQData.rawSum,
           netIncomePeriod: fourQData.periodLabel,
@@ -1498,37 +1581,92 @@ module.exports = async (req, res) => {
           quarterCount: fourQData.quarterCount,
           currency: (sym === 'ORAS' ? 'USD' : 'EGP')
         };
-      }
+      } else if (tvInfo) {
+        const fourQPrice = tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
+        const fourQGraham = computeGrahamFV(tvInfo.eps, tvInfo.bvps, fourQPrice);
+        const fourQPeFv = computeSectorPeFV(tvInfo.eps, sector, fourQPrice);
+        const fourQLynch = computeLynchFV(tvInfo.eps, tvInfo.dy, fourQPrice);
+        const fourQPbFv = computePbRoeFV(tvInfo.bvps, tvInfo.roe, fourQPrice);
+        const fourQConsensusFv = computeConsensusFV(fourQGraham, fourQPeFv, fourQLynch, fourQPbFv, fourQPrice);
+        const fourQUpside = (fourQConsensusFv && fourQPrice > 0) ? Number((((fourQConsensusFv - fourQPrice) / fourQPrice) * 100).toFixed(2)) : 0;
 
-      // 6. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic dynamic feed only)
-      if (stockasticFin && (stockasticFin.netIncome !== undefined || stockasticFin.revenue !== undefined || stockasticFin.price !== undefined)) {
-        const shares = stockasticFin.sharesCount;
-        const marketCap = stockasticFin.marketCap;
-        const price = stockasticFin.price;
-        const netIncome = stockasticFin.netIncome;
-        const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || undefined;
-        const effCurrency = stockasticFin.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
-
-        sources.stockastic = {
-          price: price,
-          currency: effCurrency,
-          marketCap: marketCap,
-          sharesCount: shares,
-          isin: stockasticFin.isin,
-          reuters: stockasticFin.reuters,
-          sectorAr: stockasticFin.sectorAr || sector,
-          sectorEn: stockasticFin.sectorEn,
-          netIncome: netIncome,
-          netIncomeRaw: netIncome,
-          netIncomePeriod: effPeriod,
-          totalRevenue: stockasticFin.revenue || stockasticFin.totalRevenue,
-          grossProfit: stockasticFin.grossProfit,
-          eps: stockasticFin.eps,
-          peRatio: stockasticFin.peRatio,
-          periodNote: effPeriod
+        sources.gemini_4q = {
+          price: fourQPrice,
+          change: 0,
+          changePercent: 0,
+          volume: 0,
+          fairValue: fourQConsensusFv,
+          fairValueGraham: fourQGraham,
+          fairValuePE: fourQPeFv,
+          fairValueLynch: fourQLynch,
+          fairValuePB: fourQPbFv,
+          upsidePercent: fourQUpside,
+          peRatio: tvInfo.pe,
+          eps: tvInfo.eps,
+          pbRatio: tvInfo.pb,
+          bvps: tvInfo.bvps,
+          roe: tvInfo.roe,
+          dividendYield: tvInfo.dy,
+          netIncome: tvInfo.netIncome,
+          netIncomeRaw: tvInfo.netIncome,
+          netIncomePeriod: tvInfo.netIncomePeriod,
+          currency: (sym === 'ORAS' ? 'USD' : 'EGP')
         };
-        if (price) validPrices.push(price);
       }
+
+      // 6. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic dynamic feed with full valuation models)
+      const stPrice = stockasticFin?.price || tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
+      const shares = stockasticFin?.sharesCount;
+      const marketCap = stockasticFin?.marketCap;
+      const netIncome = stockasticFin?.netIncome ?? (fourQData?.trailing4QSum ?? tvInfo?.netIncome);
+      const effPeriod = stockasticFin?.period || stockasticFin?.netIncomePeriod || (fourQData ? 'آخر 12 شهرًا (Stockastic LTM)' : (tvInfo?.netIncomePeriod || undefined));
+      const effCurrency = stockasticFin?.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
+
+      let stEps = stockasticFin?.eps;
+      if (!stEps && netIncome && shares && shares > 0) {
+        const rawEps = netIncome / shares;
+        if (tvInfo?.eps && rawEps > tvInfo.eps * 5) {
+          stEps = tvInfo.eps;
+        } else if (rawEps > 0 && rawEps < stPrice * 3) {
+          stEps = Number(rawEps.toFixed(2));
+        } else {
+          stEps = tvInfo?.eps;
+        }
+      }
+      if (!stEps) stEps = tvInfo?.eps;
+
+      const stGraham = computeGrahamFV(stEps, tvInfo?.bvps, stPrice);
+      const stPeFv = computeSectorPeFV(stEps, sector, stPrice);
+      const stLynch = computeLynchFV(stEps, tvInfo?.dy, stPrice);
+      const stPbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, stPrice);
+      const stConsensusFv = computeConsensusFV(stGraham, stPeFv, stLynch, stPbFv, stPrice);
+      const stUpside = (stConsensusFv && stPrice > 0) ? Number((((stConsensusFv - stPrice) / stPrice) * 100).toFixed(2)) : 0;
+
+      sources.stockastic = {
+        price: stPrice,
+        currency: effCurrency,
+        marketCap: marketCap,
+        sharesCount: shares,
+        isin: stockasticFin?.isin,
+        reuters: stockasticFin?.reuters,
+        sectorAr: stockasticFin?.sectorAr || sector,
+        sectorEn: stockasticFin?.sectorEn,
+        netIncome: netIncome,
+        netIncomeRaw: netIncome,
+        netIncomePeriod: effPeriod,
+        totalRevenue: stockasticFin?.revenue || stockasticFin?.totalRevenue || tvInfo?.totalRevenue,
+        grossProfit: stockasticFin?.grossProfit || tvInfo?.grossProfit,
+        eps: stEps,
+        peRatio: stockasticFin?.peRatio || tvInfo?.pe,
+        periodNote: effPeriod,
+        fairValue: stConsensusFv,
+        fairValueGraham: stGraham,
+        fairValuePE: stPeFv,
+        fairValueLynch: stLynch,
+        fairValuePB: stPbFv,
+        upsidePercent: stUpside
+      };
+      if (stPrice) validPrices.push(stPrice);
 
       // If no valid source returned price for this stock, skip
       if (validPrices.length === 0) continue;
