@@ -233,6 +233,8 @@ export interface SourcePriceData {
   marketCap?: number;
   sharesCount?: number;
   periodNote?: string;
+  quarterlyBreakdown?: string;
+  quarterCount?: number;
   currency?: string;
 }
 

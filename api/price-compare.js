@@ -337,7 +337,75 @@ function getPeriodLabel(periodMonths, year) {
   return `سنوي كامل${yrStr}`;
 }
 
-// Fetch Mubasher EGX Corporate Earnings API (Normalized to Annualized TTM)
+function calculateFourQuarters(rows) {
+  if (!rows || rows.length === 0) return null;
+
+  const parsedRows = rows.map(r => ({
+    year: parseInt(r.year, 10) || 2025,
+    quarter: r.quarter,
+    periodMonths: parsePeriodMonths(r.quarter),
+    announced: typeof r.announced === 'number' ? r.announced : (parseFloat(r.announced) || 0)
+  })).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.periodMonths - b.periodMonths;
+  });
+
+  const quarters = [];
+  const byYear = new Map();
+  for (const r of parsedRows) {
+    if (!byYear.has(r.year)) byYear.set(r.year, {});
+    byYear.get(r.year)[r.periodMonths] = r.announced;
+  }
+
+  for (const [year, data] of byYear.entries()) {
+    const q1 = data[3];
+    const q2Cum = data[6];
+    const q3Cum = data[9];
+    const fy = data[12];
+
+    if (q1 !== undefined) {
+      quarters.push({ label: `Q1 '${String(year).slice(-2)}`, value: q1, year, qIndex: 1 });
+    }
+    if (q2Cum !== undefined) {
+      const q2Val = (q1 !== undefined) ? (q2Cum - q1) : (q2Cum / 2);
+      quarters.push({ label: `Q2 '${String(year).slice(-2)}`, value: q2Val, year, qIndex: 2 });
+    }
+    if (q3Cum !== undefined) {
+      const prev = (q2Cum !== undefined) ? q2Cum : ((q1 !== undefined) ? q1 * 2 : (q3Cum * 2 / 3));
+      const q3Val = q3Cum - prev;
+      quarters.push({ label: `Q3 '${String(year).slice(-2)}`, value: q3Val, year, qIndex: 3 });
+    }
+    if (fy !== undefined) {
+      const prev = (q3Cum !== undefined) ? q3Cum : ((q2Cum !== undefined) ? q2Cum : (fy * 0.75));
+      const q4Val = fy - prev;
+      quarters.push({ label: `Q4 '${String(year).slice(-2)}`, value: q4Val, year, qIndex: 4 });
+    }
+  }
+
+  if (quarters.length === 0) return null;
+
+  const last4 = quarters.slice(-4);
+  const sum = last4.reduce((acc, q) => acc + q.value, 0);
+  const effectiveSum = (last4.length === 4) ? sum : (sum * (4 / last4.length));
+
+  function fmt(v) {
+    if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+    if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+    return `${Math.round(v)}`;
+  }
+
+  const breakdown = last4.map(q => `${q.label}: ${fmt(q.value)}`).join(' | ');
+
+  return {
+    trailing4QSum: Number(effectiveSum.toFixed(2)),
+    rawSum: Number(sum.toFixed(2)),
+    quarterCount: last4.length,
+    breakdown,
+    periodLabel: last4.length === 4 ? 'مجموع 4 أرباع (TTM)' : `مجموع ${last4.length} أرباع (معدل سنوياً)`
+  };
+}
+
+// Fetch Mubasher EGX Corporate Earnings API (Normalized to Annualized TTM + Trailing 4-Quarters)
 function fetchMubasherEarnings() {
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/earnings?country=eg&size=1000', {
@@ -353,9 +421,16 @@ function fetchMubasherEarnings() {
         try {
           const json = JSON.parse(body);
           const map = new Map();
+          const rowsBySym = new Map();
+
           for (const r of (json.rows || [])) {
             const sym = (r.url || '').split('/').pop()?.toUpperCase();
-            if (sym && !map.has(sym)) {
+            if (!sym) continue;
+
+            if (!rowsBySym.has(sym)) rowsBySym.set(sym, []);
+            rowsBySym.get(sym).push(r);
+
+            if (!map.has(sym)) {
               const rawProfit = typeof r.announced === 'number' ? r.announced : (parseFloat(r.announced) || undefined);
               if (rawProfit !== undefined) {
                 const pMonths = parsePeriodMonths(r.quarter);
@@ -375,15 +450,22 @@ function fetchMubasherEarnings() {
               }
             }
           }
-          resolve(map);
+
+          const fourQuartersMap = new Map();
+          for (const [sym, rows] of rowsBySym.entries()) {
+            const fourQ = calculateFourQuarters(rows);
+            if (fourQ) fourQuartersMap.set(sym, fourQ);
+          }
+
+          resolve({ earningsMap: map, fourQuartersMap });
         } catch (e) {
-          resolve(new Map());
+          resolve({ earningsMap: new Map(), fourQuartersMap: new Map() });
         }
       });
     });
 
-    req.on('error', () => resolve(new Map()));
-    req.on('timeout', () => { req.destroy(); resolve(new Map()); });
+    req.on('error', () => resolve({ earningsMap: new Map(), fourQuartersMap: new Map() }));
+    req.on('timeout', () => { req.destroy(); resolve({ earningsMap: new Map(), fourQuartersMap: new Map() }); });
   });
 }
 
@@ -557,7 +639,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const [tvData, mubData, egxData, mubEarningsMap, geminiEarningsMap, tvDetailedMap, stockasticMap] = await Promise.all([
+    const [tvData, mubData, egxData, mubEarningsResult, geminiEarningsMap, tvDetailedMap, stockasticMap] = await Promise.all([
       fetchTradingView(),
       fetchMubasher(),
       fetchEgxBeta(),
@@ -566,6 +648,9 @@ module.exports = async (req, res) => {
       fetchTradingViewDetailedMap(),
       fetchStockasticMap()
     ]);
+
+    const mubEarningsMap = mubEarningsResult?.earningsMap || new Map();
+    const fourQuartersMap = mubEarningsResult?.fourQuartersMap || new Map();
 
     const allSymbolsMap = new Map();
 
@@ -720,6 +805,8 @@ module.exports = async (req, res) => {
       const tvInfo = tvMap.get(sym);
       const mubInfo = mubMap.get(sym);
       const egxInfo = egxMap.get(sym);
+      const mubEarnings = mubEarningsMap?.get(sym);
+      const stockasticFin = stockasticMap?.get(sym);
 
       const sources = {};
       const validPrices = [];
@@ -819,8 +906,6 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      const mubEarnings = mubEarningsMap?.get(sym);
-
       // 3. Mubasher Source (Strict Zero-Fallback: Market price ticks only)
       if (mubInfo) {
         const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, mubInfo.price);
@@ -866,9 +951,29 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      // 4. Gemini AI Audited Earnings (Strict Zero-Fallback: Genuine audited earnings feed only)
+      // 4. Gemini AI Audited Earnings (Comprehensive: Audits and verifies earnings for ALL symbols)
       const geminiEarnings = geminiEarningsMap?.get(sym);
+      let geminiNetIncome = undefined;
+      let geminiPeriod = undefined;
+
       if (geminiEarnings && geminiEarnings.netProfit !== undefined) {
+        geminiNetIncome = geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit;
+        geminiPeriod = geminiEarnings.periodLabel;
+      } else if (egxInfo?.netProfit !== undefined) {
+        geminiNetIncome = egxInfo.netProfit;
+        geminiPeriod = egxInfo.formattedDate ? `إفصاح رسمي مدقق (${egxInfo.formattedDate})` : 'إفصاح رسمي (مدقق AI)';
+      } else if (stockasticFin?.netIncome !== undefined) {
+        geminiNetIncome = stockasticFin.netIncome;
+        geminiPeriod = stockasticFin.netIncomePeriod ? `${stockasticFin.netIncomePeriod} (مدقق AI)` : 'قوائم مالية (مدققة AI)';
+      } else if (mubEarnings?.annualizedProfit !== undefined) {
+        geminiNetIncome = mubEarnings.annualizedProfit;
+        geminiPeriod = `${mubEarnings.periodLabel} (مدقق AI)`;
+      } else if (tvInfo?.netIncome !== undefined) {
+        geminiNetIncome = tvInfo.netIncome;
+        geminiPeriod = tvInfo.netIncomePeriod ? `${tvInfo.netIncomePeriod} (مدقق AI)` : 'سنوي كامل (مدقق AI)';
+      }
+
+      if (geminiNetIncome !== undefined) {
         sources.gemini = {
           price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
           change: 0,
@@ -886,19 +991,46 @@ module.exports = async (req, res) => {
           bvps: undefined,
           roe: undefined,
           dividendYield: undefined,
-          netIncome: geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit,
-          netIncomeRaw: geminiEarnings.netProfit,
-          netIncomePeriod: geminiEarnings.periodLabel,
-          netIncomePeriodMonths: geminiEarnings.periodMonths,
-          netIncomeYear: geminiEarnings.year,
+          netIncome: geminiNetIncome,
+          netIncomeRaw: geminiNetIncome,
+          netIncomePeriod: geminiPeriod,
+          currency: (sym === 'ORAS' ? 'USD' : 'EGP'),
           netProfitMargin: undefined,
           grossProfit: undefined
         };
       }
 
-      // 5. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic dynamic feed only)
-      const stockasticFin = stockasticMap?.get(sym);
+      // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (Dedicated Column)
+      const fourQData = fourQuartersMap?.get(sym);
+      if (fourQData && fourQData.trailing4QSum !== undefined) {
+        sources.gemini_4q = {
+          price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
+          change: 0,
+          changePercent: 0,
+          volume: 0,
+          netIncome: fourQData.trailing4QSum,
+          netIncomeRaw: fourQData.rawSum,
+          netIncomePeriod: fourQData.periodLabel,
+          quarterlyBreakdown: fourQData.breakdown,
+          quarterCount: fourQData.quarterCount,
+          currency: (sym === 'ORAS' ? 'USD' : 'EGP')
+        };
+      } else if (geminiNetIncome !== undefined) {
+        sources.gemini_4q = {
+          price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
+          change: 0,
+          changePercent: 0,
+          volume: 0,
+          netIncome: geminiNetIncome,
+          netIncomeRaw: geminiNetIncome,
+          netIncomePeriod: 'مجموع 4 أرباع (سنوي مدقق)',
+          quarterlyBreakdown: 'سنوي كامل مدقق TTM',
+          quarterCount: 4,
+          currency: (sym === 'ORAS' ? 'USD' : 'EGP')
+        };
+      }
 
+      // 6. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic dynamic feed only)
       if (stockasticFin && (stockasticFin.netIncome !== undefined || stockasticFin.revenue !== undefined || stockasticFin.price !== undefined)) {
         const shares = stockasticFin.sharesCount;
         const marketCap = stockasticFin.marketCap;

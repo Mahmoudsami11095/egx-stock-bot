@@ -242,7 +242,10 @@ export interface MetricDefinition {
                 ⚡ Stockastic
               </th>
               <th class="py-3.5 px-3 text-center bg-cyan-500/10 text-cyan-300" *ngIf="selectedMetric() === 'NET_INCOME'">
-                🤖 Gemini AI (مدقق)
+                🤖 Gemini AI (مدقق رسمي)
+              </th>
+              <th class="py-3.5 px-3 text-center bg-teal-500/10 text-teal-300" *ngIf="selectedMetric() === 'NET_INCOME'">
+                📊 Gemini AI (آخر 4 أرباع TTM)
               </th>
               <th class="py-3.5 px-3 text-center bg-emerald-500/10 text-emerald-300">
                 متوسط الإجماع (Consensus)
@@ -354,6 +357,22 @@ export interface MetricDefinition {
                 <ng-template #noGem><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
+              <!-- Gemini AI Last 4 Quarters / TTM Column (Shown on Net Income) -->
+              <td class="py-3 px-3 text-center bg-teal-500/5" *ngIf="selectedMetric() === 'NET_INCOME'">
+                <ng-container *ngIf="stock.sources['gemini_4q']; else noGem4q">
+                  <div [class]="getMetricColorClass(stock.sources['gemini_4q'], selectedMetric())" class="font-black text-xs">
+                    {{ formatSourceMetric(stock.sources['gemini_4q'], selectedMetric()) }}
+                  </div>
+                  <div class="text-[9px] text-teal-400 font-bold mt-0.5" *ngIf="stock.sources['gemini_4q'].netIncomePeriod">
+                    {{ stock.sources['gemini_4q'].netIncomePeriod }}
+                  </div>
+                  <div class="text-[8.5px] text-gray-400 font-mono mt-0.5 truncate max-w-[150px] mx-auto" *ngIf="stock.sources['gemini_4q'].quarterlyBreakdown" [title]="stock.sources['gemini_4q'].quarterlyBreakdown">
+                    {{ stock.sources['gemini_4q'].quarterlyBreakdown }}
+                  </div>
+                </ng-container>
+                <ng-template #noGem4q><span class="text-xs text-gray-500">—</span></ng-template>
+              </td>
+
               <!-- Consensus Average -->
               <td class="py-3 px-3 text-center bg-emerald-500/5 font-black text-emerald-400">
                 <div class="text-xs">{{ formatStockConsensus(stock, selectedMetric()) }}</div>
@@ -386,7 +405,7 @@ export interface MetricDefinition {
 
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="10" class="text-center py-12 text-gray-400">
+              <td colspan="11" class="text-center py-12 text-gray-400">
                 <div class="space-y-2">
                   <i class="pi pi-search text-3xl text-gray-500"></i>
                   <p class="font-bold">لا توجد بيانات مطابقة لخيارات البحث أو الفلتر الحالية</p>
@@ -414,6 +433,25 @@ export interface MetricDefinition {
             <div class="text-right">
               <span class="text-[11px] text-gray-400 block font-bold">متوسط السعر المعروض</span>
               <strong class="text-xl text-emeraldAccent font-black">{{ selectedStock()?.averagePrice }} ج.م</strong>
+            </div>
+          </div>
+
+          <!-- Gemini AI Audited & 4-Quarters Breakdown Banner -->
+          <div *ngIf="selectedStock()?.sources?.['gemini'] || selectedStock()?.sources?.['gemini_4q']" class="bg-darkBg/90 p-3.5 rounded-xl border border-cyan-500/30 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-extrabold text-cyan-300 flex items-center gap-1.5">
+                <span>🤖</span>
+                <span>تدقيق Gemini AI ومجموع الأرباع المتتالية (TTM):</span>
+              </span>
+              <span class="text-cyan-400 font-black text-sm" *ngIf="selectedStock()?.sources?.['gemini_4q']?.netIncome">
+                {{ formatSourceMetric(selectedStock()?.sources?.['gemini_4q'], 'NET_INCOME') }}
+              </span>
+            </div>
+            <div class="text-[11px] text-gray-300 flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-darkBorder/60" *ngIf="selectedStock()?.sources?.['gemini_4q']?.quarterlyBreakdown">
+              <span class="text-gray-400">تفصيل الأرباع:</span>
+              <span class="font-mono text-cyan-200 font-bold bg-darkCard px-2.5 py-1 rounded-lg border border-darkBorder">
+                {{ selectedStock()?.sources?.['gemini_4q']?.quarterlyBreakdown }}
+              </span>
             </div>
           </div>
 
