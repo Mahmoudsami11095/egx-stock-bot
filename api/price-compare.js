@@ -45,13 +45,56 @@ const CANONICAL_STOCK_SECTORS = {
   'ELKA': 'Real Estate',
   'EMFD': 'Real Estate',
   'AREH': 'Real Estate',
+  'ZMID': 'Real Estate',
+  'ELSH': 'Real Estate',
+  'UNIT': 'Real Estate',
+  'ARAB': 'Real Estate',
+  'PRDC': 'Real Estate',
+  'MAAL': 'Real Estate',
+  'OBRI': 'Real Estate',
+  'ADRI': 'Real Estate',
+  'NHPS': 'Real Estate',
+  'MENA': 'Real Estate',
+  'GPIM': 'Real Estate',
+  'DAPH': 'Real Estate',
+  'GPPL': 'Real Estate',
+  'ROTO': 'Tourism & Leisure',
+  'DCRC': 'Real Estate',
+  'FIRE': 'Real Estate',
+  'UTOP': 'Real Estate',
+  'CCRS': 'Real Estate',
+  'TANM': 'Real Estate',
+  'ACAP': 'Real Estate',
+  'EALR': 'Real Estate',
+  'AALR': 'Real Estate',
+  'BONY': 'Real Estate',
   'COMI': 'Banks',
   'ADIB': 'Banks',
   'CIEB': 'Banks',
   'HDBK': 'Banks',
   'FAIT': 'Banks',
+  'FAITA': 'Banks',
   'QNBA': 'Banks',
+  'QNBE': 'Banks',
   'SAIB': 'Banks',
+  'EGBE': 'Banks',
+  'CANA': 'Banks',
+  'EXPA': 'Banks',
+  'SAUD': 'Banks',
+  'NBKE': 'Banks',
+  'UBEE': 'Banks',
+  'HRHO': 'Non-Banking Financial Services',
+  'BTFH': 'Non-Banking Financial Services',
+  'CICH': 'Non-Banking Financial Services',
+  'VALU': 'Non-Banking Financial Services',
+  'CNFN': 'Non-Banking Financial Services',
+  'ATLC': 'Non-Banking Financial Services',
+  'ICLE': 'Non-Banking Financial Services',
+  'BINV': 'Non-Banking Financial Services',
+  'CCAP': 'Non-Banking Financial Services',
+  'PRMH': 'Non-Banking Financial Services',
+  'MOIN': 'Insurance',
+  'DEIN': 'Insurance',
   'SWDY': 'Industrial Cables & Energy',
   'AMOC': 'Oil & Gas',
   'ORAS': 'Construction',
@@ -66,7 +109,6 @@ const CANONICAL_STOCK_SECTORS = {
   'JUFO': 'Food & Beverage',
   'DOMT': 'Food & Beverage',
   'EFID': 'Food & Beverage',
-  'OBRI': 'Food & Beverage',
   'ORWE': 'Textiles & Consumer Goods',
   'AUTO': 'Consumer Goods',
   'RMDA': 'Pharmaceuticals',
@@ -74,6 +116,52 @@ const CANONICAL_STOCK_SECTORS = {
   'MPCI': 'Pharmaceuticals',
   'CLHO': 'Healthcare'
 };
+
+function resolveCanonicalSector(sym, nameAr, nameEn, tvSector, tvIndustry) {
+  if (sym && CANONICAL_STOCK_SECTORS[sym.toUpperCase()]) return CANONICAL_STOCK_SECTORS[sym.toUpperCase()];
+
+  const ind = tvIndustry || '';
+  const text = `${sym} ${nameEn || ''} ${nameAr || ''}`.toLowerCase();
+
+  // 1. Industry-specific Mapping
+  if (ind === 'Real Estate Development' || ind === 'Homebuilding') return 'Real Estate';
+  if (ind === 'Regional Banks' || ind === 'Major Banks') return 'Banks';
+  if (ind.includes('Insurance')) return 'Insurance';
+  if (ind.includes('Investment') || ind.includes('Financial') || ind.includes('Brokers') || ind.includes('Leasing') || ind.includes('Finance/Rental')) return 'Non-Banking Financial Services';
+  if (ind.includes('Pharmaceutical') || ind.includes('Health') || ind.includes('Medical')) return 'Pharmaceuticals';
+  if (ind.includes('Food') || ind.includes('Milling') || ind.includes('Agricultural Commodities') || ind.includes('Candy') || ind.includes('Dairy')) return 'Food & Beverage';
+  if (ind.includes('Chemical') || ind.includes('Fertilizer') || ind.includes('Petrochemical')) return 'Petrochemicals & Fertilizers';
+  if (ind.includes('Construction Materials') || ind.includes('Building Products') || ind.includes('Steel') || ind.includes('Aluminum') || ind.includes('Metal Fabrication')) return 'Building Materials';
+  if (ind.includes('Engineering & Construction')) return 'Construction';
+  if (ind.includes('Telecommunication')) return 'Telecommunications';
+  if (ind.includes('Software') || ind.includes('Technology')) return 'Technology & FinTech';
+  if (ind.includes('Oil') || ind.includes('Gas') || ind.includes('Drilling') || ind.includes('Oil Refining')) return 'Oil & Gas';
+  if (ind.includes('Shipping') || ind.includes('Transportation') || ind.includes('Marine')) return 'Shipping & Transportation';
+  if (ind.includes('Hotels') || ind.includes('Tourism') || ind.includes('Cruise')) return 'Tourism & Leisure';
+  if (ind.includes('Textile') || ind.includes('Apparel') || ind.includes('Furnishings')) return 'Textiles & Consumer Goods';
+
+  // 2. Multilingual Keyword Match
+  if (/إسكان|تعمير|عقارات|عقاري|تطوير عمراني|تنمية عمرانية|أراضي|استثمار عقاري|معادي|مدينة|housing|real estate|development|properties|urban|reconstruction/i.test(text)) return 'Real Estate';
+  if (/بنك|مصرف|مصرفي|bank/i.test(text)) return 'Banks';
+  if (/تأمين|insurance/i.test(text)) return 'Insurance';
+  if (/أوراق مالية|سمسرة|تداول|تأجير تمويلي|استثمارات مالية|holding|invest|capital|leasing|securities|brokerage/i.test(text)) return 'Non-Banking Financial Services';
+  if (/أدوية|فارما|صيدل|علاج|pharma|medical|health/i.test(text)) return 'Pharmaceuticals';
+  if (/مطاحن|مخابز|أغذية|مشروبات|ألبان|سكر|زيوت طعام|شاي|food|beverage|mills|sugar|dairy|flour/i.test(text)) return 'Food & Beverage';
+  if (/أسمدة|كيماويات|بتروكيماويات|كيميا|fertilizer|chemical|petro/i.test(text)) return 'Petrochemicals & Fertilizers';
+  if (/أسمنت|سيراميك|حديد|صلب|ألومنيوم|رخام|محاجر|مواسير|cement|ceramic|steel|aluminum|building|glass/i.test(text)) return 'Building Materials';
+  if (/مقاولات|إنشاءات|هندسة|construction|contracting|engineering/i.test(text)) return 'Construction';
+  if (/اتصالات|telecom|communication/i.test(text)) return 'Telecommunications';
+  if (/تكنولوجيا|مدفوعات|برمجيات|fintech|software|tech|electronic/i.test(text)) return 'Technology & FinTech';
+  if (/بترول|غاز|تكرير|زيت معدني|oil|gas|petroleum|minerals/i.test(text)) return 'Oil & Gas';
+  if (/ملاحة|شحن|نقل|تفريغ|shipping|transport|maritime|port/i.test(text)) return 'Shipping & Transportation';
+  if (/سياحة|فنادق|منتجعات|طيران|tourism|hotels|resort/i.test(text)) return 'Tourism & Leisure';
+  if (/غزل|نسيج|ملابس|سجاد|textile|weavers|apparel|clothes/i.test(text)) return 'Textiles & Consumer Goods';
+
+  // 3. Fallback to TradingView sector if not generic
+  if (tvSector && tvSector !== 'Finance' && tvSector !== 'General') return tvSector;
+
+  return 'General';
+}
 
 const SECTOR_PE = {
   'Banks': 7.5,
@@ -83,6 +171,7 @@ const SECTOR_PE = {
   'Real Estate': 10.0,
   'Construction': 8.5,
   'Building Materials': 8.0,
+  'Petrochemicals & Fertilizers': 9.0,
   'Petrochemicals': 8.5,
   'Oil & Gas': 8.5,
   'Fertilizers': 9.5,
@@ -97,6 +186,8 @@ const SECTOR_PE = {
   'Telecommunications': 9.0,
   'Shipping & Transportation': 8.5,
   'Tourism & Leisure': 11.0,
+  'Insurance': 8.0,
+  'Utilities': 9.0,
   'General': 9.0
 };
 
@@ -158,7 +249,7 @@ function fetchTradingView() {
     const postData = JSON.stringify({
       symbols: { tickers: [] },
       columns: [
-        'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector',
+        'name', 'description', 'close', 'change', 'change_abs', 'volume', 'high', 'low', 'open', 'sector', 'industry',
         'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_book_ratio', 'book_value_per_share',
         'dividend_yield_recent', 'return_on_equity',
         'net_income', 'net_margin', 'operating_margin', 'total_revenue', 'gross_profit',
@@ -1013,7 +1104,7 @@ module.exports = async (req, res) => {
       if (!item.s || !item.d) continue;
       const sym = item.s.replace('EGX:', '').toUpperCase();
       const [
-        name, desc, close, changePercent, changeAbs, volume, high, low, open, sector,
+        name, desc, close, changePercent, changeAbs, volume, high, low, open, sector, industry,
         eps, pe, pb, bvps, dy, roe,
         netIncome, netMargin, operatingMargin, totalRevenue, grossProfit,
         recommendAll, rsi, macd, macdSignal, ema20, ema50, ema200,
@@ -1027,6 +1118,7 @@ module.exports = async (req, res) => {
       const effectivePeriod = detailed?.netIncomePeriod || defaultTvPeriod;
       const effectiveRevenue = (typeof totalRevenue === 'number' && !isNaN(totalRevenue)) ? totalRevenue : detailed?.totalRevenue;
       const effectiveDy = (typeof dy === 'number' && !isNaN(dy)) ? Number(dy.toFixed(2)) : (detailed?.dividendYield ? Number(detailed.dividendYield.toFixed(2)) : undefined);
+      const resolvedSec = resolveCanonicalSector(sym, sym, desc || name || sym, sector, industry);
 
       if (typeof close === 'number' && close > 0) {
         tvMap.set(sym, {
@@ -1057,7 +1149,8 @@ module.exports = async (req, res) => {
           ema50: (typeof ema50 === 'number' && !isNaN(ema50)) ? Number(ema50.toFixed(2)) : undefined,
           ema200: (typeof ema200 === 'number' && !isNaN(ema200)) ? Number(ema200.toFixed(2)) : undefined,
           nameEn: desc || name || sym,
-          sector: sector || 'General'
+          sector: resolvedSec,
+          industry: industry || ''
         });
 
         if (!allSymbolsMap.has(sym)) {
@@ -1065,7 +1158,7 @@ module.exports = async (req, res) => {
             symbol: sym,
             nameEn: desc || name || sym,
             nameAr: sym,
-            sector: sector || 'General'
+            sector: resolvedSec
           });
         }
       }
@@ -1150,16 +1243,15 @@ module.exports = async (req, res) => {
 
     for (const [sym, stockInfo] of allSymbolsMap.entries()) {
       const meta = watchlistMetaMap.get(sym);
-
-      const nameAr = (meta && meta.nameAr) || (stockInfo && stockInfo.nameAr) || sym;
-      const nameEn = (meta && meta.nameEn) || (stockInfo && stockInfo.nameEn) || sym;
-      const sector = CANONICAL_STOCK_SECTORS[sym] || (meta && meta.sector) || (stockInfo && stockInfo.sector) || 'General';
-
       const tvInfo = tvMap.get(sym);
       const mubInfo = mubMap.get(sym);
       const egxInfo = egxMap.get(sym);
       const mubEarnings = mubEarningsMap?.get(sym);
       const stockasticFin = stockasticMap?.get(sym);
+
+      const nameAr = (meta && meta.nameAr) || (stockInfo && stockInfo.nameAr) || (egxInfo && egxInfo.nameAr) || (mubInfo && mubInfo.nameAr) || sym;
+      const nameEn = (meta && meta.nameEn) || (stockInfo && stockInfo.nameEn) || (tvInfo && tvInfo.nameEn) || sym;
+      const sector = resolveCanonicalSector(sym, nameAr, nameEn, (meta && meta.sector) || (stockInfo && stockInfo.sector), tvInfo?.industry);
 
       const sources = {};
       const validPrices = [];
