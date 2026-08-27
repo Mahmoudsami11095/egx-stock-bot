@@ -106,6 +106,20 @@
       ],
       "source": "Audited Financial Statement H1 2026 - Orascom Construction ($127.8M USD announced Aug 16, 2026 | FY2025 $205.7M USD)",
       "updatedAt": "2026-08-17"
+    },
+    "MASR": {
+      "symbol": "MASR",
+      "name": "Madinet Masr",
+      "netProfit": 1027386832,
+      "periodMonths": 6,
+      "totalShares": 2135000000,
+      "quarters": [
+        { "year": 2025, "quarter": "السنوي", "announced": 3650000000 },
+        { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 1283358902 },
+        { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 1027386832 }
+      ],
+      "source": "Audited Financial Statement H1 2026 - Madinet Masr (1.03B H1 '26 | FY2025 3.65B)",
+      "updatedAt": "2026-08-17"
     }
   }
 }
