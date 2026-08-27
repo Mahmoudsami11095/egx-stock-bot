@@ -211,6 +211,29 @@ export interface MetricDefinition {
                   class="px-3.5 py-2 rounded-xl text-xs transition-all border border-darkBorder flex items-center gap-1 cursor-pointer">
             <span>🕌 متوافق شرعياً</span>
           </button>
+
+          <!-- Dynamic Sort Mode Switcher -->
+          <div class="flex items-center gap-1 bg-darkBg/80 p-1 rounded-xl border border-darkBorder/80 mr-auto">
+            <span class="text-[11px] text-gray-400 font-bold px-1.5">الترتيب:</span>
+            <button (click)="sortBy.set('GAP_PERCENT')"
+                    [class]="sortBy() === 'GAP_PERCENT' ? 'bg-teal-600 text-white font-black shadow-sm' : 'bg-transparent text-gray-400 hover:text-white'"
+                    class="px-2.5 py-1 rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer"
+                    title="ترتيب تنازلي بنسبة الفارق والصعود المتوقع للنموذج المختار">
+              <span>🚀 نسبة الفارق %</span>
+            </button>
+            <button (click)="sortBy.set('GAP_EGP')"
+                    [class]="sortBy() === 'GAP_EGP' ? 'bg-teal-600 text-white font-black shadow-sm' : 'bg-transparent text-gray-400 hover:text-white'"
+                    class="px-2.5 py-1 rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer"
+                    title="ترتيب تنازلي بقيمة الفارق المطلق بالجنيه">
+              <span>💰 الفارق (ج.م)</span>
+            </button>
+            <button (click)="sortBy.set('VOLUME')"
+                    [class]="sortBy() === 'VOLUME' ? 'bg-teal-600 text-white font-black shadow-sm' : 'bg-transparent text-gray-400 hover:text-white'"
+                    class="px-2.5 py-1 rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer"
+                    title="ترتيب تنازلي بحجم التداول">
+              <span>📊 حجم التداول</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -698,6 +721,8 @@ export class PriceComparatorComponent implements OnInit {
     this.apiService.loadPriceComparisons(force);
   }
 
+  public sortBy = signal<'GAP_PERCENT' | 'GAP_EGP' | 'VOLUME' | 'PRICE'>('GAP_PERCENT');
+
   public availableSectors = computed(() => {
     const list = this.apiService.priceComparisons();
     const set = new Set<string>();
@@ -713,6 +738,7 @@ export class PriceComparatorComponent implements OnInit {
     const sector = this.selectedSector();
     const filter = this.activeFilter();
     const metric = this.selectedMetric();
+    const sortMode = this.sortBy();
 
     if (q) {
       list = list.filter(s =>
@@ -735,12 +761,24 @@ export class PriceComparatorComponent implements OnInit {
       list = list.filter(s => s.isHalal);
     }
 
-    // Default Sorting: Order based on the gap value between current price and fair price of Gemini AI (آخر 4 أرباع TTM)
+    // Dynamic Multi-Mode Sorting
     list = [...list].sort((a, b) => {
-      const gapA = this.getGemini4QGap(a, metric);
-      const gapB = this.getGemini4QGap(b, metric);
-      if (gapA !== gapB) return gapB - gapA; // Largest undervaluation gap / highest upside first
-      return (b.sources['gemini_4q']?.volume || b.maxVolume || 0) - (a.sources['gemini_4q']?.volume || a.maxVolume || 0);
+      if (sortMode === 'GAP_PERCENT') {
+        const upA = this.getGemini4QUpside(a, metric);
+        const upB = this.getGemini4QUpside(b, metric);
+        if (upA !== upB) return upB - upA; // Highest percentage upside first (Page 1, 2, 3...)
+        return (b.maxVolume || 0) - (a.maxVolume || 0);
+      } else if (sortMode === 'GAP_EGP') {
+        const gapA = this.getGemini4QGap(a, metric);
+        const gapB = this.getGemini4QGap(b, metric);
+        if (gapA !== gapB) return gapB - gapA; // Largest absolute gap in EGP first
+        return (b.maxVolume || 0) - (a.maxVolume || 0);
+      } else if (sortMode === 'VOLUME') {
+        return (b.maxVolume || 0) - (a.maxVolume || 0);
+      } else if (sortMode === 'PRICE') {
+        return (b.averagePrice || 0) - (a.averagePrice || 0);
+      }
+      return 0;
     });
 
     return list;
@@ -950,15 +988,16 @@ export class PriceComparatorComponent implements OnInit {
   public getGemini4QGap(stock: PriceComparisonResult, metric?: ComparatorMetricType): number {
     const m = metric || this.selectedMetric();
     const src = stock.sources['gemini_4q'];
-    const price = stock.averagePrice || 1;
-    let fv: number | undefined;
+    const price = stock.averagePrice;
+    if (!src || !price || price <= 0) return -999999;
 
-    if (m === 'FAIR_VALUE_GRAHAM') fv = src?.fairValueGraham;
-    else if (m === 'FAIR_VALUE_PE') fv = src?.fairValuePE;
-    else if (m === 'FAIR_VALUE_LYNCH') fv = src?.fairValueLynch;
-    else if (m === 'FAIR_VALUE_PB') fv = src?.fairValuePB;
-    else if (m.startsWith('FAIR_VALUE') || m === 'UPSIDE_PERCENT') fv = src?.fairValue;
-    else fv = src?.fairValue ?? stock.averageFairValue;
+    let fv: number | undefined;
+    if (m === 'FAIR_VALUE_GRAHAM') fv = src.fairValueGraham;
+    else if (m === 'FAIR_VALUE_PE') fv = src.fairValuePE;
+    else if (m === 'FAIR_VALUE_LYNCH') fv = src.fairValueLynch;
+    else if (m === 'FAIR_VALUE_PB') fv = src.fairValuePB;
+    else if (m.startsWith('FAIR_VALUE') || m === 'UPSIDE_PERCENT') fv = src.fairValue;
+    else fv = src.fairValue;
 
     if (typeof fv === 'number' && fv > 0) {
       return Number((fv - price).toFixed(2));
@@ -969,17 +1008,18 @@ export class PriceComparatorComponent implements OnInit {
   public getGemini4QUpside(stock: PriceComparisonResult, metric?: ComparatorMetricType): number {
     const m = metric || this.selectedMetric();
     const src = stock.sources['gemini_4q'];
-    const price = stock.averagePrice || 1;
+    const price = stock.averagePrice;
+    if (!src || !price || price <= 0) return -999999;
+
     let fv: number | undefined;
+    if (m === 'FAIR_VALUE_GRAHAM') fv = src.fairValueGraham;
+    else if (m === 'FAIR_VALUE_PE') fv = src.fairValuePE;
+    else if (m === 'FAIR_VALUE_LYNCH') fv = src.fairValueLynch;
+    else if (m === 'FAIR_VALUE_PB') fv = src.fairValuePB;
+    else if (m.startsWith('FAIR_VALUE') || m === 'UPSIDE_PERCENT') fv = src.fairValue;
+    else fv = src.fairValue;
 
-    if (m === 'FAIR_VALUE_GRAHAM') fv = src?.fairValueGraham;
-    else if (m === 'FAIR_VALUE_PE') fv = src?.fairValuePE;
-    else if (m === 'FAIR_VALUE_LYNCH') fv = src?.fairValueLynch;
-    else if (m === 'FAIR_VALUE_PB') fv = src?.fairValuePB;
-    else if (m.startsWith('FAIR_VALUE') || m === 'UPSIDE_PERCENT') fv = src?.fairValue;
-    else fv = src?.fairValue ?? stock.averageFairValue;
-
-    if (typeof fv === 'number' && fv > 0 && price > 0) {
+    if (typeof fv === 'number' && fv > 0) {
       return Number((((fv - price) / price) * 100).toFixed(2));
     }
     return -999999;
