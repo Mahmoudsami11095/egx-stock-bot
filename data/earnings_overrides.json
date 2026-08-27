@@ -11,16 +11,6 @@
       "source": "Audited Financial Statement FY2026 - Egypt Aluminium (15.49B EGP announced Aug 12, 2026)",
       "updatedAt": "2026-08-17"
     },
-    "COMI": {
-      "symbol": "COMI",
-      "name": "Commercial International Bank - Egypt (CIB)",
-      "netProfit": 29700000000,
-      "periodMonths": 12,
-      "totalShares": 3019500000,
-      "dps": 1.75,
-      "source": "Audited Financial Statement FY2025 - CIB Egypt",
-      "updatedAt": "2026-08-15"
-    },
     "SKPC": {
       "symbol": "SKPC",
       "name": "Sidi Kerir Petrochemicals",
@@ -60,16 +50,6 @@
       "dps": 3,
       "source": "Audited Financial Statement H1 2026 - Abu Qir Fertilizers (10.01B EGP announced Aug 2026)",
       "updatedAt": "2026-08-17"
-    },
-    "ETEL": {
-      "symbol": "ETEL",
-      "name": "Telecom Egypt",
-      "netProfit": 11500000000,
-      "periodMonths": 12,
-      "totalShares": 1707000000,
-      "dps": 1.5,
-      "source": "Audited Financial Statement FY2025 - Telecom Egypt",
-      "updatedAt": "2026-08-15"
     },
     "TMGH": {
       "symbol": "TMGH",

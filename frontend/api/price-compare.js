@@ -488,7 +488,7 @@ function loadLocalEarningsOverrides() {
       try {
         const raw = fs.readFileSync(p, 'utf-8');
         const json = JSON.parse(raw);
-        if (json && json.overrides) return { ...EMBEDDED_OVERRIDES, ...json.overrides };
+        if (json && json.overrides) return { ...json.overrides, ...EMBEDDED_OVERRIDES };
       } catch (e) {}
     }
   }
