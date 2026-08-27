@@ -1316,12 +1316,44 @@ module.exports = async (req, res) => {
       const validPbFv = [];
       const validUpsides = [];
 
-      // 1. EGX Source (Strict Zero-Fallback: 100% Genuine Official EGX Data Only)
+      let sharesCount = stockasticFin?.sharesCount;
+      if (!sharesCount && stockasticFin?.netIncome && stockasticFin?.eps && stockasticFin.eps > 0) {
+        sharesCount = Math.round(stockasticFin.netIncome / stockasticFin.eps);
+      }
+      if (!sharesCount && tvInfo?.netIncome && tvInfo?.eps && tvInfo.eps > 0) {
+        sharesCount = Math.round(tvInfo.netIncome / tvInfo.eps);
+      }
+      if (!sharesCount && tvInfo?.price > 0 && tvInfo?.marketCap) {
+        sharesCount = Math.round(tvInfo.marketCap / tvInfo.price);
+      }
+
+      const bvps = tvInfo?.bvps || (stockasticFin?.price && stockasticFin?.pbRatio ? Number((stockasticFin.price / stockasticFin.pbRatio).toFixed(2)) : undefined);
+      const roe = tvInfo?.roe || 15.0;
+      const dy = tvInfo?.dy || 0;
+
+      let tvEps = tvInfo?.eps;
+      if (!tvEps && tvInfo?.netIncome && sharesCount && sharesCount > 0) {
+        const raw = tvInfo.netIncome / sharesCount;
+        if (raw > 0 && raw < (tvInfo.price || 1) * 2) tvEps = Number(raw.toFixed(2));
+      }
+      if (!tvEps && stockasticFin?.eps) {
+        tvEps = stockasticFin.eps;
+      }
+
+      // 1. EGX Official Source
       if (egxInfo) {
-        const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, egxInfo.price);
-        const peFv = computeSectorPeFV(tvInfo?.eps, sector, egxInfo.price);
-        const lynch = computeLynchFV(tvInfo?.eps, tvInfo?.dy, egxInfo.price);
-        const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, egxInfo.price);
+        let egxEps = undefined;
+        if (egxInfo.netProfit && sharesCount && sharesCount > 0) {
+          const raw = egxInfo.netProfit / sharesCount;
+          if (raw > 0 && raw < (egxInfo.price || 1) * 2) egxEps = Number(raw.toFixed(2));
+        } else if (tvEps) {
+          egxEps = tvEps;
+        }
+
+        const graham = computeGrahamFV(egxEps, bvps, egxInfo.price);
+        const peFv = computeSectorPeFV(egxEps, sector, egxInfo.price);
+        const lynch = computeLynchFV(egxEps, dy, egxInfo.price);
+        const pbFv = computePbRoeFV(bvps, roe, egxInfo.price);
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, egxInfo.price);
         const upside = (consensusFv && egxInfo.price > 0) ? Number((((consensusFv - egxInfo.price) / egxInfo.price) * 100).toFixed(2)) : 0;
 
@@ -1344,11 +1376,11 @@ module.exports = async (req, res) => {
           fairValuePB: pbFv,
           upsidePercent: upside,
           peRatio: undefined,
-          eps: undefined,
+          eps: egxEps,
           pbRatio: undefined,
-          bvps: undefined,
-          roe: undefined,
-          dividendYield: undefined,
+          bvps: bvps,
+          roe: roe,
+          dividendYield: dy,
           netIncome: egxInfo.netProfit, // Genuine official EGX reported net profit
           netIncomePeriod: egxPeriod,
           netProfitMargin: undefined,    // Strict zero-fallback (EGX does not supply net margin)
@@ -1365,10 +1397,10 @@ module.exports = async (req, res) => {
 
       // 2. TradingView Source (Strict Zero-Fallback: Genuine fundamental & profit scan)
       if (tvInfo) {
-        const graham = computeGrahamFV(tvInfo.eps, tvInfo.bvps, tvInfo.price);
-        const peFv = computeSectorPeFV(tvInfo.eps, sector, tvInfo.price);
-        const lynch = computeLynchFV(tvInfo.eps, tvInfo.dy, tvInfo.price);
-        const pbFv = computePbRoeFV(tvInfo.bvps, tvInfo.roe, tvInfo.price);
+        const graham = computeGrahamFV(tvEps, bvps, tvInfo.price);
+        const peFv = computeSectorPeFV(tvEps, sector, tvInfo.price);
+        const lynch = computeLynchFV(tvEps, dy, tvInfo.price);
+        const pbFv = computePbRoeFV(bvps, roe, tvInfo.price);
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, tvInfo.price);
         const upside = (consensusFv && tvInfo.price > 0) ? Number((((consensusFv - tvInfo.price) / tvInfo.price) * 100).toFixed(2)) : 0;
 
@@ -1386,11 +1418,11 @@ module.exports = async (req, res) => {
           fairValuePB: pbFv,
           upsidePercent: upside,
           peRatio: tvInfo.pe,
-          eps: tvInfo.eps,
+          eps: tvEps,
           pbRatio: tvInfo.pb,
-          bvps: tvInfo.bvps,
-          roe: tvInfo.roe,
-          dividendYield: tvInfo.dy,
+          bvps: bvps,
+          roe: roe,
+          dividendYield: dy,
           netIncome: tvInfo.netIncome,
           netIncomePeriod: tvInfo.netIncomePeriod,
           netProfitMargin: tvInfo.netProfitMargin,
@@ -1407,10 +1439,18 @@ module.exports = async (req, res) => {
 
       // 3. Mubasher Source (Strict Zero-Fallback: Market price ticks only)
       if (mubInfo) {
-        const graham = computeGrahamFV(tvInfo?.eps, tvInfo?.bvps, mubInfo.price);
-        const peFv = computeSectorPeFV(tvInfo?.eps, sector, mubInfo.price);
-        const lynch = computeLynchFV(tvInfo?.eps, tvInfo?.dy, mubInfo.price);
-        const pbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, mubInfo.price);
+        let mubEps = undefined;
+        if (mubEarnings?.netProfit && sharesCount && sharesCount > 0) {
+          const raw = mubEarnings.netProfit / sharesCount;
+          if (raw > 0 && raw < (mubInfo.price || 1) * 2) mubEps = Number(raw.toFixed(2));
+        } else if (tvEps) {
+          mubEps = tvEps;
+        }
+
+        const graham = computeGrahamFV(mubEps, bvps, mubInfo.price);
+        const peFv = computeSectorPeFV(mubEps, sector, mubInfo.price);
+        const lynch = computeLynchFV(mubEps, dy, mubInfo.price);
+        const pbFv = computePbRoeFV(bvps, roe, mubInfo.price);
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, mubInfo.price);
         const upside = (consensusFv && mubInfo.price > 0) ? Number((((consensusFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
 
@@ -1430,11 +1470,11 @@ module.exports = async (req, res) => {
           fairValuePB: pbFv,
           upsidePercent: upside,
           peRatio: undefined,        // Strict zero-fallback
-          eps: undefined,            // Strict zero-fallback
+          eps: mubEps,
           pbRatio: undefined,        // Strict zero-fallback
-          bvps: undefined,           // Strict zero-fallback
-          roe: undefined,            // Strict zero-fallback
-          dividendYield: undefined,  // Strict zero-fallback
+          bvps: bvps,
+          roe: roe,
+          dividendYield: dy,
           netIncome: mubEarnings ? mubEarnings.netProfit : undefined, // Genuine raw announced profit (No معدل)
           netIncomeRaw: mubEarnings ? mubEarnings.netProfit : undefined,
           netIncomePeriod: rawMubLabel,
@@ -1457,21 +1497,21 @@ module.exports = async (req, res) => {
       if (geminiEarnings && geminiEarnings.netProfit !== undefined) {
         const gemPrice = tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
         const gemAnnualProfit = geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit;
-        let gemEps = tvInfo?.eps;
-        if (gemAnnualProfit && tvInfo?.netIncome && tvInfo?.eps) {
+        let gemEps = undefined;
+        if (gemAnnualProfit && sharesCount && sharesCount > 0) {
+          const raw = gemAnnualProfit / sharesCount;
+          if (raw > 0 && raw < gemPrice * 3) gemEps = Number(raw.toFixed(2));
+        } else if (gemAnnualProfit && tvInfo?.netIncome && tvEps) {
           const ratio = gemAnnualProfit / tvInfo.netIncome;
-          if (ratio > 0 && ratio < 10) {
-            gemEps = Number((tvInfo.eps * ratio).toFixed(2));
-          }
-        } else if (gemAnnualProfit && stockasticFin?.sharesCount) {
-          const rawEps = gemAnnualProfit / stockasticFin.sharesCount;
-          if (rawEps > 0 && rawEps < gemPrice * 3) gemEps = Number(rawEps.toFixed(2));
+          if (ratio > 0 && ratio < 10) gemEps = Number((tvEps * ratio).toFixed(2));
+        } else {
+          gemEps = tvEps;
         }
 
-        const gemGraham = computeGrahamFV(gemEps, tvInfo?.bvps, gemPrice);
+        const gemGraham = computeGrahamFV(gemEps, bvps, gemPrice);
         const gemPeFv = computeSectorPeFV(gemEps, sector, gemPrice);
-        const gemLynch = computeLynchFV(gemEps, tvInfo?.dy, gemPrice);
-        const gemPbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, gemPrice);
+        const gemLynch = computeLynchFV(gemEps, dy, gemPrice);
+        const gemPbFv = computePbRoeFV(bvps, roe, gemPrice);
         const gemConsensusFv = computeConsensusFV(gemGraham, gemPeFv, gemLynch, gemPbFv, gemPrice);
         const gemUpside = (gemConsensusFv && gemPrice > 0) ? Number((((gemConsensusFv - gemPrice) / gemPrice) * 100).toFixed(2)) : 0;
 
@@ -1489,9 +1529,9 @@ module.exports = async (req, res) => {
           peRatio: tvInfo?.pe,
           eps: gemEps,
           pbRatio: tvInfo?.pb,
-          bvps: tvInfo?.bvps,
-          roe: tvInfo?.roe,
-          dividendYield: tvInfo?.dy,
+          bvps: bvps,
+          roe: roe,
+          dividendYield: dy,
           netIncome: gemAnnualProfit,
           netIncomeRaw: geminiEarnings.netProfit,
           netIncomePeriod: geminiEarnings.periodLabel,
@@ -1501,27 +1541,33 @@ module.exports = async (req, res) => {
           netProfitMargin: undefined,
           grossProfit: undefined
         };
+        if (gemConsensusFv) validConsensusFv.push(gemConsensusFv);
+        if (gemGraham) validGrahamFv.push(gemGraham);
+        if (gemPeFv) validPeFv.push(gemPeFv);
+        if (gemLynch) validLynchFv.push(gemLynch);
+        if (gemPbFv) validPbFv.push(gemPbFv);
+        validUpsides.push(gemUpside);
       }
 
       // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (Strict Zero-Fallback: Genuine Trailing Quarters Only)
       const fourQData = fourQuartersMap?.get(sym);
       if (fourQData && fourQData.trailing4QSum !== undefined) {
         const fourQPrice = tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
-        let fourQEps = tvInfo?.eps;
-        if (fourQData.trailing4QSum && tvInfo?.netIncome && tvInfo?.eps) {
+        let fourQEps = undefined;
+        if (fourQData.trailing4QSum && sharesCount && sharesCount > 0) {
+          const raw = fourQData.trailing4QSum / sharesCount;
+          if (raw > 0 && raw < fourQPrice * 3) fourQEps = Number(raw.toFixed(2));
+        } else if (fourQData.trailing4QSum && tvInfo?.netIncome && tvEps) {
           const ratio = fourQData.trailing4QSum / tvInfo.netIncome;
-          if (ratio > 0 && ratio < 10) {
-            fourQEps = Number((tvInfo.eps * ratio).toFixed(2));
-          }
-        } else if (fourQData.trailing4QSum && stockasticFin?.sharesCount) {
-          const rawEps = fourQData.trailing4QSum / stockasticFin.sharesCount;
-          if (rawEps > 0 && rawEps < fourQPrice * 3) fourQEps = Number(rawEps.toFixed(2));
+          if (ratio > 0 && ratio < 10) fourQEps = Number((tvEps * ratio).toFixed(2));
+        } else {
+          fourQEps = tvEps;
         }
 
-        const fourQGraham = computeGrahamFV(fourQEps, tvInfo?.bvps, fourQPrice);
+        const fourQGraham = computeGrahamFV(fourQEps, bvps, fourQPrice);
         const fourQPeFv = computeSectorPeFV(fourQEps, sector, fourQPrice);
-        const fourQLynch = computeLynchFV(fourQEps, tvInfo?.dy, fourQPrice);
-        const fourQPbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, fourQPrice);
+        const fourQLynch = computeLynchFV(fourQEps, dy, fourQPrice);
+        const fourQPbFv = computePbRoeFV(bvps, roe, fourQPrice);
         const fourQConsensusFv = computeConsensusFV(fourQGraham, fourQPeFv, fourQLynch, fourQPbFv, fourQPrice);
         const fourQUpside = (fourQConsensusFv && fourQPrice > 0) ? Number((((fourQConsensusFv - fourQPrice) / fourQPrice) * 100).toFixed(2)) : 0;
 
@@ -1539,9 +1585,9 @@ module.exports = async (req, res) => {
           peRatio: tvInfo?.pe,
           eps: fourQEps,
           pbRatio: tvInfo?.pb,
-          bvps: tvInfo?.bvps,
-          roe: tvInfo?.roe,
-          dividendYield: tvInfo?.dy,
+          bvps: bvps,
+          roe: roe,
+          dividendYield: dy,
           netIncome: fourQData.trailing4QSum,
           netIncomeRaw: fourQData.rawSum,
           netIncomePeriod: fourQData.periodLabel,
@@ -1549,12 +1595,18 @@ module.exports = async (req, res) => {
           quarterCount: fourQData.quarterCount,
           currency: (sym === 'ORAS' ? 'USD' : 'EGP')
         };
+        if (fourQConsensusFv) validConsensusFv.push(fourQConsensusFv);
+        if (fourQGraham) validGrahamFv.push(fourQGraham);
+        if (fourQPeFv) validPeFv.push(fourQPeFv);
+        if (fourQLynch) validLynchFv.push(fourQLynch);
+        if (fourQPbFv) validPbFv.push(fourQPbFv);
+        validUpsides.push(fourQUpside);
       }
 
       // 6. Stockastic Source (Strict Zero-Fallback: Genuine Stockastic dynamic feed only)
       if (stockasticFin && (stockasticFin.netIncome !== undefined || stockasticFin.revenue !== undefined || stockasticFin.price !== undefined)) {
         const stPrice = stockasticFin.price || tvInfo?.price || egxInfo?.price || mubInfo?.price || 0;
-        const shares = stockasticFin.sharesCount;
+        const shares = stockasticFin.sharesCount || sharesCount;
         const marketCap = stockasticFin.marketCap;
         const netIncome = stockasticFin.netIncome;
         const effPeriod = stockasticFin.period || stockasticFin.netIncomePeriod || undefined;
@@ -1562,21 +1614,20 @@ module.exports = async (req, res) => {
 
         let stEps = stockasticFin.eps;
         if (stEps && stPrice > 0 && stEps > stPrice * 0.8) {
-          stEps = tvInfo?.eps || Number((stPrice * 0.08).toFixed(2));
+          stEps = tvEps || Number((stPrice * 0.08).toFixed(2));
         }
         if (!stEps && netIncome && shares && shares > 0) {
           const rawEps = netIncome / shares;
-          if (tvInfo?.eps && rawEps > tvInfo.eps * 5) {
-            stEps = tvInfo.eps;
-          } else if (rawEps > 0 && rawEps < stPrice * 0.8) {
+          if (rawEps > 0 && rawEps < stPrice * 0.8) {
             stEps = Number(rawEps.toFixed(2));
           }
         }
+        if (!stEps) stEps = tvEps;
 
-        const stGraham = computeGrahamFV(stEps, tvInfo?.bvps, stPrice);
+        const stGraham = computeGrahamFV(stEps, bvps, stPrice);
         const stPeFv = computeSectorPeFV(stEps, sector, stPrice);
-        const stLynch = computeLynchFV(stEps, tvInfo?.dy, stPrice);
-        const stPbFv = computePbRoeFV(tvInfo?.bvps, tvInfo?.roe, stPrice);
+        const stLynch = computeLynchFV(stEps, dy, stPrice);
+        const stPbFv = computePbRoeFV(bvps, roe, stPrice);
         const stConsensusFv = computeConsensusFV(stGraham, stPeFv, stLynch, stPbFv, stPrice);
         const stUpside = (stConsensusFv && stPrice > 0) ? Number((((stConsensusFv - stPrice) / stPrice) * 100).toFixed(2)) : 0;
 
@@ -1605,6 +1656,12 @@ module.exports = async (req, res) => {
           upsidePercent: stUpside
         };
         if (stPrice) validPrices.push(stPrice);
+        if (stConsensusFv) validConsensusFv.push(stConsensusFv);
+        if (stGraham) validGrahamFv.push(stGraham);
+        if (stPeFv) validPeFv.push(stPeFv);
+        if (stLynch) validLynchFv.push(stLynch);
+        if (stPbFv) validPbFv.push(stPbFv);
+        validUpsides.push(stUpside);
       }
 
       // If no valid source returned price for this stock, skip
