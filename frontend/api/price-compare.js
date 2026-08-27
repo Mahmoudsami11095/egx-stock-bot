@@ -1709,8 +1709,17 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Sort by maxVolume descending by default
-    results.sort((a, b) => b.maxVolume - a.maxVolume);
+    // Order based on the gap value between current price and fair price of Gemini AI (آخر 4 أرباع TTM) descending
+    results.sort((a, b) => {
+      const fvA = (typeof a.sources?.gemini_4q?.fairValue === 'number') ? a.sources.gemini_4q.fairValue : -999999;
+      const gapA = fvA > -900000 ? (fvA - a.averagePrice) : -999999;
+
+      const fvB = (typeof b.sources?.gemini_4q?.fairValue === 'number') ? b.sources.gemini_4q.fairValue : -999999;
+      const gapB = fvB > -900000 ? (fvB - b.averagePrice) : -999999;
+
+      if (gapA !== gapB) return gapB - gapA;
+      return b.maxVolume - a.maxVolume;
+    });
 
     res.setHeader('X-Served-By', 'Vercel-MultiModel-FairValuePriceCompare');
     res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=10');

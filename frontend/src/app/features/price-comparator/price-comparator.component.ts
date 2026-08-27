@@ -245,7 +245,10 @@ export interface MetricDefinition {
                 🤖 Gemini AI (مدقق رسمي)
               </th>
               <th class="py-3.5 px-3 text-center bg-teal-500/10 text-teal-300" *ngIf="isGeminiVisible(selectedMetric())">
-                📊 Gemini AI (آخر 4 أرباع TTM)
+                <div class="flex items-center justify-center gap-1.5">
+                  <span>📊 Gemini AI (آخر 4 أرباع TTM)</span>
+                  <span class="text-[9px] bg-teal-500/25 text-teal-200 px-1.5 py-0.5 rounded-md font-bold" title="مرتب تلقائياً بالفارق الأكبر بين السعر والقيمة العادلة">⬇️ الفارق الأكبر</span>
+                </div>
               </th>
               <th class="py-3.5 px-3 text-center bg-emerald-500/10 text-emerald-300">
                 متوسط الإجماع (Consensus)
@@ -362,6 +365,10 @@ export interface MetricDefinition {
                 <ng-container *ngIf="stock.sources['gemini_4q']; else noGem4q">
                   <div [class]="getMetricColorClass(stock.sources['gemini_4q'], selectedMetric())" class="font-black text-xs">
                     {{ formatSourceMetric(stock.sources['gemini_4q'], selectedMetric()) }}
+                  </div>
+                  <div class="text-[9px] font-extrabold mt-0.5" *ngIf="(selectedMetric().startsWith('FAIR_VALUE') || selectedMetric() === 'UPSIDE_PERCENT') && getGemini4QGap(stock, selectedMetric()) > -900000" [class]="getGemini4QGap(stock, selectedMetric()) >= 0 ? 'text-teal-300' : 'text-rose-400'">
+                    الفارق: {{ getGemini4QGap(stock, selectedMetric()) >= 0 ? '+' : '' }}{{ getGemini4QGap(stock, selectedMetric()).toFixed(2) }} ج.م
+                    <span class="text-[8px] opacity-80">({{ getGemini4QUpside(stock, selectedMetric()) >= 0 ? '+' : '' }}{{ getGemini4QUpside(stock, selectedMetric()) }}%)</span>
                   </div>
                   <div class="text-[9px] text-teal-400 font-bold mt-0.5" *ngIf="selectedMetric() === 'NET_INCOME' && stock.sources['gemini_4q'].netIncomePeriod">
                     {{ stock.sources['gemini_4q'].netIncomePeriod }}
@@ -705,6 +712,7 @@ export class PriceComparatorComponent implements OnInit {
     const q = this.searchQuery().toLowerCase().trim();
     const sector = this.selectedSector();
     const filter = this.activeFilter();
+    const metric = this.selectedMetric();
 
     if (q) {
       list = list.filter(s =>
@@ -726,6 +734,14 @@ export class PriceComparatorComponent implements OnInit {
     } else if (filter === 'HALAL_ONLY') {
       list = list.filter(s => s.isHalal);
     }
+
+    // Default Sorting: Order based on the gap value between current price and fair price of Gemini AI (آخر 4 أرباع TTM)
+    list = [...list].sort((a, b) => {
+      const gapA = this.getGemini4QGap(a, metric);
+      const gapB = this.getGemini4QGap(b, metric);
+      if (gapA !== gapB) return gapB - gapA; // Largest undervaluation gap / highest upside first
+      return (b.sources['gemini_4q']?.volume || b.maxVolume || 0) - (a.sources['gemini_4q']?.volume || a.maxVolume || 0);
+    });
 
     return list;
   });
@@ -929,6 +945,44 @@ export class PriceComparatorComponent implements OnInit {
       return 'text-gray-200';
     }
     return 'text-white';
+  }
+
+  public getGemini4QGap(stock: PriceComparisonResult, metric?: ComparatorMetricType): number {
+    const m = metric || this.selectedMetric();
+    const src = stock.sources['gemini_4q'];
+    const price = stock.averagePrice || 1;
+    let fv: number | undefined;
+
+    if (m === 'FAIR_VALUE_GRAHAM') fv = src?.fairValueGraham;
+    else if (m === 'FAIR_VALUE_PE') fv = src?.fairValuePE;
+    else if (m === 'FAIR_VALUE_LYNCH') fv = src?.fairValueLynch;
+    else if (m === 'FAIR_VALUE_PB') fv = src?.fairValuePB;
+    else if (m.startsWith('FAIR_VALUE') || m === 'UPSIDE_PERCENT') fv = src?.fairValue;
+    else fv = src?.fairValue ?? stock.averageFairValue;
+
+    if (typeof fv === 'number' && fv > 0) {
+      return Number((fv - price).toFixed(2));
+    }
+    return -999999;
+  }
+
+  public getGemini4QUpside(stock: PriceComparisonResult, metric?: ComparatorMetricType): number {
+    const m = metric || this.selectedMetric();
+    const src = stock.sources['gemini_4q'];
+    const price = stock.averagePrice || 1;
+    let fv: number | undefined;
+
+    if (m === 'FAIR_VALUE_GRAHAM') fv = src?.fairValueGraham;
+    else if (m === 'FAIR_VALUE_PE') fv = src?.fairValuePE;
+    else if (m === 'FAIR_VALUE_LYNCH') fv = src?.fairValueLynch;
+    else if (m === 'FAIR_VALUE_PB') fv = src?.fairValuePB;
+    else if (m.startsWith('FAIR_VALUE') || m === 'UPSIDE_PERCENT') fv = src?.fairValue;
+    else fv = src?.fairValue ?? stock.averageFairValue;
+
+    if (typeof fv === 'number' && fv > 0 && price > 0) {
+      return Number((((fv - price) / price) * 100).toFixed(2));
+    }
+    return -999999;
   }
 
   public isGeminiVisible(metric: ComparatorMetricType): boolean {
