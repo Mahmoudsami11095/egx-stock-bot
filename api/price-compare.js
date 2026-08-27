@@ -444,16 +444,16 @@ const EMBEDDED_OVERRIDES = {
   "SCEM": {
     "symbol": "SCEM",
     "name": "Sinai Cement",
-    "netProfit": 2300000000,
-    "periodMonths": 12,
+    "netProfit": 1560000000,
+    "periodMonths": 6,
     "totalShares": 254100000,
     "dps": 0,
     "quarters": [
-      { "year": 2025, "quarter": "السنوي", "announced": 2300000000 },
-      { "year": 2025, "quarter": "الربع الاول", "announced": 740000000 },
-      { "year": 2026, "quarter": "الربع الاول", "announced": 1660000000 }
+      { "year": 2025, "quarter": "السنوي", "announced": 2298246400 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 768800000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 1560000000 }
     ],
-    "source": "Audited Financial Statement - Sinai Cement (FY2025 2.30B | LTM 3.22B)",
+    "source": "Audited Financial Statement H1 2026 - Sinai Cement",
     "updatedAt": "2026-08-17"
   }
 };
