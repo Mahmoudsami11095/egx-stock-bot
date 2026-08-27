@@ -32,6 +32,11 @@ function testSymbol(sym) {
   });
 }
 
-testSymbol('AMOC');
-testSymbol('COPR');
-testSymbol('HRHO');
+testSymbol('ARAB');
+testSymbol('MOED');
+testSymbol('LUTS');
+testSymbol('IEEC');
+testSymbol('PHCC');
+testSymbol('OFH');
+testSymbol('COMI');
+
