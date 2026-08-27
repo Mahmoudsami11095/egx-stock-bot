@@ -73,24 +73,14 @@ module.exports = async (req, res) => {
               validFvs.push(item.sources.mubasher.fairValue);
             }
 
-            // 4. Gemini AI Audited Earnings Source (🤖 مدقق رسمي)
+            // 4. Gemini AI Audited Earnings Source (🤖 مدقق رسمي - Strict Zero-Fallback)
             const curPrice = item.averagePrice || item.sources?.tradingview?.price || item.sources?.egx?.price || item.sources?.mubasher?.price || 0;
-            if (item.sources?.gemini && (item.sources.gemini.netIncome || item.sources.gemini.fairValue)) {
+            if (item.sources?.gemini && (item.sources.gemini.netIncome !== undefined || item.sources.gemini.fairValue !== undefined)) {
               let fv = item.sources.gemini.fairValue;
-              if (!fv && item.sources.gemini.netIncome && item.sources?.tradingview?.netIncome && item.sources.tradingview.fairValue) {
-                const ratio = item.sources.gemini.netIncome / item.sources.tradingview.netIncome;
-                if (ratio > 0 && ratio < 10) {
-                  fv = Number((item.sources.tradingview.fairValue * ratio).toFixed(2));
-                }
-              }
-              if (!fv && item.sources?.tradingview?.fairValue) {
-                fv = item.sources.tradingview.fairValue;
-              }
-
               const upside = (fv && curPrice > 0) ? Number((((fv - curPrice) / curPrice) * 100).toFixed(2)) : 0;
               sources.gemini = {
                 currentPrice: curPrice,
-                fairValue: fv || Number((curPrice * 1.10).toFixed(2)),
+                fairValue: fv,
                 confidence: 'HIGH',
                 upsidePercent: upside,
                 changePercent: 0,
@@ -98,41 +88,16 @@ module.exports = async (req, res) => {
                 netIncome: item.sources.gemini.netIncome,
                 netIncomePeriod: item.sources.gemini.netIncomePeriod
               };
-              if (sources.gemini.fairValue) validFvs.push(sources.gemini.fairValue);
-            } else if (item.sources?.tradingview?.fairValue) {
-              // High-confidence fallback to TV baseline
-              const fv = item.sources.tradingview.fairValue;
-              const upside = (fv && curPrice > 0) ? Number((((fv - curPrice) / curPrice) * 100).toFixed(2)) : 0;
-              sources.gemini = {
-                currentPrice: curPrice,
-                fairValue: fv,
-                confidence: 'HIGH',
-                upsidePercent: upside,
-                changePercent: 0,
-                volume: 0,
-                netIncome: item.sources?.tradingview?.netIncome,
-                netIncomePeriod: item.sources?.tradingview?.netIncomePeriod
-              };
-              validFvs.push(fv);
+              if (fv) validFvs.push(fv);
             }
 
-            // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (📊 آخر 4 أرباع TTM)
-            if (item.sources?.gemini_4q && (item.sources.gemini_4q.netIncome || item.sources.gemini_4q.fairValue)) {
+            // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (📊 آخر 4 أرباع TTM - Strict Zero-Fallback)
+            if (item.sources?.gemini_4q && (item.sources.gemini_4q.netIncome !== undefined || item.sources.gemini_4q.fairValue !== undefined)) {
               let fv = item.sources.gemini_4q.fairValue;
-              if (!fv && item.sources.gemini_4q.netIncome && item.sources?.tradingview?.netIncome && item.sources.tradingview.fairValue) {
-                const ratio = item.sources.gemini_4q.netIncome / item.sources.tradingview.netIncome;
-                if (ratio > 0 && ratio < 10) {
-                  fv = Number((item.sources.tradingview.fairValue * ratio).toFixed(2));
-                }
-              }
-              if (!fv && item.sources?.tradingview?.fairValue) {
-                fv = item.sources.tradingview.fairValue;
-              }
-
               const upside = (fv && curPrice > 0) ? Number((((fv - curPrice) / curPrice) * 100).toFixed(2)) : 0;
               sources.gemini_4q = {
                 currentPrice: curPrice,
-                fairValue: fv || Number((curPrice * 1.10).toFixed(2)),
+                fairValue: fv,
                 confidence: 'HIGH',
                 upsidePercent: upside,
                 changePercent: 0,
@@ -140,21 +105,7 @@ module.exports = async (req, res) => {
                 netIncome: item.sources.gemini_4q.netIncome,
                 netIncomePeriod: item.sources.gemini_4q.netIncomePeriod
               };
-              if (sources.gemini_4q.fairValue) validFvs.push(sources.gemini_4q.fairValue);
-            } else if (item.sources?.tradingview?.fairValue) {
-              const fv = item.sources.tradingview.fairValue;
-              const upside = (fv && curPrice > 0) ? Number((((fv - curPrice) / curPrice) * 100).toFixed(2)) : 0;
-              sources.gemini_4q = {
-                currentPrice: curPrice,
-                fairValue: fv,
-                confidence: 'HIGH',
-                upsidePercent: upside,
-                changePercent: 0,
-                volume: 0,
-                netIncome: item.sources?.tradingview?.netIncome,
-                netIncomePeriod: item.sources?.tradingview?.netIncomePeriod
-              };
-              validFvs.push(fv);
+              if (fv) validFvs.push(fv);
             }
 
             const currentPrice = item.averagePrice || curPrice;
