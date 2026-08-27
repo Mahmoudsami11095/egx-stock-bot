@@ -278,6 +278,11 @@ async function bootstrap() {
     priceCompareHandler(req, res);
   });
 
+  const sectorRotationHandler = require(path.join(__dirname, '../api/sector-rotation.js'));
+  app.get('/api/sector-rotation', (req, res) => {
+    sectorRotationHandler(req, res);
+  });
+
   app.get('/api/gold', async (req, res) => {
     try {
       const goldPrices = await goldService.getLiveGoldPrices();

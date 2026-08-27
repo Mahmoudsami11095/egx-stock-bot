@@ -29,51 +29,244 @@ if (Array.isArray(watchlist)) {
   }
 }
 
+const CANONICAL_STOCK_SECTORS = {
+  'MASR': 'Real Estate',
+  'MNHD': 'Real Estate',
+  'TMGH': 'Real Estate',
+  'HELI': 'Real Estate',
+  'PHDC': 'Real Estate',
+  'OCDI': 'Real Estate',
+  'ORHD': 'Real Estate',
+  'AMER': 'Real Estate',
+  'EHDR': 'Real Estate',
+  'RREI': 'Real Estate',
+  'COPR': 'Real Estate',
+  'PORT': 'Real Estate',
+  'ELKA': 'Real Estate',
+  'EMFD': 'Real Estate',
+  'AREH': 'Real Estate',
+  'ZMID': 'Real Estate',
+  'ELSH': 'Real Estate',
+  'UNIT': 'Real Estate',
+  'ARAB': 'Real Estate',
+  'PRDC': 'Real Estate',
+  'MAAL': 'Real Estate',
+  'OBRI': 'Real Estate',
+  'ADRI': 'Real Estate',
+  'NHPS': 'Real Estate',
+  'MENA': 'Real Estate',
+  'GPIM': 'Real Estate',
+  'DAPH': 'Real Estate',
+  'GPPL': 'Real Estate',
+  'ROTO': 'Tourism & Leisure',
+  'DCRC': 'Real Estate',
+  'FIRE': 'Real Estate',
+  'UTOP': 'Real Estate',
+  'CCRS': 'Real Estate',
+  'TANM': 'Real Estate',
+  'ACAP': 'Real Estate',
+  'EALR': 'Real Estate',
+  'AALR': 'Real Estate',
+  'BONY': 'Real Estate',
+  'LUTS': 'Food & Beverage',
+  'OFH': 'Non-Banking Financial Services',
+  'AIDC': 'Non-Banking Financial Services',
+  'COMI': 'Banks',
+  'ADIB': 'Banks',
+  'CIEB': 'Banks',
+  'HDBK': 'Banks',
+  'FAIT': 'Banks',
+  'FAITA': 'Banks',
+  'QNBA': 'Banks',
+  'QNBE': 'Banks',
+  'SAIB': 'Banks',
+  'EGBE': 'Banks',
+  'CANA': 'Banks',
+  'EXPA': 'Banks',
+  'SAUD': 'Banks',
+  'NBKE': 'Banks',
+  'UBEE': 'Banks',
+  'HRHO': 'Non-Banking Financial Services',
+  'BTFH': 'Non-Banking Financial Services',
+  'CICH': 'Non-Banking Financial Services',
+  'VALU': 'Non-Banking Financial Services',
+  'CNFN': 'Non-Banking Financial Services',
+  'ATLC': 'Non-Banking Financial Services',
+  'ICLE': 'Non-Banking Financial Services',
+  'BINV': 'Non-Banking Financial Services',
+  'CCAP': 'Non-Banking Financial Services',
+  'PRMH': 'Non-Banking Financial Services',
+  'MOIN': 'Insurance',
+  'DEIN': 'Insurance',
+  'SWDY': 'Industrial Cables & Energy',
+  'AMOC': 'Oil & Gas',
+  'ORAS': 'Construction',
+  'SCEM': 'Building Materials',
+  'ETEL': 'Telecommunications',
+  'FWRY': 'Technology & FinTech',
+  'EGAL': 'Basic Resources',
+  'ABUK': 'Fertilizers',
+  'MFPC': 'Fertilizers',
+  'SKPC': 'Petrochemicals',
+  'EGAS': 'Petrochemicals',
+  'JUFO': 'Food & Beverage',
+  'DOMT': 'Food & Beverage',
+  'EFID': 'Food & Beverage',
+  'ORWE': 'Textiles & Consumer Goods',
+  'AUTO': 'Consumer Goods',
+  'RMDA': 'Pharmaceuticals',
+  'ISPH': 'Pharmaceuticals',
+  'MPCI': 'Pharmaceuticals',
+  'CLHO': 'Healthcare'
+};
+
+const EGX_OFFICIAL_SECTOR_MAP = {
+  'Real Estate': 'Real Estate',
+  'عقارات': 'Real Estate',
+  'Banks': 'Banks',
+  'بنوك': 'Banks',
+  'Non-bank financial services': 'Non-Banking Financial Services',
+  'خدمات مالية غير مصرفية': 'Non-Banking Financial Services',
+  'Health Care & Pharmaceuticals': 'Pharmaceuticals',
+  'رعاية صحية و ادوية': 'Pharmaceuticals',
+  'Food, Beverages and Tobacco': 'Food & Beverage',
+  'أغذية و مشروبات و تبغ': 'Food & Beverage',
+  'Basic Resources': 'Basic Resources',
+  'موارد أساسية': 'Basic Resources',
+  'Building Materials': 'Building Materials',
+  'مواد البناء': 'Building Materials',
+  'Contracting & Construction Engineering': 'Construction',
+  'مقاولات و إنشاءات هندسية': 'Construction',
+  'IT , Media & Communication Services': 'Telecommunications',
+  'اتصالات و  اعلام و تكنولوجيا المعلومات': 'Telecommunications',
+  'Textile & Durables': 'Textiles & Consumer Goods',
+  'منسوجات و سلع معمرة': 'Textiles & Consumer Goods',
+  'Travel & Leisure': 'Tourism & Leisure',
+  'سياحة وترفيه': 'Tourism & Leisure',
+  'Energy & Support Services': 'Oil & Gas',
+  'طاقة وخدمات مساندة': 'Oil & Gas',
+  'Shipping & Transportation Services': 'Shipping & Transportation',
+  'خدمات النقل والشحن': 'Shipping & Transportation',
+  'Industrial Goods , Services and Automobiles': 'Industrial Cables & Energy',
+  'خدمات و منتجات صناعية وسيارات': 'Industrial Cables & Energy',
+  'Trade & Distributors': 'Consumer Goods',
+  'تجارة و موزعون': 'Consumer Goods',
+  'Paper & Packaging': 'Building Materials',
+  'ورق ومواد تعبئة و تغليف': 'Building Materials',
+  'Education Services': 'Consumer Services',
+  'خدمات تعليمية': 'Consumer Services',
+  'Utilities': 'Utilities',
+  'مرافق': 'Utilities'
+};
+
+function resolveCanonicalSector(sym, nameAr, nameEn, tvSector, tvIndustry, egxSector, egxSectorA) {
+  if (sym && CANONICAL_STOCK_SECTORS[sym.toUpperCase()]) {
+    return CANONICAL_STOCK_SECTORS[sym.toUpperCase()];
+  }
+
+  if (egxSector && EGX_OFFICIAL_SECTOR_MAP[egxSector]) {
+    return EGX_OFFICIAL_SECTOR_MAP[egxSector];
+  }
+  if (egxSectorA && EGX_OFFICIAL_SECTOR_MAP[egxSectorA]) {
+    return EGX_OFFICIAL_SECTOR_MAP[egxSectorA];
+  }
+
+  const ind = tvIndustry || '';
+  if (ind === 'Real Estate Development' || ind === 'Homebuilding') return 'Real Estate';
+  if (ind === 'Regional Banks' || ind === 'Major Banks') return 'Banks';
+  if (ind.includes('Insurance')) return 'Insurance';
+  if (ind.includes('Investment') || ind.includes('Financial') || ind.includes('Brokers') || ind.includes('Leasing') || ind.includes('Finance/Rental')) return 'Non-Banking Financial Services';
+  if (ind.includes('Pharmaceutical') || ind.includes('Health') || ind.includes('Medical')) return 'Pharmaceuticals';
+  if (ind.includes('Food') || ind.includes('Milling') || ind.includes('Agricultural Commodities') || ind.includes('Candy') || ind.includes('Dairy')) return 'Food & Beverage';
+  if (ind.includes('Chemical') || ind.includes('Fertilizer') || ind.includes('Petrochemical')) return 'Petrochemicals & Fertilizers';
+  if (ind.includes('Construction Materials') || ind.includes('Building Products') || ind.includes('Steel') || ind.includes('Aluminum') || ind.includes('Metal Fabrication')) return 'Building Materials';
+  if (ind.includes('Engineering & Construction')) return 'Construction';
+  if (ind.includes('Telecommunication')) return 'Telecommunications';
+  if (ind.includes('Software') || ind.includes('Technology')) return 'Technology & FinTech';
+  if (ind.includes('Oil') || ind.includes('Gas') || ind.includes('Drilling') || ind.includes('Oil Refining')) return 'Oil & Gas';
+  if (ind.includes('Shipping') || ind.includes('Transportation') || ind.includes('Marine')) return 'Shipping & Transportation';
+  if (ind.includes('Hotels') || ind.includes('Tourism') || ind.includes('Cruise')) return 'Tourism & Leisure';
+  if (ind.includes('Textile') || ind.includes('Apparel') || ind.includes('Furnishings')) return 'Textiles & Consumer Goods';
+
+  const text = `${sym} ${nameEn || ''} ${nameAr || ''}`.toLowerCase();
+  if (/إسكان|تعمير|عقارات|عقاري|تطوير عمراني|تنمية عمرانية|أراضي|استثمار عقاري|معادي|مدينة|housing|real estate|development|properties|urban|reconstruction/i.test(text)) return 'Real Estate';
+  if (/بنك|مصرف|مصرفي|bank/i.test(text)) return 'Banks';
+  if (/تأمين|insurance/i.test(text)) return 'Insurance';
+  if (/أوراق مالية|سمسرة|تداول|تأجير تمويلي|استثمارات مالية|holding|invest|capital|leasing|securities|brokerage/i.test(text)) return 'Non-Banking Financial Services';
+  if (/أدوية|فارما|صيدل|علاج|pharma|medical|health/i.test(text)) return 'Pharmaceuticals';
+  if (/مطاحن|مخابز|أغذية|مشروبات|ألبان|سكر|زيوت طعام|شاي|food|beverage|mills|sugar|dairy|flour/i.test(text)) return 'Food & Beverage';
+  if (/أسمدة|كيماويات|بتروكيماويات|كيميا|fertilizer|chemical|petro/i.test(text)) return 'Petrochemicals & Fertilizers';
+  if (/أسمنت|سيراميك|حديد|صلب|ألومنيوم|رخام|محاجر|مواسير|cement|ceramic|steel|aluminum|building|glass/i.test(text)) return 'Building Materials';
+  if (/مقاولات|إنشاءات|هندسة|construction|contracting|engineering/i.test(text)) return 'Construction';
+  if (/اتصالات|telecom|communication/i.test(text)) return 'Telecommunications';
+  if (/تكنولوجيا|مدفوعات|برمجيات|fintech|software|tech|electronic/i.test(text)) return 'Technology & FinTech';
+  if (/بترول|غاز|تكرير|زيت معدني|oil|gas|petroleum|minerals/i.test(text)) return 'Oil & Gas';
+  if (/ملاحة|شحن|نقل|تفريغ|shipping|transport|maritime|port/i.test(text)) return 'Shipping & Transportation';
+  if (/سياحة|فنادق|منتجعات|طيران|tourism|hotels|resort/i.test(text)) return 'Tourism & Leisure';
+  if (/غزل|نسيج|ملابس|سجاد|textile|weavers|apparel|clothes/i.test(text)) return 'Textiles & Consumer Goods';
+
+  if (tvSector && tvSector !== 'Finance' && tvSector !== 'General') return tvSector;
+
+  return 'General';
+}
+
 const SECTOR_ARABIC_MAP = {
-  'Finance': { ar: '🏦 البنوك والخدمات المالية', icon: '🏦', category: 'FINANCIAL' },
-  'Process Industries': { ar: '🏭 الصناعات التحويلية والكيماويات', icon: '🏭', category: 'INDUSTRIAL' },
-  'Non-Energy Minerals': { ar: '⛏️ التعدين والمعادن والحديد', icon: '⛏️', category: 'MATERIALS' },
-  'Health Technology': { ar: '💊 الأدوية والتكنولوجيا الصحية', icon: '💊', category: 'HEALTHCARE' },
-  'Producer Manufacturing': { ar: '🔧 الصناعات والآلات الإنتاجية', icon: '🔧', category: 'INDUSTRIAL' },
-  'Consumer Non-Durables': { ar: '🛒 الأغذية والسلع الاستهلاكية', icon: '🛒', category: 'CONSUMER' },
-  'Industrial Services': { ar: '🏗️ المقاولات والخدمات الصناعية', icon: '🏗️', category: 'SERVICES' },
-  'Technology Services': { ar: '💻 التكنولوجيا والمدفوعات الإلكترونية', icon: '💻', category: 'TECH' },
-  'Communications': { ar: '📡 الاتصالات وتكنولوجيا المعلومات', icon: '📡', category: 'TELECOM' },
-  'Distribution Services': { ar: '📦 التوزيع والتجارة واللوجستيات', icon: '📦', category: 'SERVICES' },
-  'Consumer Durables': { ar: '🏠 التطوير العقاري والسلع المعمرة', icon: '🏠', category: 'REAL_ESTATE' },
-  'Energy Minerals': { ar: '⛽ الطاقة والبترول والتنقيب', icon: '⛽', category: 'ENERGY' },
-  'Consumer Services': { ar: '🎭 السياحة والترفيه وخدمات المستهلك', icon: '🎭', category: 'CONSUMER' },
-  'Retail Trade': { ar: '🛍️ تجارة التجزئة والمتاجر', icon: '🛍️', category: 'RETAIL' },
+  'Real Estate': { ar: '🏠 العقارات والتطوير العمراني', icon: '🏠', category: 'REAL_ESTATE' },
+  'Banks': { ar: '🏦 البنوك والقطاع المصرفي', icon: '🏦', category: 'FINANCIAL' },
+  'Non-Banking Financial Services': { ar: '💼 الخدمات المالية غير المصرفية والاستثمار', icon: '💼', category: 'FINANCIAL' },
+  'Insurance': { ar: '🛡️ التأمين وإدارة المخاطر', icon: '🛡️', category: 'FINANCIAL' },
+  'Building Materials': { ar: '🧱 مواد البناء والتشييد والحديد', icon: '🧱', category: 'MATERIALS' },
+  'Construction': { ar: '🏗️ المقاولات والإنشاءات الهندسية', icon: '🏗️', category: 'SERVICES' },
+  'Food & Beverage': { ar: '🛒 الأغذية والمشروبات والمطاحن', icon: '🛒', category: 'CONSUMER' },
+  'Pharmaceuticals': { ar: '💊 الأدوية والرعاية الصحية', icon: '💊', category: 'HEALTHCARE' },
+  'Healthcare': { ar: '🏥 المستشفيات والخدمات الطبية', icon: '🏥', category: 'HEALTHCARE' },
+  'Petrochemicals & Fertilizers': { ar: '🧪 البتروكيماويات والأسمدة والكيماويات', icon: '🧪', category: 'INDUSTRIAL' },
+  'Petrochemicals': { ar: '🧪 البتروكيماويات والكيماويات', icon: '🧪', category: 'INDUSTRIAL' },
+  'Fertilizers': { ar: '🌱 الأسمدة والكيماويات الزراعية', icon: '🌱', category: 'INDUSTRIAL' },
+  'Oil & Gas': { ar: '⛽ الطاقة والبترول والغاز', icon: '⛽', category: 'ENERGY' },
+  'Industrial Cables & Energy': { ar: '🔌 الكابلات والمنتجات الصناعية والطاقة', icon: '🔌', category: 'INDUSTRIAL' },
+  'Basic Resources': { ar: '⛏️ الموارد الأساسية والتعدين', icon: '⛏️', category: 'MATERIALS' },
+  'Telecommunications': { ar: '📡 الاتصالات وتكنولوجيا المعلومات', icon: '📡', category: 'TELECOM' },
+  'Technology & FinTech': { ar: '💻 التكنولوجيا والمدفوعات الإلكترونية', icon: '💻', category: 'TECH' },
+  'Shipping & Transportation': { ar: '🚢 النقل والشحن والخدمات اللوجستية', icon: '🚢', category: 'TRANSPORT' },
+  'Tourism & Leisure': { ar: '🎭 السياحة والفنادق والترفيه', icon: '🎭', category: 'CONSUMER' },
+  'Textiles & Consumer Goods': { ar: '🧵 المنسوجات والسلع الاستهلاكية المعمرة', icon: '🧵', category: 'CONSUMER' },
+  'Consumer Goods': { ar: '🛍️ تجارة التجزئة والسلع الاستهلاكية', icon: '🛍️', category: 'CONSUMER' },
+  'Consumer Services': { ar: '📚 الخدمات التعليمية وخدمات المستهلك', icon: '📚', category: 'CONSUMER' },
   'Utilities': { ar: '⚡ المرافق العامة والطاقة المتجددة', icon: '⚡', category: 'UTILITIES' },
-  'Commercial Services': { ar: '💼 الخدمات التجارية والاستشارية', icon: '💼', category: 'SERVICES' },
-  'Transportation': { ar: '🚢 النقل والشحن والخدمات البحرية', icon: '🚢', category: 'TRANSPORT' },
-  'Health Services': { ar: '🏥 الرعاية والخدمات الصحية والمستشفيات', icon: '🏥', category: 'HEALTHCARE' },
-  'Electronic Technology': { ar: '🔌 الصناعات الإلكترونية والكابلات', icon: '🔌', category: 'TECH' },
-  'Miscellaneous': { ar: '📋 شركات قابضة واستثمارات متنوعة', icon: '📋', category: 'HOLDING' },
+  'Commercial Services': { ar: '🤝 الخدمات التجارية والاستشارية', icon: '🤝', category: 'SERVICES' },
+  'Halal EGX': { ar: '🌿 الأسهم المتوافقة مع الشريعة', icon: '🌿', category: 'HOLDING' },
+  'General': { ar: '📋 شركات قابضة واستثمارات عامة', icon: '📋', category: 'HOLDING' },
   'Unknown': { ar: '❓ أسهم أخرى غير مصنفة', icon: '❓', category: 'OTHER' }
 };
 
 const SECTOR_PE = {
-  'Finance': 7.5,
-  'Process Industries': 8.5,
-  'Non-Energy Minerals': 7.0,
-  'Health Technology': 11.0,
-  'Producer Manufacturing': 9.0,
-  'Consumer Non-Durables': 12.0,
-  'Industrial Services': 8.5,
-  'Technology Services': 14.0,
-  'Communications': 9.0,
-  'Distribution Services': 9.5,
-  'Consumer Durables': 10.0,
-  'Energy Minerals': 8.5,
-  'Consumer Services': 11.0,
-  'Retail Trade': 10.0,
+  'Banks': 7.5,
+  'Non-Banking Financial Services': 9.0,
+  'Insurance': 8.0,
+  'Real Estate': 10.0,
+  'Construction': 8.5,
+  'Building Materials': 8.0,
+  'Petrochemicals & Fertilizers': 9.0,
+  'Petrochemicals': 8.5,
+  'Fertilizers': 9.5,
+  'Oil & Gas': 8.5,
+  'Food & Beverage': 12.0,
+  'Pharmaceuticals': 11.0,
+  'Healthcare': 12.5,
+  'Consumer Goods': 10.0,
+  'Textiles & Consumer Goods': 9.0,
+  'Industrial Cables & Energy': 9.5,
+  'Basic Resources': 7.0,
+  'Telecommunications': 9.0,
+  'Technology & FinTech': 14.0,
+  'Shipping & Transportation': 8.5,
+  'Tourism & Leisure': 11.0,
   'Utilities': 9.0,
   'Commercial Services': 9.0,
-  'Transportation': 8.5,
-  'Health Services': 12.5,
-  'Electronic Technology': 12.0,
-  'Miscellaneous': 9.0,
+  'Consumer Services': 11.0,
+  'Halal EGX': 9.0,
+  'General': 9.0,
   'Unknown': 9.0
 };
 
@@ -106,12 +299,10 @@ function computeLynchFV(eps, dy, price) {
 }
 
 function computePbRoeFV(bvps, roe, price) {
-  const effectiveBvps = (typeof bvps === 'number' && bvps > 0) ? bvps : (price > 0 ? price * 0.7 : undefined);
-  if (!effectiveBvps) return undefined;
-  const effectiveRoe = (typeof roe === 'number' && roe > 0) ? roe : 15.0;
-  const costOfEquity = 20.0;
-  const justifiedPb = Math.min(Math.max(effectiveRoe / costOfEquity, 0.6), 3.5);
-  const raw = effectiveBvps * justifiedPb;
+  if (typeof bvps !== 'number' || bvps <= 0) return undefined;
+  const returnOnEquity = (typeof roe === 'number' && roe > 0) ? roe : 15.0;
+  const targetPb = Math.min(Math.max(returnOnEquity / 10.0, 0.8), 3.5);
+  const raw = bvps * targetPb;
   if (isNaN(raw) || raw <= 0) return undefined;
   return Number(raw.toFixed(2));
 }
@@ -131,7 +322,7 @@ function fetchTradingViewScan() {
       symbols: { tickers: [] },
       columns: [
         'name', 'description', 'close', 'change', 'change_abs', 'volume',
-        'average_volume_10d_calc', 'Value.Traded', 'high', 'low', 'open', 'sector',
+        'average_volume_10d_calc', 'Value.Traded', 'high', 'low', 'open', 'sector', 'industry',
         'earnings_per_share_basic_ttm', 'price_earnings_ttm', 'price_book_ratio', 'book_value_per_share',
         'dividend_yield_recent', 'return_on_equity', 'RSI', 'SMA20', 'SMA50', 'market_cap_basic',
         'net_income', 'net_margin', 'operating_margin', 'total_revenue'
@@ -170,6 +361,55 @@ function fetchTradingViewScan() {
   });
 }
 
+function fetchEgxBeta() {
+  return new Promise((resolve) => {
+    const possiblePaths = [
+      path.join(__dirname, '..', 'data', 'egx-live.json'),
+      path.join(__dirname, '..', '..', 'data', 'egx-live.json'),
+      path.join(process.cwd(), 'data', 'egx-live.json'),
+      path.join(process.cwd(), 'frontend', 'data', 'egx-live.json')
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          const raw = fs.readFileSync(p, 'utf-8');
+          const data = JSON.parse(raw);
+          if (Array.isArray(data) && data.length > 0) {
+            return resolve(data);
+          }
+        } catch (e) {}
+      }
+    }
+
+    const req = https.get('https://beta.egx.com.eg/api/bff/egx/market-watch?Page=1&PageSize=250&SortBy=value&SortDescending=true', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://beta.egx.com.eg/en/market/market-watch'
+      },
+      timeout: 3000
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          if (body.includes('Request Rejected') || res.statusCode !== 200) {
+            resolve([]);
+          } else {
+            const json = JSON.parse(body);
+            resolve(json.data?.data || json.data || (Array.isArray(json) ? json : []));
+          }
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    });
+
+    req.on('error', () => resolve([]));
+    req.on('timeout', () => { req.destroy(); resolve([]); });
+  });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -180,7 +420,17 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const rawData = await fetchTradingViewScan();
+    const [rawData, egxData] = await Promise.all([
+      fetchTradingViewScan(),
+      fetchEgxBeta()
+    ]);
+
+    const egxMap = new Map();
+    for (const item of (egxData || [])) {
+      const code = (item.reuters || item.isin || item.symbol || item.code || '').replace('.CA', '').toUpperCase();
+      if (!code) continue;
+      egxMap.set(code, item);
+    }
 
     const sectorGroups = new Map();
     let totalMarketTurnover = 0;
@@ -193,17 +443,19 @@ module.exports = async (req, res) => {
       const sym = item.s.replace('EGX:', '').toUpperCase();
       const [
         name, desc, close, changePercent, changeAbs, volume,
-        avgVol10d, valueTraded, high, low, open, rawSector,
+        avgVol10d, valueTraded, high, low, open, rawSector, rawIndustry,
         eps, pe, pb, bvps, dy, roe, rsi, sma20, sma50, marketCap,
         netIncome, netMargin, operatingMargin, totalRevenue
       ] = item.d;
 
       if (typeof close !== 'number' || close <= 0) continue;
 
-      const sectorKey = rawSector || 'Unknown';
       const meta = watchlistMetaMap.get(sym);
-      const nameAr = (meta && meta.nameAr) || sym;
-      const nameEn = (meta && meta.nameEn) || desc || name || sym;
+      const egxInfo = egxMap.get(sym);
+      const nameAr = (meta && meta.nameAr) || (egxInfo && egxInfo.nameA) || (egxInfo && egxInfo.name) || sym;
+      const nameEn = (meta && meta.nameEn) || desc || (egxInfo && egxInfo.nameE) || name || sym;
+
+      const sectorKey = resolveCanonicalSector(sym, nameAr, nameEn, rawSector, rawIndustry, egxInfo?.sector, egxInfo?.sectorA);
 
       const price = Number(close.toFixed(2));
       const chgPct = typeof changePercent === 'number' ? Number(changePercent.toFixed(2)) : 0;
