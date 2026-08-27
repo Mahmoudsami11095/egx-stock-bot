@@ -343,6 +343,8 @@ function loadLocalEarningsOverrides() {
     path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json'),
     path.join(process.cwd(), 'data', 'earnings_overrides.json'),
     path.join(process.cwd(), 'frontend', 'data', 'earnings_overrides.json'),
+    '/root/egx-stock-bot/data/earnings_overrides.json',
+    '/root/egx-stock-bot/frontend/data/earnings_overrides.json',
     '/home/azureuser/egx-stock-bot/data/earnings_overrides.json'
   ];
   for (const p of possiblePaths) {
