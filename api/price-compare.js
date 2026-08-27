@@ -337,10 +337,37 @@ function getPeriodLabel(periodMonths, year) {
   return `سنوي كامل${yrStr}`;
 }
 
-function calculateFourQuarters(rows) {
-  if (!rows || rows.length === 0) return null;
+function loadLocalEarningsOverrides() {
+  const possiblePaths = [
+    path.join(__dirname, '..', 'data', 'earnings_overrides.json'),
+    path.join(__dirname, '..', '..', 'data', 'earnings_overrides.json'),
+    path.join(process.cwd(), 'data', 'earnings_overrides.json'),
+    path.join(process.cwd(), 'frontend', 'data', 'earnings_overrides.json'),
+    '/home/azureuser/egx-stock-bot/data/earnings_overrides.json'
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const raw = fs.readFileSync(p, 'utf-8');
+        const json = JSON.parse(raw);
+        if (json && json.overrides) return json.overrides;
+      } catch (e) {}
+    }
+  }
+  return {};
+}
 
-  const parsedRows = rows.map(r => ({
+function calculateFourQuarters(rows, override) {
+  let allRows = [...(rows || [])];
+  if (override && override.netProfit) {
+    allRows.push({
+      year: 2026,
+      quarter: override.periodMonths === 6 ? 'الربع الثانى - تراكمي' : (override.periodMonths === 3 ? 'الربع الاول' : (override.periodMonths === 9 ? 'الربع الثالث - تراكمي' : 'السنوي')),
+      announced: override.netProfit
+    });
+  }
+
+  const parsedRows = allRows.map(r => ({
     year: parseInt(r.year, 10) || 2025,
     quarter: r.quarter,
     periodMonths: parsePeriodMonths(r.quarter),
@@ -367,8 +394,12 @@ function calculateFourQuarters(rows) {
       quarters.push({ label: `Q1 '${String(year).slice(-2)}`, value: q1, year, qIndex: 1 });
     }
     if (q2Cum !== undefined) {
-      const q2Val = (q1 !== undefined) ? (q2Cum - q1) : (q2Cum / 2);
-      quarters.push({ label: `Q2 '${String(year).slice(-2)}`, value: q2Val, year, qIndex: 2 });
+      if (q1 !== undefined) {
+        quarters.push({ label: `Q2 '${String(year).slice(-2)}`, value: q2Cum - q1, year, qIndex: 2 });
+      } else {
+        // Half year standalone (2 quarters equivalent)
+        quarters.push({ label: `H1 '${String(year).slice(-2)}`, value: q2Cum, year, qIndex: 2, isHalfYear: true });
+      }
     }
     if (q3Cum !== undefined) {
       const prev = (q2Cum !== undefined) ? q2Cum : ((q1 !== undefined) ? q1 * 2 : (q3Cum * 2 / 3));
@@ -384,24 +415,37 @@ function calculateFourQuarters(rows) {
 
   if (quarters.length === 0) return null;
 
-  const last4 = quarters.slice(-4);
-  const sum = last4.reduce((acc, q) => acc + q.value, 0);
-  const effectiveSum = (last4.length === 4) ? sum : (sum * (4 / last4.length));
+  // Sum last entries up to 4 quarters equivalent
+  let equivalentCount = 0;
+  let selected = [];
+  for (let i = quarters.length - 1; i >= 0; i--) {
+    const q = quarters[i];
+    const count = q.isHalfYear ? 2 : 1;
+    if (equivalentCount + count <= 4) {
+      selected.unshift(q);
+      equivalentCount += count;
+    } else {
+      break;
+    }
+  }
+
+  const sum = selected.reduce((acc, q) => acc + q.value, 0);
+  const effectiveSum = (equivalentCount === 4) ? sum : (sum * (4 / equivalentCount));
 
   function fmt(v) {
-    if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+    if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
     if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
     return `${Math.round(v)}`;
   }
 
-  const breakdown = last4.map(q => `${q.label}: ${fmt(q.value)}`).join(' | ');
+  const breakdown = selected.map(q => `${q.label}: ${fmt(q.value)}`).join(' | ');
 
   return {
     trailing4QSum: Number(effectiveSum.toFixed(2)),
     rawSum: Number(sum.toFixed(2)),
-    quarterCount: last4.length,
+    quarterCount: equivalentCount,
     breakdown,
-    periodLabel: last4.length === 4 ? 'مجموع 4 أرباع (TTM)' : `مجموع ${last4.length} أرباع (معدل سنوياً)`
+    periodLabel: equivalentCount === 4 ? 'مجموع 4 أرباع (TTM)' : `مجموع ${equivalentCount} أرباع (معدل سنوياً)`
   };
 }
 
@@ -414,6 +458,8 @@ function fetchMubasherEarnings() {
   if (MUBASHER_EARNINGS_CACHE && (now - MUBASHER_EARNINGS_CACHE_TIME < 60000)) {
     return Promise.resolve(MUBASHER_EARNINGS_CACHE);
   }
+
+  const localOverrides = loadLocalEarningsOverrides();
 
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/earnings?country=eg&size=1000', {
@@ -461,8 +507,15 @@ function fetchMubasherEarnings() {
 
           const fourQuartersMap = new Map();
           for (const [sym, rows] of rowsBySym.entries()) {
-            const fourQ = calculateFourQuarters(rows);
+            const fourQ = calculateFourQuarters(rows, localOverrides[sym]);
             if (fourQ) fourQuartersMap.set(sym, fourQ);
+          }
+
+          for (const [sym, override] of Object.entries(localOverrides)) {
+            if (!fourQuartersMap.has(sym.toUpperCase()) && override && override.netProfit) {
+              const fourQ = calculateFourQuarters([], override);
+              if (fourQ) fourQuartersMap.set(sym.toUpperCase(), fourQ);
+            }
           }
 
           const result = { earningsMap: map, fourQuartersMap };
@@ -511,6 +564,8 @@ function fetchGeminiEarnings() {
     return Promise.resolve(GEMINI_SHEET_CACHE);
   }
 
+  const localOverrides = loadLocalEarningsOverrides();
+
   return new Promise((resolve) => {
     const url = 'https://docs.google.com/spreadsheets/d/1EKvEu7qKYFZY6JoMfohKSXtFV6tvKxbtlvDlTYr2mJ0/gviz/tq?tqx=out:csv&gid=0';
     const req = https.get(url, { timeout: 4000 }, (res) => {
@@ -520,6 +575,8 @@ function fetchGeminiEarnings() {
         try {
           const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
           const map = new Map();
+
+          // 1. Populate from Google Sheet
           for (let i = 1; i < lines.length; i++) {
             const row = parseCSVLine(lines[i]);
             const sym = (row[0] || '').replace(/"/g, '').trim().toUpperCase();
@@ -546,27 +603,83 @@ function fetchGeminiEarnings() {
             }
           }
 
+          // 2. High-precedence merge with local verified filings (e.g. AMOC 1.90B H1 2026, SWDY 10.64B H1 2026, etc.)
+          for (const [sym, data] of Object.entries(localOverrides)) {
+            if (data && data.netProfit > 0) {
+              const pMonths = data.periodMonths || 12;
+              const factor = 12 / pMonths;
+              const annualized = Number((data.netProfit * factor).toFixed(2));
+              let periodLabel = 'سنوي كامل (مدقق)';
+              if (pMonths === 3) periodLabel = 'الربع الأول 2026 (مدقق)';
+              else if (pMonths === 6) periodLabel = 'النصف الأول 2026 (مدقق)';
+              else if (pMonths === 9) periodLabel = '9 أشهر 2026 (مدقق)';
+
+              map.set(sym.toUpperCase(), {
+                netProfit: data.netProfit,
+                annualizedProfit: annualized,
+                periodMonths: pMonths,
+                periodLabel,
+                source: data.source || 'إفصاح رسمي مدقق'
+              });
+            }
+          }
+
           GEMINI_SHEET_CACHE = map;
           GEMINI_SHEET_CACHE_TIME = now;
           resolve(map);
         } catch (e) {
-          resolve(new Map());
+          const fallbackMap = new Map();
+          for (const [sym, data] of Object.entries(localOverrides)) {
+            if (data && data.netProfit > 0) {
+              const pMonths = data.periodMonths || 12;
+              const factor = 12 / pMonths;
+              fallbackMap.set(sym.toUpperCase(), {
+                netProfit: data.netProfit,
+                annualizedProfit: Number((data.netProfit * factor).toFixed(2)),
+                periodMonths: pMonths,
+                periodLabel: pMonths === 6 ? 'النصف الأول 2026 (مدقق)' : 'سنوي كامل (مدقق)',
+                source: data.source || 'إفصاح رسمي مدقق'
+              });
+            }
+          }
+          resolve(fallbackMap);
         }
       });
     });
 
     req.on('error', () => {
       const fallbackMap = new Map();
-      for (const [s, data] of Object.entries(LOCAL_AUDITED_OVERRIDES)) {
-        fallbackMap.set(s, { ...data });
+      for (const [sym, data] of Object.entries(localOverrides)) {
+        if (data && data.netProfit > 0) {
+          const pMonths = data.periodMonths || 12;
+          const factor = 12 / pMonths;
+          fallbackMap.set(sym.toUpperCase(), {
+            netProfit: data.netProfit,
+            annualizedProfit: Number((data.netProfit * factor).toFixed(2)),
+            periodMonths: pMonths,
+            periodLabel: pMonths === 6 ? 'النصف الأول 2026 (مدقق)' : 'سنوي كامل (مدقق)',
+            source: data.source || 'إفصاح رسمي مدقق'
+          });
+        }
       }
       resolve(fallbackMap);
     });
+
     req.on('timeout', () => {
       req.destroy();
       const fallbackMap = new Map();
-      for (const [s, data] of Object.entries(LOCAL_AUDITED_OVERRIDES)) {
-        fallbackMap.set(s, { ...data });
+      for (const [sym, data] of Object.entries(localOverrides)) {
+        if (data && data.netProfit > 0) {
+          const pMonths = data.periodMonths || 12;
+          const factor = 12 / pMonths;
+          fallbackMap.set(sym.toUpperCase(), {
+            netProfit: data.netProfit,
+            annualizedProfit: Number((data.netProfit * factor).toFixed(2)),
+            periodMonths: pMonths,
+            periodLabel: pMonths === 6 ? 'النصف الأول 2026 (مدقق)' : 'سنوي كامل (مدقق)',
+            source: data.source || 'إفصاح رسمي مدقق'
+          });
+        }
       }
       resolve(fallbackMap);
     });
