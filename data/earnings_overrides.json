@@ -88,7 +88,12 @@
       "periodMonths": 6,
       "totalShares": 1291500000,
       "dps": 0.65,
-      "source": "Audited Financial Statement H1 2026 - AMOC (1.90B EGP announced July 30, 2026)",
+      "quarters": [
+        { "year": 2025, "quarter": "السنوي", "announced": 1550000000 },
+        { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 640000000 },
+        { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 1900000000 }
+      ],
+      "source": "Audited Financial Statement H1 2026 - AMOC (1.90B EGP announced July 30, 2026 | FY2025 1.55B)",
       "updatedAt": "2026-08-17"
     },
     "ORAS": {

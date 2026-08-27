@@ -547,7 +547,6 @@ function calculateFourQuarters(rows, override) {
   }
 
   const sum = selected.reduce((acc, q) => acc + q.value, 0);
-  const effectiveSum = (equivalentCount === 4) ? sum : (sum * (4 / equivalentCount));
 
   function fmt(v) {
     if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
@@ -557,12 +556,16 @@ function calculateFourQuarters(rows, override) {
 
   const breakdown = selected.map(q => `${q.label}: ${fmt(q.value)}`).join(' | ');
 
+  const label = (equivalentCount === 4)
+    ? 'مجموع 4 أرباع (TTM)'
+    : (equivalentCount === 2 ? 'مجموع ربعين' : (equivalentCount === 1 ? 'الربع الأخير' : `مجموع ${equivalentCount} أرباع`));
+
   return {
-    trailing4QSum: Number(effectiveSum.toFixed(2)),
+    trailing4QSum: Number(sum.toFixed(2)),
     rawSum: Number(sum.toFixed(2)),
     quarterCount: equivalentCount,
     breakdown,
-    periodLabel: equivalentCount === 4 ? 'مجموع 4 أرباع (TTM)' : `مجموع ${equivalentCount} أرباع (معدل سنوياً)`
+    periodLabel: label
   };
 }
 
