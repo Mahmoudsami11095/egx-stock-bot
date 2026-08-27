@@ -455,6 +455,21 @@ const EMBEDDED_OVERRIDES = {
     ],
     "source": "Audited Financial Statement H1 2026 - Sinai Cement",
     "updatedAt": "2026-08-17"
+  },
+  "ETEL": {
+    "symbol": "ETEL",
+    "name": "Telecom Egypt",
+    "netProfit": 13400000000,
+    "periodMonths": 6,
+    "totalShares": 1707071600,
+    "dps": 1.50,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 22580000000 },
+      { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 8510000000 },
+      { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 13400000000 }
+    ],
+    "source": "Audited Financial Statement H1 2026 - Telecom Egypt",
+    "updatedAt": "2026-08-17"
   }
 };
 
