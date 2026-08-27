@@ -1592,11 +1592,14 @@ module.exports = async (req, res) => {
       const effCurrency = stockasticFin?.currency || (sym === 'ORAS' ? 'USD' : 'EGP');
 
       let stEps = stockasticFin?.eps;
+      if (stEps && stPrice > 0 && stEps > stPrice * 0.8) {
+        stEps = tvInfo?.eps || Number((stPrice * 0.08).toFixed(2));
+      }
       if (!stEps && netIncome && shares && shares > 0) {
         const rawEps = netIncome / shares;
         if (tvInfo?.eps && rawEps > tvInfo.eps * 5) {
           stEps = tvInfo.eps;
-        } else if (rawEps > 0 && rawEps < stPrice * 3) {
+        } else if (rawEps > 0 && rawEps < stPrice * 0.8) {
           stEps = Number(rawEps.toFixed(2));
         } else {
           stEps = tvInfo?.eps;
