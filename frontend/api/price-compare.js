@@ -259,6 +259,8 @@ async function fetchStockasticMap() {
       path.join(process.cwd(), 'frontend', 'data', 'stockastic-live.json'),
       path.join(__dirname, '..', 'data', 'stockastic-live.json'),
       path.join(__dirname, '..', '..', 'data', 'stockastic-live.json'),
+      '/root/egx-stock-bot/data/stockastic-live.json',
+      '/root/egx-stock-bot/frontend/data/stockastic-live.json',
       '/home/azureuser/egx-stock-bot/data/stockastic-live.json'
     ];
     for (const p of livePaths) {
