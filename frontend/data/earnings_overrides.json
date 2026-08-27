@@ -100,11 +100,11 @@
       "dps": 0.28,
       "currency": "USD",
       "quarters": [
-        { "year": 2025, "quarter": "السنوي", "announced": 244200000 },
-        { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 127800000 },
+        { "year": 2025, "quarter": "السنوي", "announced": 205700000 },
+        { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": 89300000 },
         { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": 127800000 }
       ],
-      "source": "Audited Financial Statement H1 2026 - Orascom Construction ($127.8M USD announced Aug 16, 2026)",
+      "source": "Audited Financial Statement H1 2026 - Orascom Construction ($127.8M USD announced Aug 16, 2026 | FY2025 $205.7M USD)",
       "updatedAt": "2026-08-17"
     }
   }
