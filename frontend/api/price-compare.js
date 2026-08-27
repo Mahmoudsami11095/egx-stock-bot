@@ -117,13 +117,61 @@ const CANONICAL_STOCK_SECTORS = {
   'CLHO': 'Healthcare'
 };
 
-function resolveCanonicalSector(sym, nameAr, nameEn, tvSector, tvIndustry) {
-  if (sym && CANONICAL_STOCK_SECTORS[sym.toUpperCase()]) return CANONICAL_STOCK_SECTORS[sym.toUpperCase()];
+const EGX_OFFICIAL_SECTOR_MAP = {
+  'Real Estate': 'Real Estate',
+  'عقارات': 'Real Estate',
+  'Banks': 'Banks',
+  'بنوك': 'Banks',
+  'Non-bank financial services': 'Non-Banking Financial Services',
+  'خدمات مالية غير مصرفية': 'Non-Banking Financial Services',
+  'Health Care & Pharmaceuticals': 'Pharmaceuticals',
+  'رعاية صحية و ادوية': 'Pharmaceuticals',
+  'Food, Beverages and Tobacco': 'Food & Beverage',
+  'أغذية و مشروبات و تبغ': 'Food & Beverage',
+  'Basic Resources': 'Basic Resources',
+  'موارد أساسية': 'Basic Resources',
+  'Building Materials': 'Building Materials',
+  'مواد البناء': 'Building Materials',
+  'Contracting & Construction Engineering': 'Construction',
+  'مقاولات و إنشاءات هندسية': 'Construction',
+  'IT , Media & Communication Services': 'Telecommunications',
+  'اتصالات و  اعلام و تكنولوجيا المعلومات': 'Telecommunications',
+  'Textile & Durables': 'Textiles & Consumer Goods',
+  'منسوجات و سلع معمرة': 'Textiles & Consumer Goods',
+  'Travel & Leisure': 'Tourism & Leisure',
+  'سياحة وترفيه': 'Tourism & Leisure',
+  'Energy & Support Services': 'Oil & Gas',
+  'طاقة وخدمات مساندة': 'Oil & Gas',
+  'Shipping & Transportation Services': 'Shipping & Transportation',
+  'خدمات النقل والشحن': 'Shipping & Transportation',
+  'Industrial Goods , Services and Automobiles': 'Industrial Cables & Energy',
+  'خدمات و منتجات صناعية وسيارات': 'Industrial Cables & Energy',
+  'Trade & Distributors': 'Consumer Goods',
+  'تجارة و موزعون': 'Consumer Goods',
+  'Paper & Packaging': 'Building Materials',
+  'ورق ومواد تعبئة و تغليف': 'Building Materials',
+  'Education Services': 'Consumer Services',
+  'خدمات تعليمية': 'Consumer Services',
+  'Utilities': 'Utilities',
+  'مرافق': 'Utilities'
+};
 
+function resolveCanonicalSector(sym, nameAr, nameEn, tvSector, tvIndustry, egxSector, egxSectorA) {
+  // 1. Explicit Symbol Override (Top Priority)
+  if (sym && CANONICAL_STOCK_SECTORS[sym.toUpperCase()]) {
+    return CANONICAL_STOCK_SECTORS[sym.toUpperCase()];
+  }
+
+  // 2. Official Dynamic EGX API Sector (High Priority direct from EGX feed)
+  if (egxSector && EGX_OFFICIAL_SECTOR_MAP[egxSector]) {
+    return EGX_OFFICIAL_SECTOR_MAP[egxSector];
+  }
+  if (egxSectorA && EGX_OFFICIAL_SECTOR_MAP[egxSectorA]) {
+    return EGX_OFFICIAL_SECTOR_MAP[egxSectorA];
+  }
+
+  // 3. TradingView Industry-specific Mapping
   const ind = tvIndustry || '';
-  const text = `${sym} ${nameEn || ''} ${nameAr || ''}`.toLowerCase();
-
-  // 1. Industry-specific Mapping
   if (ind === 'Real Estate Development' || ind === 'Homebuilding') return 'Real Estate';
   if (ind === 'Regional Banks' || ind === 'Major Banks') return 'Banks';
   if (ind.includes('Insurance')) return 'Insurance';
@@ -140,7 +188,8 @@ function resolveCanonicalSector(sym, nameAr, nameEn, tvSector, tvIndustry) {
   if (ind.includes('Hotels') || ind.includes('Tourism') || ind.includes('Cruise')) return 'Tourism & Leisure';
   if (ind.includes('Textile') || ind.includes('Apparel') || ind.includes('Furnishings')) return 'Textiles & Consumer Goods';
 
-  // 2. Multilingual Keyword Match
+  // 4. Multilingual Keyword Match
+  const text = `${sym} ${nameEn || ''} ${nameAr || ''}`.toLowerCase();
   if (/إسكان|تعمير|عقارات|عقاري|تطوير عمراني|تنمية عمرانية|أراضي|استثمار عقاري|معادي|مدينة|housing|real estate|development|properties|urban|reconstruction/i.test(text)) return 'Real Estate';
   if (/بنك|مصرف|مصرفي|bank/i.test(text)) return 'Banks';
   if (/تأمين|insurance/i.test(text)) return 'Insurance';
@@ -157,7 +206,7 @@ function resolveCanonicalSector(sym, nameAr, nameEn, tvSector, tvIndustry) {
   if (/سياحة|فنادق|منتجعات|طيران|tourism|hotels|resort/i.test(text)) return 'Tourism & Leisure';
   if (/غزل|نسيج|ملابس|سجاد|textile|weavers|apparel|clothes/i.test(text)) return 'Textiles & Consumer Goods';
 
-  // 3. Fallback to TradingView sector if not generic
+  // 5. Fallback to TradingView sector if not generic
   if (tvSector && tvSector !== 'Finance' && tvSector !== 'General') return tvSector;
 
   return 'General';
@@ -1194,15 +1243,20 @@ module.exports = async (req, res) => {
           netProfit: (typeof item.netProfit === 'number' && !isNaN(item.netProfit)) ? item.netProfit : (parseFloat(item.netProfit) || undefined),
           formattedDate: egxFormattedDate,
           nameAr: item.nameA || item.name || code,
-          nameEn: item.nameE || code
+          nameEn: item.nameE || code,
+          sector: item.sector,
+          sectorA: item.sectorA,
+          marketCap: item.mc,
+          currency: item.curr === 'US Dollar' ? 'USD' : 'EGP'
         });
 
         if (!allSymbolsMap.has(code)) {
+          const egxResolvedSec = resolveCanonicalSector(code, item.nameA || item.name || code, item.nameE || code, null, null, item.sector, item.sectorA);
           allSymbolsMap.set(code, {
             symbol: code,
             nameEn: item.nameE || code,
             nameAr: item.nameA || item.name || code,
-            sector: 'General'
+            sector: egxResolvedSec
           });
         }
       }
@@ -1220,7 +1274,7 @@ module.exports = async (req, res) => {
 
       const nameAr = (meta && meta.nameAr) || (stockInfo && stockInfo.nameAr) || (egxInfo && egxInfo.nameAr) || (mubInfo && mubInfo.nameAr) || sym;
       const nameEn = (meta && meta.nameEn) || (stockInfo && stockInfo.nameEn) || (tvInfo && tvInfo.nameEn) || sym;
-      const sector = resolveCanonicalSector(sym, nameAr, nameEn, (meta && meta.sector) || (stockInfo && stockInfo.sector), tvInfo?.industry);
+      const sector = resolveCanonicalSector(sym, nameAr, nameEn, (meta && meta.sector) || (stockInfo && stockInfo.sector), tvInfo?.industry, egxInfo?.sector, egxInfo?.sectorA);
 
       const sources = {};
       const validPrices = [];
