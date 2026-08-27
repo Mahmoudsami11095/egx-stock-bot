@@ -359,12 +359,16 @@ function loadLocalEarningsOverrides() {
 
 function calculateFourQuarters(rows, override) {
   let allRows = [...(rows || [])];
-  if (override && override.netProfit) {
-    allRows.push({
-      year: 2026,
-      quarter: override.periodMonths === 6 ? 'الربع الثانى - تراكمي' : (override.periodMonths === 3 ? 'الربع الاول' : (override.periodMonths === 9 ? 'الربع الثالث - تراكمي' : 'السنوي')),
-      announced: override.netProfit
-    });
+  if (override) {
+    if (Array.isArray(override.quarters) && override.quarters.length > 0) {
+      allRows.push(...override.quarters);
+    } else if (override.netProfit) {
+      allRows.push({
+        year: 2026,
+        quarter: override.periodMonths === 6 ? 'الربع الثانى - تراكمي' : (override.periodMonths === 3 ? 'الربع الاول' : (override.periodMonths === 9 ? 'الربع الثالث - تراكمي' : 'السنوي')),
+        announced: override.netProfit
+      });
+    }
   }
 
   const parsedRows = allRows.map(r => ({
@@ -407,9 +411,16 @@ function calculateFourQuarters(rows, override) {
       quarters.push({ label: `Q3 '${String(year).slice(-2)}`, value: q3Val, year, qIndex: 3 });
     }
     if (fy !== undefined) {
-      const prev = (q3Cum !== undefined) ? q3Cum : ((q2Cum !== undefined) ? q2Cum : (fy * 0.75));
-      const q4Val = fy - prev;
-      quarters.push({ label: `Q4 '${String(year).slice(-2)}`, value: q4Val, year, qIndex: 4 });
+      if (q3Cum !== undefined) {
+        const q4Val = fy - q3Cum;
+        quarters.push({ label: `Q4 '${String(year).slice(-2)}`, value: q4Val, year, qIndex: 4 });
+      } else if (q2Cum !== undefined) {
+        const h2Val = fy - q2Cum;
+        quarters.push({ label: `H2 '${String(year).slice(-2)}`, value: h2Val, year, qIndex: 4, isHalfYear: true });
+      } else {
+        // Full year standalone (4 quarters equivalent)
+        quarters.push({ label: `FY '${String(year).slice(-2)}`, value: fy, year, qIndex: 4, isFullYear: true });
+      }
     }
   }
 
@@ -420,7 +431,7 @@ function calculateFourQuarters(rows, override) {
   let selected = [];
   for (let i = quarters.length - 1; i >= 0; i--) {
     const q = quarters[i];
-    const count = q.isHalfYear ? 2 : 1;
+    const count = q.isFullYear ? 4 : (q.isHalfYear ? 2 : 1);
     if (equivalentCount + count <= 4) {
       selected.unshift(q);
       equivalentCount += count;
