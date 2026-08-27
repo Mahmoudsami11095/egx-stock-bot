@@ -160,10 +160,10 @@ let TV_DETAILED_CACHE_TIME = 0;
 function parseTvPeriod(periodStr) {
   if (!periodStr) return { factor: 1, label: 'سنوي كامل' };
   const yr = periodStr.split('-')[0] || '';
-  if (periodStr.includes('Q1')) return { factor: 4, label: `الربع الأول ${yr} (معدل سنوياً)`.trim() };
-  if (periodStr.includes('Q2') || periodStr.includes('H1')) return { factor: 2, label: `النصف الأول ${yr} (معدل سنوياً)`.trim() };
-  if (periodStr.includes('Q3') || periodStr.includes('9M')) return { factor: 1.3333, label: `9 أشهر ${yr} (معدل سنوياً)`.trim() };
-  if (periodStr.includes('Q4')) return { factor: 1, label: `الربع الرابع ${yr} (معدل سنوياً)`.trim() };
+  if (periodStr.includes('Q1')) return { factor: 1, label: `الربع الأول ${yr}`.trim() };
+  if (periodStr.includes('Q2') || periodStr.includes('H1')) return { factor: 1, label: `النصف الأول ${yr}`.trim() };
+  if (periodStr.includes('Q3') || periodStr.includes('9M')) return { factor: 1, label: `9 أشهر ${yr}`.trim() };
+  if (periodStr.includes('Q4')) return { factor: 1, label: `الربع الرابع ${yr}`.trim() };
   return { factor: 1, label: `سنوي كامل ${yr}`.trim() };
 }
 
@@ -192,13 +192,12 @@ function fetchTvSymbolFinancials(sym) {
                 const div = d[k].descriptions['Dividends']?.data;
                 if (inc && inc.netIncome !== null && inc.netIncome !== undefined) {
                   const pInfo = parseTvPeriod(inc.fiscalPeriod);
-                  const annualized = Number((inc.netIncome * pInfo.factor).toFixed(2));
                   return resolve({
                     sym,
                     rawNetIncome: inc.netIncome,
-                    netIncome: annualized,
+                    netIncome: inc.netIncome,
                     netIncomePeriod: pInfo.label,
-                    totalRevenue: inc.totalRevenue ? Number((inc.totalRevenue * pInfo.factor).toFixed(2)) : undefined,
+                    totalRevenue: inc.totalRevenue,
                     fiscalPeriod: inc.fiscalPeriod,
                     totalAssets: bal?.totalAssets,
                     totalLiabilities: bal?.totalLiabilities,
@@ -1023,6 +1022,8 @@ module.exports = async (req, res) => {
         const consensusFv = computeConsensusFV(graham, peFv, lynch, pbFv, mubInfo.price);
         const upside = (consensusFv && mubInfo.price > 0) ? Number((((consensusFv - mubInfo.price) / mubInfo.price) * 100).toFixed(2)) : 0;
 
+        const rawMubLabel = mubEarnings ? (mubEarnings.quarter ? `${mubEarnings.quarter} ${mubEarnings.year || ''}`.trim() : (mubEarnings.periodMonths === 6 ? `النصف الأول ${mubEarnings.year || ''}`.trim() : (mubEarnings.periodMonths === 3 ? `الربع الأول ${mubEarnings.year || ''}`.trim() : `سنوي كامل ${mubEarnings.year || ''}`.trim()))) : undefined;
+
         sources.mubasher = {
           price: mubInfo.price,
           change: mubInfo.change,
@@ -1042,9 +1043,9 @@ module.exports = async (req, res) => {
           bvps: undefined,           // Strict zero-fallback
           roe: undefined,            // Strict zero-fallback
           dividendYield: undefined,  // Strict zero-fallback
-          netIncome: mubEarnings ? mubEarnings.annualizedProfit : undefined, // Normalized to Annualized TTM
+          netIncome: mubEarnings ? mubEarnings.netProfit : undefined, // Genuine raw announced profit (No معدل)
           netIncomeRaw: mubEarnings ? mubEarnings.netProfit : undefined,
-          netIncomePeriod: mubEarnings ? mubEarnings.periodLabel : undefined,
+          netIncomePeriod: rawMubLabel,
           netIncomePeriodMonths: mubEarnings ? mubEarnings.periodMonths : undefined,
           netIncomeYear: mubEarnings ? mubEarnings.year : undefined,
           netProfitMargin: undefined,// Strict zero-fallback
