@@ -537,13 +537,39 @@ function fetchMubasherEarnings() {
           }
           resolve(result);
         } catch (e) {
-          resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: new Map() });
+          const fallbackFourQ = new Map();
+          for (const [sym, override] of Object.entries(localOverrides)) {
+            if (override && override.netProfit) {
+              const fourQ = calculateFourQuarters([], override);
+              if (fourQ) fallbackFourQ.set(sym.toUpperCase(), fourQ);
+            }
+          }
+          resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: fallbackFourQ });
         }
       });
     });
 
-    req.on('error', () => resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: new Map() }));
-    req.on('timeout', () => { req.destroy(); resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: new Map() }); });
+    req.on('error', () => {
+      const fallbackFourQ = new Map();
+      for (const [sym, override] of Object.entries(localOverrides)) {
+        if (override && override.netProfit) {
+          const fourQ = calculateFourQuarters([], override);
+          if (fourQ) fallbackFourQ.set(sym.toUpperCase(), fourQ);
+        }
+      }
+      resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: fallbackFourQ });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      const fallbackFourQ = new Map();
+      for (const [sym, override] of Object.entries(localOverrides)) {
+        if (override && override.netProfit) {
+          const fourQ = calculateFourQuarters([], override);
+          if (fourQ) fallbackFourQ.set(sym.toUpperCase(), fourQ);
+        }
+      }
+      resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: fallbackFourQ });
+    });
   });
 }
 
