@@ -29,6 +29,52 @@ if (Array.isArray(watchlist)) {
   }
 }
 
+const CANONICAL_STOCK_SECTORS = {
+  'MASR': 'Real Estate',
+  'MNHD': 'Real Estate',
+  'TMGH': 'Real Estate',
+  'HELI': 'Real Estate',
+  'PHDC': 'Real Estate',
+  'OCDI': 'Real Estate',
+  'ORHD': 'Real Estate',
+  'AMER': 'Real Estate',
+  'EHDR': 'Real Estate',
+  'RREI': 'Real Estate',
+  'COPR': 'Real Estate',
+  'PORT': 'Real Estate',
+  'ELKA': 'Real Estate',
+  'EMFD': 'Real Estate',
+  'AREH': 'Real Estate',
+  'COMI': 'Banks',
+  'ADIB': 'Banks',
+  'CIEB': 'Banks',
+  'HDBK': 'Banks',
+  'FAIT': 'Banks',
+  'QNBA': 'Banks',
+  'SAIB': 'Banks',
+  'SWDY': 'Industrial Cables & Energy',
+  'AMOC': 'Oil & Gas',
+  'ORAS': 'Construction',
+  'SCEM': 'Building Materials',
+  'ETEL': 'Telecommunications',
+  'FWRY': 'Technology & FinTech',
+  'EGAL': 'Basic Resources',
+  'ABUK': 'Fertilizers',
+  'MFPC': 'Fertilizers',
+  'SKPC': 'Petrochemicals',
+  'EGAS': 'Petrochemicals',
+  'JUFO': 'Food & Beverage',
+  'DOMT': 'Food & Beverage',
+  'EFID': 'Food & Beverage',
+  'OBRI': 'Food & Beverage',
+  'ORWE': 'Textiles & Consumer Goods',
+  'AUTO': 'Consumer Goods',
+  'RMDA': 'Pharmaceuticals',
+  'ISPH': 'Pharmaceuticals',
+  'MPCI': 'Pharmaceuticals',
+  'CLHO': 'Healthcare'
+};
+
 const SECTOR_PE = {
   'Banks': 7.5,
   'Non-Banking Financial Services': 9.0,
@@ -1076,7 +1122,7 @@ module.exports = async (req, res) => {
 
       const nameAr = (meta && meta.nameAr) || (stockInfo && stockInfo.nameAr) || sym;
       const nameEn = (meta && meta.nameEn) || (stockInfo && stockInfo.nameEn) || sym;
-      const sector = (meta && meta.sector) || (stockInfo && stockInfo.sector) || 'General';
+      const sector = CANONICAL_STOCK_SECTORS[sym] || (meta && meta.sector) || (stockInfo && stockInfo.sector) || 'General';
 
       const tvInfo = tvMap.get(sym);
       const mubInfo = mubMap.get(sym);
