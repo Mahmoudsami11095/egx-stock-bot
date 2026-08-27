@@ -405,15 +405,23 @@ function calculateFourQuarters(rows) {
   };
 }
 
+let MUBASHER_EARNINGS_CACHE = null;
+let MUBASHER_EARNINGS_CACHE_TIME = 0;
+
 // Fetch Mubasher EGX Corporate Earnings API (Normalized to Annualized TTM + Trailing 4-Quarters)
 function fetchMubasherEarnings() {
+  const now = Date.now();
+  if (MUBASHER_EARNINGS_CACHE && (now - MUBASHER_EARNINGS_CACHE_TIME < 60000)) {
+    return Promise.resolve(MUBASHER_EARNINGS_CACHE);
+  }
+
   return new Promise((resolve) => {
     const req = https.get('https://www.mubasher.info/api/1/earnings?country=eg&size=1000', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*'
       },
-      timeout: 5000
+      timeout: 8000
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);
@@ -457,15 +465,20 @@ function fetchMubasherEarnings() {
             if (fourQ) fourQuartersMap.set(sym, fourQ);
           }
 
-          resolve({ earningsMap: map, fourQuartersMap });
+          const result = { earningsMap: map, fourQuartersMap };
+          if (map.size > 0) {
+            MUBASHER_EARNINGS_CACHE = result;
+            MUBASHER_EARNINGS_CACHE_TIME = now;
+          }
+          resolve(result);
         } catch (e) {
-          resolve({ earningsMap: new Map(), fourQuartersMap: new Map() });
+          resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: new Map() });
         }
       });
     });
 
-    req.on('error', () => resolve({ earningsMap: new Map(), fourQuartersMap: new Map() }));
-    req.on('timeout', () => { req.destroy(); resolve({ earningsMap: new Map(), fourQuartersMap: new Map() }); });
+    req.on('error', () => resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: new Map() }));
+    req.on('timeout', () => { req.destroy(); resolve(MUBASHER_EARNINGS_CACHE || { earningsMap: new Map(), fourQuartersMap: new Map() }); });
   });
 }
 
