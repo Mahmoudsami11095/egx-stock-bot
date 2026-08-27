@@ -20,7 +20,7 @@ import { FairValueComparisonResult, SourceFairValueData } from '../../core/model
             ⚖️ مقارنة القيم العادلة للأسهم عبر مصادر البيانات المتعددة
           </h2>
           <p class="text-xs sm:text-sm text-gray-400">
-            حساب ومقارنة القيم العادلة اللحظية لكل سهم بشكل متزامن من (TradingView ،مباشر Mubasher ،Investing.com ،Yahoo Finance) لكشف فرص المراجحة والتقييم الحقيقي
+            حساب ومقارنة القيم العادلة اللحظية لكل سهم بشكل متزامن من (TradingView ،مباشر Mubasher ،البورصة المصرية EGX ،Gemini AI مدقق رسمي ،Gemini AI TTM) لكشف فرص المراجحة والتقييم الحقيقي
           </p>
         </div>
 
@@ -53,7 +53,7 @@ import { FairValueComparisonResult, SourceFairValueData } from '../../core/model
             <i class="pi pi-list text-emeraldAccent"></i>
           </div>
           <div class="text-2xl font-black text-white">{{ stats().total }}</div>
-          <div class="text-[11px] text-gray-400 mt-1">مفحوصة عبر 4 محركات بيانات</div>
+          <div class="text-[11px] text-gray-400 mt-1">مفحوصة عبر 5 محركات بيانات</div>
         </div>
 
         <!-- Strong Undervalued Consensus -->
@@ -166,11 +166,11 @@ import { FairValueComparisonResult, SourceFairValueData } from '../../core/model
               <th class="py-3.5 px-3 text-center bg-darkCard/40">
                 📊 مباشر Mubasher
               </th>
-              <th class="py-3.5 px-3 text-center bg-darkCard/40">
-                📈 Investing.com
+              <th class="py-3.5 px-3 text-center bg-darkCard/40 text-purple-300">
+                🤖 Gemini AI (مدقق رسمي)
               </th>
-              <th class="py-3.5 px-3 text-center bg-darkCard/40">
-                💹 Yahoo Finance
+              <th class="py-3.5 px-3 text-center bg-darkCard/40 text-cyan-300">
+                📊 Gemini AI (آخر 4 أرباع TTM)
               </th>
               <th pSortableColumn="averageFairValue" class="py-3.5 px-3 text-center bg-emerald-500/10 text-emerald-300">
                 متوسط القيمة العادلة <p-sortIcon field="averageFairValue"></p-sortIcon>
@@ -243,26 +243,26 @@ import { FairValueComparisonResult, SourceFairValueData } from '../../core/model
                 <ng-template #noMub><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
-              <!-- Investing -->
+              <!-- Gemini AI Audited -->
               <td class="py-3 px-3 text-center bg-darkCard/20">
-                <ng-container *ngIf="stock.sources['investing']; else noInv">
-                  <div class="font-bold text-white text-xs">{{ stock.sources['investing'].fairValue }} ج.م</div>
-                  <div [class]="stock.sources['investing'].upsidePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[11px] font-extrabold">
-                    {{ stock.sources['investing'].upsidePercent >= 0 ? '+' : '' }}{{ stock.sources['investing'].upsidePercent }}%
+                <ng-container *ngIf="stock.sources['gemini']; else noGem">
+                  <div class="font-bold text-white text-xs">{{ stock.sources['gemini'].fairValue }} ج.م</div>
+                  <div [class]="stock.sources['gemini'].upsidePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[11px] font-extrabold">
+                    {{ stock.sources['gemini'].upsidePercent >= 0 ? '+' : '' }}{{ stock.sources['gemini'].upsidePercent }}%
                   </div>
                 </ng-container>
-                <ng-template #noInv><span class="text-xs text-gray-500">—</span></ng-template>
+                <ng-template #noGem><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
-              <!-- Yahoo -->
+              <!-- Gemini AI TTM -->
               <td class="py-3 px-3 text-center bg-darkCard/20">
-                <ng-container *ngIf="stock.sources['yahoo']; else noYah">
-                  <div class="font-bold text-white text-xs">{{ stock.sources['yahoo'].fairValue }} ج.م</div>
-                  <div [class]="stock.sources['yahoo'].upsidePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[11px] font-extrabold">
-                    {{ stock.sources['yahoo'].upsidePercent >= 0 ? '+' : '' }}{{ stock.sources['yahoo'].upsidePercent }}%
+                <ng-container *ngIf="stock.sources['gemini_4q']; else noGem4q">
+                  <div class="font-bold text-white text-xs">{{ stock.sources['gemini_4q'].fairValue }} ج.م</div>
+                  <div [class]="stock.sources['gemini_4q'].upsidePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[11px] font-extrabold">
+                    {{ stock.sources['gemini_4q'].upsidePercent >= 0 ? '+' : '' }}{{ stock.sources['gemini_4q'].upsidePercent }}%
                   </div>
                 </ng-container>
-                <ng-template #noYah><span class="text-xs text-gray-500">—</span></ng-template>
+                <ng-template #noGem4q><span class="text-xs text-gray-500">—</span></ng-template>
               </td>
 
               <!-- Average Fair Value -->
@@ -502,9 +502,8 @@ export class FairPriceComparatorComponent implements OnInit {
       egx: 'البورصة المصرية EGX Official',
       tradingview: 'TradingView Scanner',
       mubasher: 'مباشر مصر Mubasher',
-      investing: 'Investing.com Multi-Factor',
-      yahoo: 'Yahoo Finance Model',
-      eodhd: 'EODHD Historical Model'
+      gemini: 'Gemini AI (مدقق رسمي)',
+      gemini_4q: 'Gemini AI (آخر 4 أرباع TTM)'
     };
     return map[key] || key;
   }
@@ -514,9 +513,8 @@ export class FairPriceComparatorComponent implements OnInit {
       egx: '🏛️',
       tradingview: '🌐',
       mubasher: '📊',
-      investing: '📈',
-      yahoo: '💹',
-      eodhd: '📡'
+      gemini: '🤖',
+      gemini_4q: '📊'
     };
     return map[key] || '🔹';
   }
@@ -545,17 +543,18 @@ export class FairPriceComparatorComponent implements OnInit {
     const list = this.filteredStocks();
     if (list.length === 0) return;
 
-    const headers = ['Symbol', 'Name (AR)', 'Name (EN)', 'Sector', 'Current Price', 'EGX FV', 'TV FV', 'Mubasher FV', 'Investing FV', 'Yahoo FV', 'Average FV', 'Average Upside %', 'Spread %'];
+    const headers = ['Symbol', 'Name (AR)', 'Name (EN)', 'Sector', 'Current Price', 'EGX FV', 'TV FV', 'Mubasher FV', 'Gemini Audited FV', 'Gemini TTM FV', 'Average FV', 'Average Upside %', 'Spread %'];
     const rows = list.map(s => [
       s.symbol,
       `"${s.nameAr}"`,
       `"${s.nameEn}"`,
       `"${s.sector}"`,
       s.currentPrice,
+      s.sources['egx']?.fairValue || '',
       s.sources['tradingview']?.fairValue || '',
       s.sources['mubasher']?.fairValue || '',
-      s.sources['investing']?.fairValue || '',
-      s.sources['yahoo']?.fairValue || '',
+      s.sources['gemini']?.fairValue || '',
+      s.sources['gemini_4q']?.fairValue || '',
       s.averageFairValue,
       s.averageUpsidePercent,
       s.spreadPercent
