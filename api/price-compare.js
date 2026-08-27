@@ -330,10 +330,10 @@ function parsePeriodMonths(quarterStr) {
 
 function getPeriodLabel(periodMonths, year) {
   const yrStr = year ? ` ${year}` : '';
-  if (periodMonths === 3) return `الربع الأول${yrStr} (معدل سنوياً)`;
-  if (periodMonths === 6) return `النصف الأول${yrStr} (معدل سنوياً)`;
-  if (periodMonths === 9) return `9 أشهر${yrStr} (معدل سنوياً)`;
-  return `سنوي كامل${yrStr}`;
+  if (periodMonths === 3) return `الربع الأول${yrStr} (مدقق)`;
+  if (periodMonths === 6) return `النصف الأول${yrStr} (مدقق)`;
+  if (periodMonths === 9) return `9 أشهر${yrStr} (مدقق)`;
+  return `سنوي كامل${yrStr} (مدقق)`;
 }
 
 const EMBEDDED_OVERRIDES = {
