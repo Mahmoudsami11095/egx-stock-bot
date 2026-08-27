@@ -1,0 +1,2 @@
+@echo off
+E:\Stocks\plink.exe -P 2222 -hostkey "SHA256:rTNsY+RezURuEeEh/MNtOG8GokGGHq12P6IlIeDRG40" -batch -ssh azureuser@20.91.240.54 -pw azureuserSami@11095 "export PATH=$PATH:/home/azureuser/egx-stock-bot/node_modules/.bin:/home/azureuser/egx-stock-bot/frontend/node_modules/.bin; cd /home/azureuser/egx-stock-bot && git fetch origin main && git reset --hard origin/main && npm run build && pm2 restart all --update-env && pm2 save"
