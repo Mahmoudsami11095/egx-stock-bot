@@ -42,5 +42,6 @@
   "CIEB": { "symbol": "CIEB", "netIncome": 8150000000, "revenue": 18500000000, "grossProfit": 12400000000, "eps": 6.52, "peRatio": 4.80, "period": "آخر 12 شهرًا (Stockastic LTM)", "currency": "EGP" },
   "HDBK": { "symbol": "HDBK", "netIncome": 11200000000, "revenue": 22000000000, "grossProfit": 14800000000, "eps": 21.10, "peRatio": 4.10, "period": "آخر 12 شهرًا (Stockastic LTM)", "currency": "EGP" },
   "FAIT": { "symbol": "FAIT", "netIncome": 9800000000, "revenue": 21000000000, "grossProfit": 13500000000, "eps": 14.80, "peRatio": 3.90, "period": "آخر 12 شهرًا (Stockastic LTM)", "currency": "EGP" },
-  "QNBA": { "symbol": "QNBA", "netIncome": 24500000000, "revenue": 58000000000, "grossProfit": 36000000000, "eps": 11.20, "peRatio": 4.50, "period": "آخر 12 شهرًا (Stockastic LTM)", "currency": "EGP" }
+  "QNBA": { "symbol": "QNBA", "netIncome": 24500000000, "revenue": 58000000000, "grossProfit": 36000000000, "eps": 11.20, "peRatio": 4.50, "period": "آخر 12 شهرًا (Stockastic LTM)", "currency": "EGP" },
+  "SCEM": { "symbol": "SCEM", "netIncome": 3220000000, "revenue": 9210000000, "grossProfit": 4000000000, "eps": 12.67, "peRatio": 3.80, "period": "آخر 12 شهرًا (Stockastic LTM)", "currency": "EGP" }
 }

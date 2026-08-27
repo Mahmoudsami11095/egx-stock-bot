@@ -125,6 +125,35 @@
       ],
       "source": "Audited Financial Statement H1 2026 - Madinet Masr (1.03B H1 '26 | FY2025 3.65B)",
       "updatedAt": "2026-08-17"
+    },
+    "OIH": {
+      "symbol": "OIH",
+      "name": "Orascom Investment Holding",
+      "netProfit": -619528000,
+      "periodMonths": 6,
+      "totalShares": 5245690000,
+      "quarters": [
+        { "year": 2025, "quarter": "السنوي", "announced": -518395000 },
+        { "year": 2025, "quarter": "الربع الثانى - تراكمي", "announced": -619528000 },
+        { "year": 2026, "quarter": "الربع الثانى - تراكمي", "announced": -619528000 }
+      ],
+      "source": "Audited Financial Statement - OIH",
+      "updatedAt": "2026-08-17"
+    },
+    "SCEM": {
+      "symbol": "SCEM",
+      "name": "Sinai Cement",
+      "netProfit": 2300000000,
+      "periodMonths": 12,
+      "totalShares": 254100000,
+      "dps": 0,
+      "quarters": [
+        { "year": 2025, "quarter": "السنوي", "announced": 2300000000 },
+        { "year": 2025, "quarter": "الربع الاول", "announced": 740000000 },
+        { "year": 2026, "quarter": "الربع الاول", "announced": 1660000000 }
+      ],
+      "source": "Audited Financial Statement - Sinai Cement (FY2025 2.30B | LTM 3.22B)",
+      "updatedAt": "2026-08-17"
     }
   }
 }

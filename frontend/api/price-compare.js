@@ -438,6 +438,21 @@ const EMBEDDED_OVERRIDES = {
     ],
     "source": "Audited Financial Statement - OIH",
     "updatedAt": "2026-08-17"
+  },
+  "SCEM": {
+    "symbol": "SCEM",
+    "name": "Sinai Cement",
+    "netProfit": 2300000000,
+    "periodMonths": 12,
+    "totalShares": 254100000,
+    "dps": 0,
+    "quarters": [
+      { "year": 2025, "quarter": "السنوي", "announced": 2300000000 },
+      { "year": 2025, "quarter": "الربع الاول", "announced": 740000000 },
+      { "year": 2026, "quarter": "الربع الاول", "announced": 1660000000 }
+    ],
+    "source": "Audited Financial Statement - Sinai Cement (FY2025 2.30B | LTM 3.22B)",
+    "updatedAt": "2026-08-17"
   }
 };
 
@@ -523,6 +538,9 @@ function calculateFourQuarters(rows, override) {
       } else if (q2Cum !== undefined) {
         const h2Val = fy - q2Cum;
         quarters.push({ label: `H2 '${String(year).slice(-2)}`, value: h2Val, year, qIndex: 4, isHalfYear: true });
+      } else if (q1 !== undefined) {
+        const restOfYr = fy - q1;
+        quarters.push({ label: `Q2-Q4 '${String(year).slice(-2)}`, value: restOfYr, year, qIndex: 4, isThreeQuarters: true });
       } else {
         // Full year standalone (4 quarters equivalent)
         quarters.push({ label: `FY '${String(year).slice(-2)}`, value: fy, year, qIndex: 4, isFullYear: true });
@@ -537,7 +555,7 @@ function calculateFourQuarters(rows, override) {
   let selected = [];
   for (let i = quarters.length - 1; i >= 0; i--) {
     const q = quarters[i];
-    const count = q.isFullYear ? 4 : (q.isHalfYear ? 2 : 1);
+    const count = q.isFullYear ? 4 : (q.isThreeQuarters ? 3 : (q.isHalfYear ? 2 : 1));
     if (equivalentCount + count <= 4) {
       selected.unshift(q);
       equivalentCount += count;
