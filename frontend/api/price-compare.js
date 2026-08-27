@@ -956,29 +956,9 @@ module.exports = async (req, res) => {
         validUpsides.push(upside);
       }
 
-      // 4. Gemini AI Audited Earnings (Comprehensive: Audits and verifies earnings for ALL symbols)
+      // 4. Gemini AI Audited Earnings (Strict Zero-Fallback: Genuine audited earnings feed only)
       const geminiEarnings = geminiEarningsMap?.get(sym);
-      let geminiNetIncome = undefined;
-      let geminiPeriod = undefined;
-
       if (geminiEarnings && geminiEarnings.netProfit !== undefined) {
-        geminiNetIncome = geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit;
-        geminiPeriod = geminiEarnings.periodLabel;
-      } else if (egxInfo?.netProfit !== undefined) {
-        geminiNetIncome = egxInfo.netProfit;
-        geminiPeriod = egxInfo.formattedDate ? `إفصاح رسمي مدقق (${egxInfo.formattedDate})` : 'إفصاح رسمي (مدقق AI)';
-      } else if (stockasticFin?.netIncome !== undefined) {
-        geminiNetIncome = stockasticFin.netIncome;
-        geminiPeriod = stockasticFin.netIncomePeriod ? `${stockasticFin.netIncomePeriod} (مدقق AI)` : 'قوائم مالية (مدققة AI)';
-      } else if (mubEarnings?.annualizedProfit !== undefined) {
-        geminiNetIncome = mubEarnings.annualizedProfit;
-        geminiPeriod = `${mubEarnings.periodLabel} (مدقق AI)`;
-      } else if (tvInfo?.netIncome !== undefined) {
-        geminiNetIncome = tvInfo.netIncome;
-        geminiPeriod = tvInfo.netIncomePeriod ? `${tvInfo.netIncomePeriod} (مدقق AI)` : 'سنوي كامل (مدقق AI)';
-      }
-
-      if (geminiNetIncome !== undefined) {
         sources.gemini = {
           price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
           change: 0,
@@ -996,16 +976,18 @@ module.exports = async (req, res) => {
           bvps: undefined,
           roe: undefined,
           dividendYield: undefined,
-          netIncome: geminiNetIncome,
-          netIncomeRaw: geminiNetIncome,
-          netIncomePeriod: geminiPeriod,
+          netIncome: geminiEarnings.annualizedProfit ?? geminiEarnings.netProfit,
+          netIncomeRaw: geminiEarnings.netProfit,
+          netIncomePeriod: geminiEarnings.periodLabel,
+          netIncomePeriodMonths: geminiEarnings.periodMonths,
+          netIncomeYear: geminiEarnings.year,
           currency: (sym === 'ORAS' ? 'USD' : 'EGP'),
           netProfitMargin: undefined,
           grossProfit: undefined
         };
       }
 
-      // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (Dedicated Column)
+      // 5. Gemini AI Last 4 Quarters / TTM Trailing Source (Strict Zero-Fallback: Genuine Trailing Quarters Only)
       const fourQData = fourQuartersMap?.get(sym);
       if (fourQData && fourQData.trailing4QSum !== undefined) {
         sources.gemini_4q = {
@@ -1018,19 +1000,6 @@ module.exports = async (req, res) => {
           netIncomePeriod: fourQData.periodLabel,
           quarterlyBreakdown: fourQData.breakdown,
           quarterCount: fourQData.quarterCount,
-          currency: (sym === 'ORAS' ? 'USD' : 'EGP')
-        };
-      } else if (geminiNetIncome !== undefined) {
-        sources.gemini_4q = {
-          price: tvInfo?.price || egxInfo?.price || mubInfo?.price || 0,
-          change: 0,
-          changePercent: 0,
-          volume: 0,
-          netIncome: geminiNetIncome,
-          netIncomeRaw: geminiNetIncome,
-          netIncomePeriod: 'مجموع 4 أرباع (سنوي مدقق)',
-          quarterlyBreakdown: 'سنوي كامل مدقق TTM',
-          quarterCount: 4,
           currency: (sym === 'ORAS' ? 'USD' : 'EGP')
         };
       }
